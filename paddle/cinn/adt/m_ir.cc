@@ -136,9 +136,12 @@ bool MapIr::HasReadWriteDependence(const MapIr& that) const {
   return has_read_write_dependence;
 }
 
-void MapIr::MergeThisToThat(const MapIr& that) {
-  CHECK_GE(that.sd_iters()->size(), this->sd_iters()->size());
-  that.op_stmts_.splice(that.op_stmts_.begin(), std::move(this->op_stmts_));
+void MapIr::MergeThisToThat(MapIr* that) {
+  CHECK_GE(that->sd_iters()->size(), this->sd_iters()->size());
+  that->op_stmts_.splice(that->op_stmts_.begin(), std::move(this->op_stmts_));
+  that->sd_iters_ = that->sd_iters_->size() > this->sd_iters_->size()
+                        ? that->sd_iters_
+                        : this->sd_iters_;
 }
 
 template <typename DoEachT>
@@ -555,9 +558,51 @@ void EraseWriteBroadcastOutMsgBoxes(
   });
 }
 
+MapIr ConvertAnchorGroupsMapIr(
+    const partition::AnchorGroup& partitioned_anchor_group,
+    const std::function<const ScheduleIterators&(const m_expr::OpStmt&)>&
+        SdIters4Op) {
+  const auto& op_stmts = partitioned_anchor_group.op_stmts;
+  CHECK(!op_stmts->empty());
+  ScheduleIterators max_schedule_iterators = SdIters4Op(op_stmts->at(0));
+  for (std::size_t i = 0; i < op_stmts->size(); ++i) {
+    ScheduleIterators temp = SdIters4Op(op_stmts->at(i));
+    max_schedule_iterators = max_schedule_iterators->size() > temp->size()
+                                 ? max_schedule_iterators
+                                 : temp;
+  }
+  return MapIr(op_stmts, max_schedule_iterators);
+}
+
+template <typename DoEachT>
+void VisitEachAnchorGroup(
+    const std::vector<partition::AnchorGroup>& partitioned_anchor_groups,
+    const std::function<const ScheduleIterators&(const m_expr::OpStmt&)>&
+        SdIters4Op,
+    const DoEachT& DoEach) {
+  for (const auto& anchor_group : partitioned_anchor_groups) {
+    DoEach(ConvertAnchorGroupsMapIr(anchor_group, SdIters4Op));
+  }
+}
+
 MapIrList ConvertAnchorGroups2MapIrList(
-    const std::vector<partition::AnchorGroup>& partitioned_anchor_groups) {
-  ADT_TODO();
+    const std::vector<partition::AnchorGroup>& partitioned_anchor_groups,
+    const ScheduleIterators& sd_iters,
+    const std::function<const LoopDescriptor&(const equation::IterVar&)>&
+        GetLoopDescriptor,
+    const std::function<const m_expr::TensorIndexExpr&(const m_expr::Tensor&)>&
+        GetTensorIndexes) {
+  // Reuse original function
+  const auto& [SdIters4Op, SdIters4Tensor] =
+      MakeGetterSdIters(partitioned_anchor_groups.at(0).op_stmts,
+                        sd_iters,
+                        GetLoopDescriptor,
+                        GetTensorIndexes);
+  MapIrList ret{};
+  VisitEachAnchorGroup(partitioned_anchor_groups,
+                       SdIters4Op,
+                       [&](const auto& map_ir) { ret.emplace(map_ir); });
+  return ret;
 }
 
 MapIrList GenerateMapIrListForLoopFuse(
@@ -574,7 +619,8 @@ MapIrList GenerateMapIrListForLoopFuse(
   const auto& partitioned_anchor_groups =
       partition::PartitionOpStmts(EquationCtx4OpStmt, op_stmts);
 
-  return ConvertAnchorGroups2MapIrList(partitioned_anchor_groups);
+  return ConvertAnchorGroups2MapIrList(
+      partitioned_anchor_groups, sd_iters, GetLoopDescriptor, GetTensorIndexes);
 }
 
 }  // namespace cinn::adt::m_ir

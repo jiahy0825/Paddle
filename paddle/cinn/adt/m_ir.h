@@ -31,6 +31,9 @@ class MapIr final {
   MapIr(const m_expr::OpStmt& op_stmt, const ScheduleIterators& sd_iters)
       : op_stmts_{op_stmt}, sd_iters_(sd_iters) {}
 
+  MapIr(const List<m_expr::OpStmt>& op_stmt, const ScheduleIterators& sd_iters)
+      : op_stmts_{op_stmt->begin(), op_stmt->end()}, sd_iters_(sd_iters) {}
+
   const std::list<m_expr::OpStmt>& op_stmts() const { return op_stmts_; }
 
   const cinn::adt::ScheduleIterators& sd_iters() const { return sd_iters_; }
@@ -42,7 +45,7 @@ class MapIr final {
 
   bool HasReadWriteDependence(const MapIr& that) const;
 
-  void MergeThisToThat(const MapIr& that);
+  void MergeThisToThat(MapIr* that);
 
  private:
   template <typename DoEachT>
