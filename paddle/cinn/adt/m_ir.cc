@@ -21,6 +21,7 @@
 #include "paddle/cinn/adt/m_ir.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
 #include "paddle/cinn/adt/partition_op_stmts.h"
+#include "paddle/cinn/adt/print_map_expr.h"
 
 namespace cinn::adt {
 
@@ -39,9 +40,14 @@ void CollectTensorIndexIterators(const Undefined& tensor_index_expr,
   LOG(FATAL) << "Not Implemented";
 }
 
-void CollectTensorIndexIterators(const Iterator& tensor_index_expr,
+void CollectTensorIndexIterators(const Ok& ok,
                                  std::unordered_set<Iterator>* ret) {
-  ret->insert(tensor_index_expr);
+  LOG(FATAL) << "Not Implemented";
+}
+
+void CollectTensorIndexIterators(const LoopDescriptor& loop_descriptor,
+                                 std::unordered_set<Iterator>* ret) {
+  LOG(FATAL) << "Not Implemented";
 }
 
 void CollectTensorIndexIterators(const List<Value>& tensor_index_expr,
@@ -89,9 +95,8 @@ void CollectTensorIndexIterators(const PtrGetItem<Value>& tensor_index_expr,
 
 void CollectTensorIndexIterators(const TensorIndexExpr& tensor_index_expr,
                                  std::unordered_set<Iterator>* ret) {
-  std::visit(
-      [&](auto&& impl) { CollectTensorIndexIterators(std::move(impl), ret); },
-      tensor_index_expr.variant());
+  std::visit([&](const auto& impl) { CollectTensorIndexIterators(impl, ret); },
+             tensor_index_expr.variant());
 }
 
 std::unordered_set<Iterator> GetTensorIndexIterators(
@@ -218,7 +223,7 @@ Tensor GetTensor(const config::NaiveOpEquationContext& ctx,
                     op_arg_pos.variant());
 }
 
-const auto& GetAnchorTensor(const AnchorGroup& anchor_group) {
+Tensor GetAnchorTensor(const AnchorGroup& anchor_group) {
   const auto& ctx = *anchor_group.EquationCtx4OpStmt(anchor_group.op_stmt);
   return GetTensor(ctx, anchor_group.op_stmt, anchor_group.anchor_index);
 }
