@@ -83,6 +83,7 @@ template <typename DoEachT>
 void VisitEachOpStmt(
     const std::shared_ptr<hlir::framework::Graph::Group>& group,
     const DoEachT& DoEach) {
+  // Note
   for (const auto* op : group->nodes) {
     DoEach(OpStmt{MakeOp(op),
                   MakeOpStmtInputList(op, group->graph_),

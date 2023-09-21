@@ -61,12 +61,14 @@ class NaiveOpEquationContext final : public OpEquationContext {
       const std::vector<std::uint64_t>& in_tensors_ranks,
       const std::vector<std::uint64_t>& out_tensors_ranks,
       GetArgStaticDimT GetInDim,
-      GetArgStaticDimT GetOutDim)
+      GetArgStaticDimT GetOutDim,
+      const hlir::framework::AttrMapType& attr_map_type)
       : in_tensors_ranks_(in_tensors_ranks),
         out_tensors_ranks_(out_tensors_ranks),
         GetInDim_(GetInDim),
         GetOutDim_(GetOutDim),
         equations_{},
+        attr_map_type_(attr_map_type),
         in_msg_box_in_indexes_(MakeArgIndexes(in_tensors_ranks.size())),
         in_msg_box_out_indexes_(MakeArgIndexes(out_tensors_ranks.size())),
         out_msg_box_in_indexes_(MakeArgIndexes(in_tensors_ranks.size())),
@@ -399,6 +401,13 @@ class NaiveOpEquationContext final : public OpEquationContext {
     }
     return std::nullopt;
   }
+  
+  const utils::Attribute& GetAttribute(const std::string& name) const {
+    const auto& iter = attr_map_type_.find(name);
+    CHECK(iter != attr_map_type_.end())
+        << "Can't find Attribute with this name";
+    return iter->second;
+  }
 
   std::vector<std::uint64_t> in_tensors_ranks_;
   std::vector<std::uint64_t> out_tensors_ranks_;
@@ -417,6 +426,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
   std::vector<DimTuple> out_dim_tuples_;
 
   FakeOpPlaceHolder fake_op_placeholder_;
+
+  hlir::framework::AttrMapType attr_map_type_;
 };
 
 std::function<std::shared_ptr<config::NaiveOpEquationContext>(const OpStmt&)>

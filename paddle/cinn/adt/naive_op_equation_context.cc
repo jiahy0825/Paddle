@@ -92,11 +92,10 @@ std::vector<std::uint64_t> MakeTensorRanks(const List<Arg>& arg_lists) {
   return ret;
 }
 
-void GenerateOpEquations(const OpStmt& op_stmt,
-                         config::NaiveOpEquationContext* ctx) {
-  const auto& [op, inputs, outputs] = op_stmt.tuple();
-  CHECK(op.Has<const hlir::framework::Node*>());
-  const hlir::framework::Node* op_node = op.Get<const hlir::framework::Node*>();
+void GenerateOpEquationsImpl(const hlir::framework::Node* op_node,
+                             const OpStmt& op_stmt,
+                             config::NaiveOpEquationContext* ctx) {
+  const auto& [_, inputs, outputs] = op_stmt.tuple();
 
   using GenerateEquationFunc =
       std::function<void(config::OpEquationContext * ctx)>;
@@ -127,14 +126,43 @@ GetArgStaticDimT MakeGetArgStaticDimT(const List<Tensor>& tensors) {
   };
 }
 
+void GenerateOpEquationsImpl(
+    const tReduceAcc<const hlir::framework::Node*>& op_node,
+    const OpStmt& op_stmt,
+    config::NaiveOpEquationContext* ctx) {
+  GenerateOpEquationsImpl(op_node.value(), op_stmt, ctx);
+}
+
+void GenerateOpEquationsImpl(
+    const tReduceInit<const hlir::framework::Node*>& op_node,
+    const OpStmt& op_stmt,
+    config::NaiveOpEquationContext* ctx) {
+  // Do nothing
+}
+
+void GenerateOpEquations(const OpStmt& op_stmt,
+                         config::NaiveOpEquationContext* ctx) {
+  const auto& [op, inputs, outputs] = op_stmt.tuple();
+
+  return std::visit(
+      [&](const auto& impl) {
+        return GenerateOpEquationsImpl(impl, op_stmt, ctx);
+      },
+      op.variant());
+}
+
 std::shared_ptr<config::NaiveOpEquationContext> MakeContextAndGenerateEquations(
     const OpStmt& op_stmt) {
   const auto& [op, inputs, outputs] = op_stmt.tuple();
+  CHECK(op.Has<const hlir::framework::Node*>());
+  const hlir::framework::Node* op_node = op.Get<const hlir::framework::Node*>();
+
   const auto& ctx = std::make_shared<config::NaiveOpEquationContext>(
       MakeTensorRanks(inputs.value()),
       MakeTensorRanks(outputs.value()),
       MakeGetArgStaticDimT(inputs.value()),
-      MakeGetArgStaticDimT(outputs.value()));
+      MakeGetArgStaticDimT(outputs.value()),
+      op_node->attrs.attr_store);
 
   GenerateOpEquations(op_stmt, ctx.get());
 

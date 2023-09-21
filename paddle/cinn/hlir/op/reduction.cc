@@ -414,6 +414,36 @@ std::vector<shape_t> InferShapeForReduction(
   return {out_shapes};
 }
 
+void GenerateEquationsForReduction(
+    const cinn::adt::config::OpEquationContext *ctx) {
+  CHECK(ctx->GetInTensorsRanks().size() != 0)
+      << "The inputs is empty! Please check again.";
+  const bool keep_dim = ctx->Attr<bool>("keep_dim");
+  const auto &dim = ctx->Attr<std::vector<int>>("dim");
+
+  const auto &IsReduceAxis = [&](const int in_axis) {
+    return std::find(dim.begin(), dim.end(), in_axis) != dim.end();
+  };
+
+  const auto &VisitEachAxisPair = [&](const auto &DoEach) {
+    std::size_t out_axis = 0;
+    for (std::size_t in_axis = 0; in_axis < ctx->GetInTensorsRanks().at(0);
+         ++in_axis) {
+      if (IsReduceAxis(in_axis)) {
+        out_axis += keep_dim;
+      } else {
+        DoEach(in_axis, out_axis);
+        out_axis += 1;
+      }
+    }
+  };
+
+  VisitEachAxisPair([&](const int input_axis, const int output_axis) {
+    ctx->Equal(ctx->GetInIteratorTuple(0).at(input_axis),
+               ctx->GetOutIteratorTuple(0).at(output_axis));
+  });
+}
+
 std::vector<Type> InferDtypeForReduction(const std::vector<Type> &inputs_type,
                                          const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty())
@@ -489,6 +519,8 @@ CINN_REGISTER_HELPER(reduce_ops) {
       .set_attr(                                                           \
           "inferdtype",                                                    \
           MakeOpFunction(cinn::hlir::op::InferDtypeForReduction##dtype__)) \
+      .set_attr("generate_equations",                                      \
+                MakeOpFunction(cinn::hlir::op::GenerateEquationsForRelu))  \
       .set_attr("inferlayout",                                             \
                 MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))   \
       .set_attr<cinn::hlir::framework::OpPatternKind>(                     \

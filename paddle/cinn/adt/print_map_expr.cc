@@ -77,6 +77,7 @@ void ToTextStringImpl(const OpStmt& op_stmt,
                       std::size_t indent_size,
                       std::string* string) {
   const auto& [op, in_args, out_args] = op_stmt.tuple();
+  // Note
   CHECK(op.Has<const hlir::framework::Node*>());
   *string += GetIndentString(indent_size * kIndentSpaceSize);
   *string += op.Get<const hlir::framework::Node*>()->op()->name;

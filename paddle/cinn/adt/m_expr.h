@@ -101,7 +101,10 @@ OVERRIDE_UNION_GET_HASH_VALUE(Tensor);
 OVERLOAD_OPERATOR_EQ_NE(Tensor, UnionEqual);
 
 // Op = const Node*
-DEFINE_ADT_UNION(Op, const hlir::framework::Node*);
+DEFINE_ADT_UNION(Op,
+                 const hlir::framework::Node*,
+                 tReduceInit<const hlir::framework::Node*>,
+                 tReduceAcc<const hlir::framework::Node*>);
 
 using Arg = Tensor;
 
