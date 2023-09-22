@@ -18,6 +18,7 @@
 #include <iostream>
 #include <vector>
 
+#include "paddle/cinn/adt/op_equation_context.h"
 #include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/op.h"
 #include "paddle/cinn/hlir/framework/op_strategy.h"
@@ -414,8 +415,7 @@ std::vector<shape_t> InferShapeForReduction(
   return {out_shapes};
 }
 
-void GenerateEquationsForReduction(
-    const cinn::adt::config::OpEquationContext *ctx) {
+void GenerateEquationsForReduction(cinn::adt::config::OpEquationContext *ctx) {
   CHECK(ctx->GetInTensorsRanks().size() != 0)
       << "The inputs is empty! Please check again.";
   const bool keep_dim = ctx->Attr<bool>("keep_dim");
@@ -439,8 +439,8 @@ void GenerateEquationsForReduction(
   };
 
   VisitEachAxisPair([&](const int input_axis, const int output_axis) {
-    ctx->Equal(ctx->GetInIteratorTuple(0).at(input_axis),
-               ctx->GetOutIteratorTuple(0).at(output_axis));
+    ctx->Equal(ctx->GetInIteratorTuple(0)->at(input_axis),
+               ctx->GetOutIteratorTuple(0)->at(output_axis));
   });
 }
 
@@ -507,24 +507,24 @@ std::vector<std::vector<std::string>> InferLayoutForBnOptimize(
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(reduce_ops) {
-#define CINN_REGISTER_REDUCTION_WITH_DTYPE(op__, op_stragegy__, dtype__)   \
-  CINN_REGISTER_OP(op__)                                                   \
-      .describe(#op__ " function")                                         \
-      .set_num_inputs(1)                                                   \
-      .set_num_outputs(1)                                                  \
-      .set_attr<cinn::hlir::framework::StrategyFunction>(                  \
-          "CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)      \
-      .set_attr("infershape",                                              \
-                MakeOpFunction(cinn::hlir::op::InferShapeForReduction))    \
-      .set_attr(                                                           \
-          "inferdtype",                                                    \
-          MakeOpFunction(cinn::hlir::op::InferDtypeForReduction##dtype__)) \
-      .set_attr("generate_equations",                                      \
-                MakeOpFunction(cinn::hlir::op::GenerateEquationsForRelu))  \
-      .set_attr("inferlayout",                                             \
-                MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))   \
-      .set_attr<cinn::hlir::framework::OpPatternKind>(                     \
-          "OpPattern", cinn::hlir::framework::OpPatternKind::kReduction)   \
+#define CINN_REGISTER_REDUCTION_WITH_DTYPE(op__, op_stragegy__, dtype__)       \
+  CINN_REGISTER_OP(op__)                                                       \
+      .describe(#op__ " function")                                             \
+      .set_num_inputs(1)                                                       \
+      .set_num_outputs(1)                                                      \
+      .set_attr<cinn::hlir::framework::StrategyFunction>(                      \
+          "CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)          \
+      .set_attr("infershape",                                                  \
+                MakeOpFunction(cinn::hlir::op::InferShapeForReduction))        \
+      .set_attr(                                                               \
+          "inferdtype",                                                        \
+          MakeOpFunction(cinn::hlir::op::InferDtypeForReduction##dtype__))     \
+      .set_attr("generate_equations",                                          \
+                MakeOpFunction(cinn::hlir::op::GenerateEquationsForReduction)) \
+      .set_attr("inferlayout",                                                 \
+                MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))       \
+      .set_attr<cinn::hlir::framework::OpPatternKind>(                         \
+          "OpPattern", cinn::hlir::framework::OpPatternKind::kReduction)       \
       .set_support_level(4);
 
 #define CINN_REGISTER_REDUCTION(op__, op_stragegy__) \

@@ -73,15 +73,42 @@ void ToTxtString(const List<Arg>& out_args,
   }
 }
 
+void ToTextStringImplOpImpl(const hlir::framework::Node* op_node,
+                            const OpStmt& op_stmt,
+                            std::size_t indent_size,
+                            std::string* string) {
+  const auto& [_, in_args, out_args] = op_stmt.tuple();
+  *string += GetIndentString(indent_size * kIndentSpaceSize);
+  *string += op_node->op()->name;
+  ToTxtString(out_args.value(), in_args.value(), string, true);
+}
+
+void ToTextStringImplOpImpl(
+    const tReduceInit<const hlir::framework::Node*>& op_node,
+    const OpStmt& op_stmt,
+    std::size_t indent_size,
+    std::string* string) {
+  // Do nothing
+}
+
+void ToTextStringImplOpImpl(
+    const tReduceAcc<const hlir::framework::Node*>& op_node,
+    const OpStmt& op_stmt,
+    std::size_t indent_size,
+    std::string* string) {
+  ToTextStringImplOpImpl(op_node.value(), op_stmt, indent_size, string);
+}
+
 void ToTextStringImpl(const OpStmt& op_stmt,
                       std::size_t indent_size,
                       std::string* string) {
-  const auto& [op, in_args, out_args] = op_stmt.tuple();
-  // Note
-  CHECK(op.Has<const hlir::framework::Node*>());
-  *string += GetIndentString(indent_size * kIndentSpaceSize);
-  *string += op.Get<const hlir::framework::Node*>()->op()->name;
-  ToTxtString(out_args.value(), in_args.value(), string, true);
+  const auto& [op_node, in_args, out_args] = op_stmt.tuple();
+
+  std::visit(
+      [&](const auto& impl) {
+        return ToTextStringImplOpImpl(impl, op_stmt, indent_size, string);
+      },
+      op_node.variant());
 }
 
 void ToTextString(const LoopDescriptor& loop_descriptor,
