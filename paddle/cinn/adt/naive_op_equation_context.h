@@ -153,6 +153,12 @@ class NaiveOpEquationContext final : public OpEquationContext {
             GetDimSize(lhs), GetDimSize(rhs))};
   }
 
+  EquationStaticLogical NE(const Dim& lhs, const Dim& rhs) const override {
+    return EquationStaticLogical{
+        cinn::adt::NE<EquationStaticValue, EquationStaticValue>(
+            GetDimSize(lhs), GetDimSize(rhs))};
+  }
+
   const IteratorTuple& GetInIteratorTuple(
       std::size_t input_idx) const override {
     return in_iterator_tuples_.at(input_idx);
@@ -397,7 +403,7 @@ class NaiveOpEquationContext final : public OpEquationContext {
   std::vector<std::uint64_t> in_tensors_ranks_;
   std::vector<std::uint64_t> out_tensors_ranks_;
   GetArgStaticDimT GetInDim_;
-  GetArgStaticDimT& GetOutDim_;
+  GetArgStaticDimT GetOutDim_;
   Equations equations_;
   tInMsgBox<List<Index>> in_msg_box_in_indexes_;
   tInMsgBox<List<Index>> in_msg_box_out_indexes_;

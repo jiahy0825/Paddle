@@ -136,11 +136,21 @@ void GenerateEquationsForBroadcast(cinn::adt::config::OpEquationContext *ctx) {
   for (std::size_t i = 0; i < out_tensor_size; ++i) {
     if (i < ctx->GetInTensorsRanks().at(0)) {
       ctx->ConditionalEqual(ctx->GetInIteratorTuple(0)->at(i),
-                            ctx->GetOutIteratorTuple(0)->at(i));
+                            ctx->GetOutIteratorTuple(0)->at(i))
+          ->Where(ctx->EQ(ctx->GetInDimTuple(0)->at(i),
+                          ctx->GetOutDimTuple(0)->at(i)));
+      ctx->ConditionalEqual(ctx->GetInIteratorTuple(0)->at(i), 0)
+          ->Where(ctx->NE(ctx->GetInDimTuple(0)->at(i),
+                          ctx->GetOutDimTuple(0)->at(i)));
     }
     if (i < ctx->GetInTensorsRanks().at(1)) {
       ctx->ConditionalEqual(ctx->GetInIteratorTuple(1)->at(i),
-                            ctx->GetOutIteratorTuple(0)->at(i));
+                            ctx->GetOutIteratorTuple(0)->at(i))
+          ->Where(ctx->EQ(ctx->GetInDimTuple(1)->at(i),
+                          ctx->GetOutDimTuple(0)->at(i)));
+      ctx->ConditionalEqual(ctx->GetInIteratorTuple(1)->at(i), 0)
+          ->Where(ctx->NE(ctx->GetInDimTuple(1)->at(i),
+                          ctx->GetOutDimTuple(0)->at(i)));
     }
   }
 }
@@ -261,6 +271,26 @@ std::vector<shape_t> InferShapeForBroadcastTo(
       << "broadcast_axes's size should be no more than out_shape's size";
 
   return {out_shape};
+}
+
+void GenerateEquationsForBroadcastTo(
+    cinn::adt::config::OpEquationContext *ctx) {
+  CHECK(ctx->GetInTensorsRanks().size() == 1)
+      << "The inputs is " << ctx->GetInTensorsRanks().size()
+      << "! Please check again.";
+  CHECK(ctx->GetOutTensorsRanks().size() == 1)
+      << "The output is " << ctx->GetOutTensorsRanks().size()
+      << "! Please check again.";
+  std::size_t out_tensor_size = ctx->GetOutTensorsRanks().at(0);
+  for (std::size_t i = 0; i < out_tensor_size; ++i) {
+    ctx->ConditionalEqual(ctx->GetInIteratorTuple(0)->at(i),
+                          ctx->GetOutIteratorTuple(0)->at(i))
+        ->Where(ctx->EQ(ctx->GetInDimTuple(0)->at(i),
+                        ctx->GetOutDimTuple(0)->at(i)));
+    ctx->ConditionalEqual(ctx->GetInIteratorTuple(0)->at(i), 0)
+        ->Where(ctx->NE(ctx->GetInDimTuple(0)->at(i),
+                        ctx->GetOutDimTuple(0)->at(i)));
+  }
 }
 
 std::vector<std::vector<std::string>> InferLayoutForBroadcastTo(
@@ -499,6 +529,8 @@ CINN_REGISTER_HELPER(broadcast_ops) {
                 MakeOpFunction(cinn::hlir::op::InferShapeForBroadcastTo))
       .set_attr("inferdtype",
                 MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcast))
+      .set_attr("generate_equations",
+                MakeOpFunction(cinn::hlir::op::GenerateEquationsForBroadcastTo))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout",
                 MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcastTo))

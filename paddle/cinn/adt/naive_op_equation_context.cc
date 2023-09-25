@@ -200,36 +200,36 @@ bool ParseLogicalExpr(const EquationStaticLogical& expr);
 
 bool ParseLogicalExprImpl(
     const EQ<EquationStaticValue, EquationStaticValue>& expr) {
-  CalculateLogicalExprImpl(expr.tuple(), MAKE_COMPARE_LAMBDA(==));
+  return CalculateLogicalExprImpl(expr.tuple(), MAKE_COMPARE_LAMBDA(==));
 }
 
 bool ParseLogicalExprImpl(
     const LT<EquationStaticValue, EquationStaticValue>& expr) {
-  CalculateLogicalExprImpl(
+  return CalculateLogicalExprImpl(
       expr.tuple(),
       [](const std::int64_t lhs, const std::int64_t rhs) { return lhs < rhs; });
 }
 
 bool ParseLogicalExprImpl(
     const GT<EquationStaticValue, EquationStaticValue>& expr) {
-  CalculateLogicalExprImpl(
+  return CalculateLogicalExprImpl(
       expr.tuple(),
       [](const std::int64_t lhs, const std::int64_t rhs) { return lhs > rhs; });
 }
 
 bool ParseLogicalExprImpl(
     const NE<EquationStaticValue, EquationStaticValue>& expr) {
-  CalculateLogicalExprImpl(expr.tuple(), MAKE_COMPARE_LAMBDA(!=));
+  return CalculateLogicalExprImpl(expr.tuple(), MAKE_COMPARE_LAMBDA(!=));
 }
 
 bool ParseLogicalExprImpl(
     const GE<EquationStaticValue, EquationStaticValue>& expr) {
-  CalculateLogicalExprImpl(expr.tuple(), MAKE_COMPARE_LAMBDA(>=));
+  return CalculateLogicalExprImpl(expr.tuple(), MAKE_COMPARE_LAMBDA(>=));
 }
 
 bool ParseLogicalExprImpl(
     const LE<EquationStaticValue, EquationStaticValue>& expr) {
-  CalculateLogicalExprImpl(expr.tuple(), MAKE_COMPARE_LAMBDA(<=));
+  return CalculateLogicalExprImpl(expr.tuple(), MAKE_COMPARE_LAMBDA(<=));
 }
 
 bool ParseLogicalExprImpl(const And<Logical<EquationStaticValue>,
@@ -250,8 +250,9 @@ bool ParseLogicalExprImpl(const Not<Logical<EquationStaticValue>>& expr) {
 }
 
 bool ParseLogicalExpr(const EquationStaticLogical& expr) {
-  std::visit([&](const auto& impl) { return ParseLogicalExprImpl(impl); },
-             expr.variant());
+  return std::visit(
+      [&](const auto& impl) { return ParseLogicalExprImpl(impl); },
+      expr.variant());
 }
 
 void NaiveConditionalEqualHandler::Where(
@@ -262,9 +263,6 @@ void NaiveConditionalEqualHandler::Where(
   }
 }
 
-using GetArgStaticDimT = std::function<std::optional<std::int64_t>(
-    std::size_t tensor_idx, std::size_t dim_idx)>;
-
 std::int64_t FindDimSize(const ArgDimPosDescriptor& arg_dim_pos,
                          const GetArgStaticDimT& GetDim) {
   const auto& option_dim = GetDim(arg_dim_pos.tensor_idx, arg_dim_pos.dim_idx);
@@ -274,26 +272,37 @@ std::int64_t FindDimSize(const ArgDimPosDescriptor& arg_dim_pos,
   return option_dim.value();
 }
 
-std::int64_t GetDimSizeImpl(const Dim& dim,
-                            const OpArgDimPos& arg_dim_pos,
-                            const GetArgStaticDimT& GetInDim,
-                            const GetArgStaticDimT& GetOutDim) {
-  std::int64_t dim_size = INT_MIN;
-  arg_dim_pos >>
-      match{[&](const tIn<ArgDimPosDescriptor>& in_arg_dim_pos) {
-              dim_size = FindDimSize(in_arg_dim_pos.value(), GetInDim);
-            },
-            [&](const tOut<ArgDimPosDescriptor>& out_arg_dim_pos) {
-              dim_size = FindDimSize(out_arg_dim_pos.value(), GetOutDim);
-            },
-            [&](const Undefined&) { LOG(FATAL) << "position not found"; }};
-  CHECK_NE(dim_size, INT_MIN) << "position not found";
-  return dim_size;
+std::int64_t GetArgDimSizeImpl(const tIn<ArgDimPosDescriptor>& in_arg_dim_pos,
+                               const GetArgStaticDimT& GetInDim,
+                               const GetArgStaticDimT& GetOutDim) {
+  return FindDimSize(in_arg_dim_pos.value(), GetInDim);
+}
+
+std::int64_t GetArgDimSizeImpl(const tOut<ArgDimPosDescriptor>& out_arg_dim_pos,
+                               const GetArgStaticDimT& GetInDim,
+                               const GetArgStaticDimT& GetOutDim) {
+  return FindDimSize(out_arg_dim_pos.value(), GetOutDim);
+}
+
+std::int64_t GetArgDimSizeImpl(const Undefined&,
+                               const GetArgStaticDimT& GetInDim,
+                               const GetArgStaticDimT& GetOutDim) {
+  LOG(FATAL) << "position not found";
+}
+
+std::int64_t GetArgDimSize(const OpArgDimPos& arg_dim_pos,
+                           const GetArgStaticDimT& GetInDim,
+                           const GetArgStaticDimT& GetOutDim) {
+  return std::visit(
+      [&](const auto& impl) {
+        return GetArgDimSizeImpl(impl, GetInDim, GetOutDim);
+      },
+      arg_dim_pos.variant());
 }
 
 std::int64_t NaiveOpEquationContext::GetDimSize(const Dim& dim) const {
   const auto& arg_dim_pos = GetArgDimPosDescriptor(dim);
-  return GetDimSizeImpl(dim, arg_dim_pos, GetInDim_, GetOutDim_);
+  return GetArgDimSize(arg_dim_pos, GetInDim_, GetOutDim_);
 }
 
 }  // namespace cinn::adt::config

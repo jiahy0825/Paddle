@@ -67,6 +67,8 @@ class OpEquationContext {
 
   virtual EquationStaticLogical EQ(const Dim& lhs, const Dim& rhs) const = 0;
 
+  virtual EquationStaticLogical NE(const Dim& lhs, const Dim& rhs) const = 0;
+
   virtual const IteratorTuple& GetInIteratorTuple(
       std::size_t input_idx) const = 0;
 
