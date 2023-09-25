@@ -95,6 +95,19 @@ class NaiveOpEquationContext final : public OpEquationContext {
     this->Equal<Iterator>(lhs, rhs);
   }
 
+  void Equal(const Iterator& iterator, std::size_t constant) override {
+    Iterator const_iter = MakeConstantIterator(constant);
+    this->Equal<Iterator>(const_iter, iterator);
+  }
+
+  Iterator MakeConstantIterator(std::size_t constant) const {
+    Iterator const_iter{UniqueId::New()};
+    VisitEachTensorIndex([&](const auto& in_msg_box_index) {
+      equations_->emplace_back(ConstantFunction<tOut<Iterator>, tIn<Index>>{
+          const_iter, in_msg_box_index, constant});
+    });
+  }
+
   void Equal(const Index& lhs, const Index& rhs) override {
     this->Equal<Index>(lhs, rhs);
   }

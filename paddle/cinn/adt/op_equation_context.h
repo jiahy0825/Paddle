@@ -48,6 +48,8 @@ class OpEquationContext {
 
   virtual void Equal(const Iterator& lhs, const Iterator& rhs) = 0;
 
+  virtual void Equal(const Iterator& iterator, std::size_t constant) = 0;
+
   virtual void Equal(const Index& lhs, const Index& rhs) = 0;
 
   virtual void Equal(const IteratorTuple& lhs, const IteratorTuple& rhs) = 0;
