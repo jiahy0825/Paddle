@@ -151,41 +151,40 @@ void GenerateOpEquations(const OpStmt& op_stmt,
       op.variant());
 }
 
-const hlir::framework::AttrMapType& GetOpAttrImpl(
+const hlir::framework::AttrMapType* GetOpAttrImpl(
     const hlir::framework::Node* op_node) {
-  return op_node->attrs.attr_store;
+  return &op_node->attrs.attr_store;
 }
 
-const hlir::framework::AttrMapType& GetOpAttrImpl(
+const hlir::framework::AttrMapType* GetOpAttrImpl(
     const tReduceInit<const hlir::framework::Node*>&) {
   static hlir::framework::AttrMapType empty{};
-  return empty;
+  return &empty;
 }
 
-const hlir::framework::AttrMapType& GetOpAttrImpl(
+const hlir::framework::AttrMapType* GetOpAttrImpl(
     const tReduceAcc<const hlir::framework::Node*>& op_node) {
   return GetOpAttrImpl(op_node.value());
 }
 
-const hlir::framework::AttrMapType& GetOpAttr(const OpStmt& op_stmt) {
+const hlir::framework::AttrMapType* GetOpAttr(const OpStmt& op_stmt) {
   const auto& [op_node, inputs, outputs] = op_stmt.tuple();
 
-  std::visit([&](const auto& impl) { return GetOpAttrImpl(impl); },
-             op_node.variant());
+  const auto* attr = std::visit(
+      [&](const auto& impl) { return GetOpAttrImpl(impl); }, op_node.variant());
+
+  return attr;
 }
 
 std::shared_ptr<config::NaiveOpEquationContext> MakeContextAndGenerateEquations(
     const OpStmt& op_stmt) {
   const auto& [op, inputs, outputs] = op_stmt.tuple();
-
-  const auto& attr_map_type = GetOpAttr(op_stmt);
-
   const auto& ctx = std::make_shared<config::NaiveOpEquationContext>(
       MakeTensorRanks(inputs.value()),
       MakeTensorRanks(outputs.value()),
       MakeGetArgStaticDimT(inputs.value()),
       MakeGetArgStaticDimT(outputs.value()),
-      attr_map_type);
+      GetOpAttr(op_stmt));
 
   GenerateOpEquations(op_stmt, ctx.get());
 

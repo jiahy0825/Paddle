@@ -91,12 +91,48 @@ void VisitEachOpStmt(
   }
 }
 
+hlir::framework::OpPatternKind GetOpPatternKind(
+    const hlir::framework::Node* node) {
+  static const hlir::framework::OpValueType<hlir::framework::OpPatternKind>&
+      op_pattern_dict =
+          hlir::framework::Operator::GetAttrs<hlir::framework::OpPatternKind>(
+              "OpPattern");
+  auto kind = op_pattern_dict[node->op()];
+  return kind;
+}
+
+bool CollectRewritedReductionOpStmts(const OpStmt& op_stmt, List<OpStmt>* ret) {
+  const auto& [op, inputs, outputs] = op_stmt.tuple();
+  CHECK(op.Has<const hlir::framework::Node*>());
+  if (GetOpPatternKind(op.Get<const hlir::framework::Node*>()) ==
+      hlir::framework::OpPatternKind::kReduction) {
+    tReduceInit<const hlir::framework::Node*> init_op{
+        op.Get<const hlir::framework::Node*>()};
+    (*ret)->emplace_back(OpStmt{init_op, List<Arg>{}, outputs});
+
+    tReduceAcc<const hlir::framework::Node*> acc_op{
+        op.Get<const hlir::framework::Node*>()};
+    (*ret)->emplace_back(OpStmt{acc_op, inputs, outputs});
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void CollectRewritedOpStmts(const OpStmt& op_stmt, List<OpStmt>* ret) {
+  if (CollectRewritedReductionOpStmts(op_stmt, ret)) {
+    return;
+  }
+  (*ret)->emplace_back(op_stmt);
+}
+
 List<OpStmt> MakeOpStmts(
     const std::shared_ptr<hlir::framework::Graph::Group>& group) {
   List<OpStmt> ret{};
 
-  VisitEachOpStmt(group,
-                  [&](const auto& op_stmt) { ret->emplace_back(op_stmt); });
+  VisitEachOpStmt(group, [&](const auto& op_stmt) {
+    CollectRewritedOpStmts(op_stmt, &ret);
+  });
 
   return ret;
 }

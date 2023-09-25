@@ -73,42 +73,38 @@ void ToTxtString(const List<Arg>& out_args,
   }
 }
 
-void ToTextStringImplOpImpl(const hlir::framework::Node* op_node,
-                            const OpStmt& op_stmt,
-                            std::size_t indent_size,
+void ToTextStringImplOpImpl(const hlir::framework::Node* op,
                             std::string* string) {
-  const auto& [_, in_args, out_args] = op_stmt.tuple();
-  *string += GetIndentString(indent_size * kIndentSpaceSize);
-  *string += op_node->op()->name;
-  ToTxtString(out_args.value(), in_args.value(), string, true);
+  *string += op->op()->name;
 }
 
-void ToTextStringImplOpImpl(
-    const tReduceInit<const hlir::framework::Node*>& op_node,
-    const OpStmt& op_stmt,
-    std::size_t indent_size,
-    std::string* string) {
-  // Do nothing
+void ToTextStringImplOpImpl(const tReduceInit<const hlir::framework::Node*>& op,
+                            std::string* string) {
+  *string += op.value()->op()->name;
+  *string += "_init";
 }
 
-void ToTextStringImplOpImpl(
-    const tReduceAcc<const hlir::framework::Node*>& op_node,
-    const OpStmt& op_stmt,
-    std::size_t indent_size,
-    std::string* string) {
-  ToTextStringImplOpImpl(op_node.value(), op_stmt, indent_size, string);
+void ToTextStringImplOpImpl(const tReduceAcc<const hlir::framework::Node*>& op,
+                            std::string* string) {
+  *string += op.value()->op()->name;
+  *string += "_acc";
+}
+
+void ToTextStringImpl(const Op& op, std::string* string) {
+  std::visit(
+      [&](const auto& impl) { return ToTextStringImplOpImpl(impl, string); },
+      op.variant());
 }
 
 void ToTextStringImpl(const OpStmt& op_stmt,
                       std::size_t indent_size,
                       std::string* string) {
-  const auto& [op_node, in_args, out_args] = op_stmt.tuple();
+  const auto& [op, in_args, out_args] = op_stmt.tuple();
 
-  std::visit(
-      [&](const auto& impl) {
-        return ToTextStringImplOpImpl(impl, op_stmt, indent_size, string);
-      },
-      op_node.variant());
+  *string += GetIndentString(indent_size * kIndentSpaceSize);
+
+  ToTextStringImpl(op, string);
+  ToTxtString(out_args.value(), in_args.value(), string, true);
 }
 
 void ToTextString(const LoopDescriptor& loop_descriptor,
