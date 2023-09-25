@@ -56,6 +56,10 @@ class OpEquationContext {
       unique_ptr<ConditionalEqualHandler> [[nodiscard]] ConditionalEqual(
           const Iterator& lhs, const Iterator& rhs) = 0;
 
+  virtual std::
+      unique_ptr<ConditionalEqualHandler> [[nodiscard]] ConditionalEqual(
+          const Iterator& iterator, std::size_t constant) = 0;
+
   virtual std::unique_ptr<
       ConditionalEqualHandler> [[nodiscard]] ConditionalEqual(const Index& lhs,
                                                               const Index&

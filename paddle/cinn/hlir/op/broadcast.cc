@@ -132,13 +132,13 @@ void GenerateEquationsForBroadcast(cinn::adt::config::OpEquationContext *ctx) {
   CHECK(ctx->GetOutTensorsRanks().size() == 1)
       << "The output is " << ctx->GetOutTensorsRanks().size()
       << "! Please check again.";
-  std::size_t out_tensor_size = ctx->GetOutTensorsRanks().at(0).size();
+  std::size_t out_tensor_size = ctx->GetOutTensorsRanks().at(0);
   for (std::size_t i = 0; i < out_tensor_size; ++i) {
-    if (i < ctx->GetInTensorsRanks().at(0).size()) {
+    if (i < ctx->GetInTensorsRanks().at(0)) {
       ctx->ConditionalEqual(ctx->GetInIteratorTuple(0)->at(i),
                             ctx->GetOutIteratorTuple(0)->at(i));
     }
-    if (i < ctx->GetInTensorsRanks().at(1).size()) {
+    if (i < ctx->GetInTensorsRanks().at(1)) {
       ctx->ConditionalEqual(ctx->GetInIteratorTuple(1)->at(i),
                             ctx->GetOutIteratorTuple(0)->at(i));
     }

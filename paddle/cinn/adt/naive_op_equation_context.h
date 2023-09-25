@@ -54,16 +54,18 @@ class NaiveOpEquationContext final : public OpEquationContext {
   NaiveOpEquationContext(const NaiveOpEquationContext&) = delete;
   NaiveOpEquationContext(NaiveOpEquationContext&&) = delete;
 
-  using GetArgStaticDim = std::function<std::optional<std::int64_t>(
+  using GetArgStaticDimT = std::function<std::optional<std::int64_t>(
       std::size_t tensor_idx, std::size_t dim_idx)>;
 
   explicit NaiveOpEquationContext(
       const std::vector<std::uint64_t>& in_tensors_ranks,
       const std::vector<std::uint64_t>& out_tensors_ranks,
-      const GetArgStaticDim& in_shape,
-      const GetArgStaticDim& out_shape)
+      GetArgStaticDimT GetInDim,
+      GetArgStaticDimT GetOutDim)
       : in_tensors_ranks_(in_tensors_ranks),
         out_tensors_ranks_(out_tensors_ranks),
+        GetInDim_(GetInDim),
+        GetOutDim_(GetOutDim),
         equations_{},
         in_msg_box_in_indexes_(MakeArgIndexes(in_tensors_ranks.size())),
         in_msg_box_out_indexes_(MakeArgIndexes(out_tensors_ranks.size())),
@@ -107,9 +109,34 @@ class NaiveOpEquationContext final : public OpEquationContext {
   std::unique_ptr<ConditionalEqualHandler> ConditionalEqual(
       const Iterator& lhs, const Iterator& rhs) override {
     Equations equations{};
-    equations->emplace_back(Identity<tOut<Iterator>, tIn<Iterator>>(lhs, rhs));
-    equations->emplace_back(Identity<tOut<Iterator>, tIn<Iterator>>(rhs, lhs));
-    return std::make_unique<NaiveConditionalEqualHandler>(this, equations);
+    return ConditionalEqual(lhs, rhs, &equations);
+  }
+
+  std::unique_ptr<ConditionalEqualHandler> ConditionalEqual(
+      const Iterator& iterator, std::size_t constant) override {
+    Equations equations{};
+    Iterator const_iter = MakeConstantIterator(constant, &equations);
+    return ConditionalEqual(iterator, const_iter, &equations);
+  }
+
+  Iterator MakeConstantIterator(std::size_t constant,
+                                Equations* equations) const {
+    using ConstF = ConstantFunction<tOut<Iterator>, tIn<Index>>;
+    Iterator const_iter{UniqueId::New()};
+    VisitEachTensorIndex([&](const auto& in_msg_box_index) {
+      (*equations)
+          ->emplace_back(ConstF{const_iter, in_msg_box_index, constant});
+    });
+    return const_iter;
+  }
+
+  std::unique_ptr<ConditionalEqualHandler> ConditionalEqual(
+      const Iterator& lhs, const Iterator& rhs, Equations* equations) {
+    (*equations)
+        ->emplace_back(Identity<tOut<Iterator>, tIn<Iterator>>(lhs, rhs));
+    (*equations)
+        ->emplace_back(Identity<tOut<Iterator>, tIn<Iterator>>(rhs, lhs));
+    return std::make_unique<NaiveConditionalEqualHandler>(this, *equations);
   }
 
   std::unique_ptr<ConditionalEqualHandler> ConditionalEqual(
@@ -121,11 +148,9 @@ class NaiveOpEquationContext final : public OpEquationContext {
   }
 
   EquationStaticLogical EQ(const Dim& lhs, const Dim& rhs) const override {
-    CHECK_GT(dim2shape_.count(lhs), 0);
-    CHECK_GT(dim2shape_.count(rhs), 0);
     return EquationStaticLogical{
         cinn::adt::EQ<EquationStaticValue, EquationStaticValue>(
-            dim2shape_.at(lhs), dim2shape_.at(rhs))};
+            GetDimSize(lhs), GetDimSize(rhs))};
   }
 
   const IteratorTuple& GetInIteratorTuple(
@@ -262,6 +287,20 @@ class NaiveOpEquationContext final : public OpEquationContext {
     return Undefined{};
   }
 
+  std::int64_t GetDimSize(const Dim& dim) const;
+
+  OpArgDimPos GetArgDimPosDescriptor(const Dim& dim) const {
+    const auto& input_pos = FindArgDimPos(in_dim_tuples_, dim);
+    if (input_pos.has_value()) {
+      return tIn<ArgDimPosDescriptor>{input_pos.value()};
+    }
+    const auto& output_pos = FindArgDimPos(out_dim_tuples_, dim);
+    if (output_pos.has_value()) {
+      return tOut<ArgDimPosDescriptor>{output_pos.value()};
+    }
+    return Undefined{};
+  }
+
  private:
   template <typename value_type, typename ContainerT>
   void Init(ContainerT* vec, const std::vector<std::uint64_t>& tensors_ranks) {
@@ -343,8 +382,22 @@ class NaiveOpEquationContext final : public OpEquationContext {
     return std::nullopt;
   }
 
+  static std::optional<ArgDimPosDescriptor> FindArgDimPos(
+      const std::vector<DimTuple>& dim_tuples, const Dim& dim) {
+    for (std::size_t i = 0; i < dim_tuples.size(); ++i) {
+      for (std::size_t j = 0; j < dim_tuples.at(i)->size(); ++j) {
+        if (dim_tuples.at(i)->at(j) == dim) {
+          return ArgDimPosDescriptor{i, j};
+        }
+      }
+    }
+    return std::nullopt;
+  }
+
   std::vector<std::uint64_t> in_tensors_ranks_;
   std::vector<std::uint64_t> out_tensors_ranks_;
+  GetArgStaticDimT GetInDim_;
+  GetArgStaticDimT& GetOutDim_;
   Equations equations_;
   tInMsgBox<List<Index>> in_msg_box_in_indexes_;
   tInMsgBox<List<Index>> in_msg_box_out_indexes_;

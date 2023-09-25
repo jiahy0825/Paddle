@@ -90,9 +90,9 @@ template <typename T0, typename T1>
 struct ConstantFunction;
 
 template <>
-struct ConstantFunction<tOut<Iterator>, tIn<Iterator>> final
-    : public Tuple<tOut<Iterator>, tIn<Iterator>, Constant> {
-  using Tuple<tOut<Iterator>, tIn<Iterator>, Constant>::Tuple;
+struct ConstantFunction<tOut<Iterator>, tIn<Index>> final
+    : public Tuple<tOut<Iterator>, tIn<Index>, Constant> {
+  using Tuple<tOut<Iterator>, tIn<Index>, Constant>::Tuple;
 };
 
 // clang-format off
@@ -104,7 +104,7 @@ DEFINE_ADT_UNION(Equation,
                  InMsgBox2OutMsgBox<tOut<FakeOpPlaceHolder>,
                                     tOut<tOutMsgBox<OpArgIndexes>>,
                                     tIn<tInMsgBox<OpArgIndexes>>>,
-                 ConstantFunction<tOut<Iterator>, tIn<Iterator>>);
+                 ConstantFunction<tOut<Iterator>, tIn<Index>>);
 // clang-format on
 
 // Function = Equation

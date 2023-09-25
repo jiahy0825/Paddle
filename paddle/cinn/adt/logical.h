@@ -37,15 +37,15 @@ DEFINE_ADT_UNARY(Not);
 //           | And (Logical T) (Logical T)
 //           | Or (Logical T) (Logical T)
 //           | Not (Logical T)
-template <typename EquationValue>
+template <typename ValueT>
 DEFINE_ADT_UNION(Logical,
-                 EQ<EquationValue, EquationValue>,
-                 LT<EquationValue, EquationValue>,
-                 GT<EquationValue, EquationValue>,
-                 NE<EquationValue, EquationValue>,
-                 GE<EquationValue, EquationValue>,
-                 LE<EquationValue, EquationValue>,
-                 And<Logical<EquationValue>, Logical<EquationValue>>,
-                 Or<Logical<EquationValue>, Logical<EquationValue>>,
-                 Not<Logical<EquationValue>>);
+                 EQ<ValueT, ValueT>,
+                 LT<ValueT, ValueT>,
+                 GT<ValueT, ValueT>,
+                 NE<ValueT, ValueT>,
+                 GE<ValueT, ValueT>,
+                 LE<ValueT, ValueT>,
+                 And<Logical<ValueT>, Logical<ValueT>>,
+                 Or<Logical<ValueT>, Logical<ValueT>>,
+                 Not<Logical<ValueT>>);
 }  // namespace cinn::adt
