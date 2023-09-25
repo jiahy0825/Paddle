@@ -126,15 +126,23 @@ std::vector<Type> InferDtypeForBroadcast(const std::vector<Type> &inputs_type,
 }
 
 void GenerateEquationsForBroadcast(cinn::adt::config::OpEquationContext *ctx) {
-  // Note (Hongyu Jia) : Support broadcast afterwards
   CHECK(ctx->GetInTensorsRanks().size() == 2)
       << "The inputs is " << ctx->GetInTensorsRanks().size()
       << "! Please check again.";
   CHECK(ctx->GetOutTensorsRanks().size() == 1)
-      << "The inputs is " << ctx->GetOutTensorsRanks().size()
+      << "The output is " << ctx->GetOutTensorsRanks().size()
       << "! Please check again.";
-  ctx->Equal(ctx->GetInIteratorTuple(0), ctx->GetOutIteratorTuple(0));
-  ctx->Equal(ctx->GetInIteratorTuple(1), ctx->GetOutIteratorTuple(0));
+  std::size_t out_tensor_size = ctx->GetOutTensorsRanks().at(0).size();
+  for (std::size_t i = 0; i < out_tensor_size; ++i) {
+    if (i < ctx->GetInTensorsRanks().at(0).size()) {
+      ctx->ConditionalEqual(ctx->GetInIteratorTuple(0)->at(i),
+                            ctx->GetOutIteratorTuple(0)->at(i));
+    }
+    if (i < ctx->GetInTensorsRanks().at(1).size()) {
+      ctx->ConditionalEqual(ctx->GetInIteratorTuple(1)->at(i),
+                            ctx->GetOutIteratorTuple(0)->at(i));
+    }
+  }
 }
 
 std::vector<Type> InferDtypeForBroadcastCmp(

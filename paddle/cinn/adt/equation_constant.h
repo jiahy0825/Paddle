@@ -21,6 +21,22 @@
 
 namespace cinn::adt {
 
+DEFINE_ADT_UNION(Constant,
+                 std::int64_t,
+                 tStride<UniqueId>,
+                 tDim<UniqueId>,
+                 List<Constant>,
+                 Neg<Constant>,
+                 Add<Constant, Constant>,
+                 Mul<Constant, Constant>);
+
+OVERLOAD_OPERATOR_EQ_NE(Constant, UnionEqual);
+OVERLOAD_OPERATOR_EQ_NE(Neg<Constant>, TupleEqual);
+using AddConstant = Add<Constant, Constant>;
+using MulConstant = Mul<Constant, Constant>;
+OVERLOAD_OPERATOR_EQ_NE(AddConstant, TupleEqual);
+OVERLOAD_OPERATOR_EQ_NE(MulConstant, TupleEqual);
+
 // Dim = tDim UniqueId
 using Dim = tDim<UniqueId>;
 // DimTuple = [Dim]
@@ -37,3 +53,14 @@ OVERLOAD_OPERATOR_EQ_NE(EquationStaticValue, UnionEqual);
 using EquationStaticLogical = Logical<EquationStaticValue>;
 
 }  // namespace cinn::adt
+
+namespace std {
+
+template <>
+struct hash<::cinn::adt::Dim> final {
+  std::size_t operator()(const ::cinn::adt::Dim& dim) const {
+    return dim.value().unique_id();
+  }
+};
+
+}  // namespace std

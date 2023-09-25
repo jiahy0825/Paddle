@@ -20,7 +20,7 @@
 #include <type_traits>
 
 #include "paddle/cinn/adt/adt.h"
-#include "paddle/cinn/adt/equation_constants.h"
+#include "paddle/cinn/adt/equation_constant.h"
 #include "paddle/cinn/adt/equation_variable.h"
 #include "paddle/cinn/adt/tags.h"
 #include "paddle/cinn/common/equation_graph_topo_walker.h"
@@ -86,6 +86,15 @@ struct InMsgBox2OutMsgBox<tOut<FakeOpPlaceHolder>,
               tIn<tInMsgBox<OpArgIndexes>>>::Tuple;
 };
 
+template <typename T0, typename T1>
+struct ConstantFunction;
+
+template <>
+struct ConstantFunction<tOut<Iterator>, tIn<Iterator>> final
+    : public Tuple<tOut<Iterator>, tIn<Iterator>, Constant> {
+  using Tuple<tOut<Iterator>, tIn<Iterator>, Constant>::Tuple;
+};
+
 // clang-format off
 DEFINE_ADT_UNION(Equation,
                  Identity<tOut<Iterator>, tIn<Iterator>>,
@@ -94,7 +103,8 @@ DEFINE_ADT_UNION(Equation,
                  UnDot<List<Stride>, tOut<List<Iterator>>, tIn<Index>>,
                  InMsgBox2OutMsgBox<tOut<FakeOpPlaceHolder>,
                                     tOut<tOutMsgBox<OpArgIndexes>>,
-                                    tIn<tInMsgBox<OpArgIndexes>>>);
+                                    tIn<tInMsgBox<OpArgIndexes>>>,
+                 ConstantFunction<tOut<Iterator>, tIn<Iterator>>);
 // clang-format on
 
 // Function = Equation

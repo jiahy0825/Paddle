@@ -14,6 +14,6 @@
 
 #pragma once
 
-#include "paddle/cinn/adt/equation_constants.h"
+#include "paddle/cinn/adt/equation_constant.h"
 #include "paddle/cinn/adt/equation_function.h"
 #include "paddle/cinn/adt/equation_variable.h"

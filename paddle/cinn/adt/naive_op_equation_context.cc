@@ -133,4 +133,15 @@ GenerateContext4LocalOpStmt(const List<OpStmt>& op_stmts) {
   };
 }
 
+void NaiveConditionalEqualHandler::Where(
+    const EquationStaticLogical& logical) const {
+  bool has_value = logical.Has<EQ<EquationStaticValue, EquationStaticValue>>();
+  CHECK(has_value);
+  const auto& [lhs, rhs] =
+      logical.Get<EQ<EquationStaticValue, EquationStaticValue>>().tuple();
+  if (lhs == rhs) {
+    ctx_->AddEquations(equations_);
+  }
+}
+
 }  // namespace cinn::adt::config

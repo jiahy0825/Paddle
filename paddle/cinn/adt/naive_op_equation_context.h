@@ -16,12 +16,14 @@
 
 #include <memory>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 #include "glog/logging.h"
 
 #include "paddle/cinn/adt/adt.h"
 #include "paddle/cinn/adt/equation.h"
+#include "paddle/cinn/adt/logical.h"
 #include "paddle/cinn/adt/m_expr.h"
 #include "paddle/cinn/adt/op_arg_pos.h"
 #include "paddle/cinn/adt/op_equation_context.h"
@@ -29,14 +31,37 @@
 
 namespace cinn::adt::config {
 
+class NaiveOpEquationContext;
+
+class NaiveConditionalEqualHandler final : public ConditionalEqualHandler {
+ public:
+  NaiveConditionalEqualHandler(const NaiveConditionalEqualHandler&) = delete;
+  NaiveConditionalEqualHandler(NaiveConditionalEqualHandler&&) = delete;
+
+  NaiveConditionalEqualHandler(NaiveOpEquationContext* ctx,
+                               const Equations& equations)
+      : ctx_(ctx), equations_(equations) {}
+
+  void Where(const EquationStaticLogical& logical) const override;
+
+ private:
+  NaiveOpEquationContext* ctx_;
+  Equations equations_;
+};
+
 class NaiveOpEquationContext final : public OpEquationContext {
  public:
   NaiveOpEquationContext(const NaiveOpEquationContext&) = delete;
   NaiveOpEquationContext(NaiveOpEquationContext&&) = delete;
 
+  using GetArgStaticDim = std::function<std::optional<std::int64_t>(
+      std::size_t tensor_idx, std::size_t dim_idx)>;
+
   explicit NaiveOpEquationContext(
       const std::vector<std::uint64_t>& in_tensors_ranks,
-      const std::vector<std::uint64_t>& out_tensors_ranks)
+      const std::vector<std::uint64_t>& out_tensors_ranks,
+      const GetArgStaticDim& in_shape,
+      const GetArgStaticDim& out_shape)
       : in_tensors_ranks_(in_tensors_ranks),
         out_tensors_ranks_(out_tensors_ranks),
         equations_{},
@@ -79,6 +104,30 @@ class NaiveOpEquationContext final : public OpEquationContext {
     }
   }
 
+  std::unique_ptr<ConditionalEqualHandler> ConditionalEqual(
+      const Iterator& lhs, const Iterator& rhs) override {
+    Equations equations{};
+    equations->emplace_back(Identity<tOut<Iterator>, tIn<Iterator>>(lhs, rhs));
+    equations->emplace_back(Identity<tOut<Iterator>, tIn<Iterator>>(rhs, lhs));
+    return std::make_unique<NaiveConditionalEqualHandler>(this, equations);
+  }
+
+  std::unique_ptr<ConditionalEqualHandler> ConditionalEqual(
+      const Index& lhs, const Index& rhs) override {
+    Equations equations{};
+    equations->emplace_back(Identity<tOut<Index>, tIn<Index>>(lhs, rhs));
+    equations->emplace_back(Identity<tOut<Index>, tIn<Index>>(rhs, lhs));
+    return std::make_unique<NaiveConditionalEqualHandler>(this, equations);
+  }
+
+  EquationStaticLogical EQ(const Dim& lhs, const Dim& rhs) const override {
+    CHECK_GT(dim2shape_.count(lhs), 0);
+    CHECK_GT(dim2shape_.count(rhs), 0);
+    return EquationStaticLogical{
+        cinn::adt::EQ<EquationStaticValue, EquationStaticValue>(
+            dim2shape_.at(lhs), dim2shape_.at(rhs))};
+  }
+
   const IteratorTuple& GetInIteratorTuple(
       std::size_t input_idx) const override {
     return in_iterator_tuples_.at(input_idx);
@@ -115,15 +164,24 @@ class NaiveOpEquationContext final : public OpEquationContext {
 
   const Equations& equations() const { return equations_; }
 
+  void AddEquations(const Equations& equations) {
+    for (const auto& equation : *equations) {
+      equations_->emplace_back(equation);
+    }
+  }
+
   const tInMsgBox<List<Index>>& in_msg_box_in_indexes() const {
     return in_msg_box_in_indexes_;
   }
+
   const tInMsgBox<List<Index>>& in_msg_box_out_indexes() const {
     return in_msg_box_out_indexes_;
   }
+
   const tOutMsgBox<List<Index>>& out_msg_box_in_indexes() const {
     return out_msg_box_in_indexes_;
   }
+
   const tOutMsgBox<List<Index>>& out_msg_box_out_indexes() const {
     return out_msg_box_out_indexes_;
   }
