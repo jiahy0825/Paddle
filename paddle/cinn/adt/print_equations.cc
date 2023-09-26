@@ -178,6 +178,13 @@ struct ToTxtStringStruct {
            ToTxtString(in_index_list_outbox.value()) + ")";
     return ret;
   }
+
+  std::string operator()(
+      const ConstantFunction<tOut<Iterator>, tIn<Index>>& constant) const {
+    std::string ret{};
+
+    return ret;
+  }
 };
 
 std::string ToTxtString(const Equation& equation) {
