@@ -263,36 +263,32 @@ void NaiveConditionalEqualHandler::Where(
   }
 }
 
-std::int64_t FindDimSize(const ArgDimPosDescriptor& arg_dim_pos,
-                         const GetArgStaticDimT& GetDim) {
-  const auto& option_dim = GetDim(arg_dim_pos.tensor_idx, arg_dim_pos.dim_idx);
-  if (!option_dim.has_value()) {
-    LOG(FATAL) << "position not found";
-  }
-  return option_dim.value();
+std::optional<std::int64_t> GetArgDimSizeImpl(
+    const tIn<ArgDimPosDescriptor>& in_arg_dim_pos,
+    const GetArgStaticDimT& GetInDim,
+    const GetArgStaticDimT& GetOutDim) {
+  return GetInDim(in_arg_dim_pos.value().tensor_idx,
+                  in_arg_dim_pos.value().dim_idx);
 }
 
-std::int64_t GetArgDimSizeImpl(const tIn<ArgDimPosDescriptor>& in_arg_dim_pos,
-                               const GetArgStaticDimT& GetInDim,
-                               const GetArgStaticDimT& GetOutDim) {
-  return FindDimSize(in_arg_dim_pos.value(), GetInDim);
+std::optional<std::int64_t> GetArgDimSizeImpl(
+    const tOut<ArgDimPosDescriptor>& out_arg_dim_pos,
+    const GetArgStaticDimT& GetInDim,
+    const GetArgStaticDimT& GetOutDim) {
+  return GetOutDim(out_arg_dim_pos.value().tensor_idx,
+                   out_arg_dim_pos.value().dim_idx);
 }
 
-std::int64_t GetArgDimSizeImpl(const tOut<ArgDimPosDescriptor>& out_arg_dim_pos,
-                               const GetArgStaticDimT& GetInDim,
-                               const GetArgStaticDimT& GetOutDim) {
-  return FindDimSize(out_arg_dim_pos.value(), GetOutDim);
-}
-
-std::int64_t GetArgDimSizeImpl(const Undefined&,
-                               const GetArgStaticDimT& GetInDim,
-                               const GetArgStaticDimT& GetOutDim) {
+std::optional<std::int64_t> GetArgDimSizeImpl(
+    const Undefined&,
+    const GetArgStaticDimT& GetInDim,
+    const GetArgStaticDimT& GetOutDim) {
   LOG(FATAL) << "position not found";
 }
 
-std::int64_t GetArgDimSize(const OpArgDimPos& arg_dim_pos,
-                           const GetArgStaticDimT& GetInDim,
-                           const GetArgStaticDimT& GetOutDim) {
+std::optional<std::int64_t> GetArgDimSize(const OpArgDimPos& arg_dim_pos,
+                                          const GetArgStaticDimT& GetInDim,
+                                          const GetArgStaticDimT& GetOutDim) {
   return std::visit(
       [&](const auto& impl) {
         return GetArgDimSizeImpl(impl, GetInDim, GetOutDim);
@@ -302,7 +298,12 @@ std::int64_t GetArgDimSize(const OpArgDimPos& arg_dim_pos,
 
 std::int64_t NaiveOpEquationContext::GetDimSize(const Dim& dim) const {
   const auto& arg_dim_pos = GetArgDimPosDescriptor(dim);
-  return GetArgDimSize(arg_dim_pos, GetInDim_, GetOutDim_);
+  const auto& option_dim_size =
+      GetArgDimSize(arg_dim_pos, GetInDim_, GetOutDim_);
+  if (!option_dim_size.has_value()) {
+    LOG(FATAL) << "Dim not found";
+  }
+  return option_dim_size.value();
 }
 
 }  // namespace cinn::adt::config

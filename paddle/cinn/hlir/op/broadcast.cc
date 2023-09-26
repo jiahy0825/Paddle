@@ -132,26 +132,28 @@ void GenerateEquationsForBroadcast(cinn::adt::config::OpEquationContext *ctx) {
   CHECK(ctx->GetOutTensorsRanks().size() == 1)
       << "The output is " << ctx->GetOutTensorsRanks().size()
       << "! Please check again.";
-  std::size_t out_tensor_size = ctx->GetOutTensorsRanks().at(0);
-  for (std::size_t i = 0; i < out_tensor_size; ++i) {
-    if (i < ctx->GetInTensorsRanks().at(0)) {
-      ctx->ConditionalEqual(ctx->GetInIteratorTuple(0)->at(i),
-                            ctx->GetOutIteratorTuple(0)->at(i))
-          ->Where(ctx->EQ(ctx->GetInDimTuple(0)->at(i),
-                          ctx->GetOutDimTuple(0)->at(i)));
-      ctx->ConditionalEqual(ctx->GetInIteratorTuple(0)->at(i), 0)
-          ->Where(ctx->NE(ctx->GetInDimTuple(0)->at(i),
-                          ctx->GetOutDimTuple(0)->at(i)));
-    }
-    if (i < ctx->GetInTensorsRanks().at(1)) {
-      ctx->ConditionalEqual(ctx->GetInIteratorTuple(1)->at(i),
-                            ctx->GetOutIteratorTuple(0)->at(i))
-          ->Where(ctx->EQ(ctx->GetInDimTuple(1)->at(i),
-                          ctx->GetOutDimTuple(0)->at(i)));
-      ctx->ConditionalEqual(ctx->GetInIteratorTuple(1)->at(i), 0)
-          ->Where(ctx->NE(ctx->GetInDimTuple(1)->at(i),
-                          ctx->GetOutDimTuple(0)->at(i)));
-    }
+  std::uint64_t out_tensor_ranks = ctx->GetOutTensorsRanks().at(0);
+  std::uint64_t in_tensor0_ranks = ctx->GetInTensorsRanks().at(0);
+  std::uint64_t in_tensor1_ranks = ctx->GetInTensorsRanks().at(1);
+  int offset0 = out_tensor_ranks - in_tensor0_ranks;
+  for (std::size_t i = 0; i < in_tensor0_ranks; ++i) {
+    ctx->ConditionalEqual(ctx->GetInIteratorTuple(0)->at(i),
+                          ctx->GetOutIteratorTuple(0)->at(i + offset0))
+        ->Where(ctx->EQ(ctx->GetInDimTuple(0)->at(i),
+                        ctx->GetOutDimTuple(0)->at(i + offset0)));
+    ctx->ConditionalEqual(ctx->GetInIteratorTuple(0)->at(i), 0)
+        ->Where(ctx->NE(ctx->GetInDimTuple(0)->at(i),
+                        ctx->GetOutDimTuple(0)->at(i + offset0)));
+  }
+  int offset1 = out_tensor_ranks - in_tensor1_ranks;
+  for (std::size_t i = 0; i < in_tensor1_ranks; ++i) {
+    ctx->ConditionalEqual(ctx->GetInIteratorTuple(1)->at(i),
+                          ctx->GetOutIteratorTuple(0)->at(i + offset1))
+        ->Where(ctx->EQ(ctx->GetInDimTuple(1)->at(i),
+                        ctx->GetOutDimTuple(0)->at(i + offset1)));
+    ctx->ConditionalEqual(ctx->GetInIteratorTuple(1)->at(i), 0)
+        ->Where(ctx->NE(ctx->GetInDimTuple(1)->at(i),
+                        ctx->GetOutDimTuple(0)->at(i + offset1)));
   }
 }
 
@@ -281,8 +283,8 @@ void GenerateEquationsForBroadcastTo(
   CHECK(ctx->GetOutTensorsRanks().size() == 1)
       << "The output is " << ctx->GetOutTensorsRanks().size()
       << "! Please check again.";
-  std::size_t out_tensor_size = ctx->GetOutTensorsRanks().at(0);
-  for (std::size_t i = 0; i < out_tensor_size; ++i) {
+  std::size_t out_tensor_rank = ctx->GetOutTensorsRanks().at(0);
+  for (std::size_t i = 0; i < out_tensor_rank; ++i) {
     ctx->ConditionalEqual(ctx->GetInIteratorTuple(0)->at(i),
                           ctx->GetOutIteratorTuple(0)->at(i))
         ->Where(ctx->EQ(ctx->GetInDimTuple(0)->at(i),
