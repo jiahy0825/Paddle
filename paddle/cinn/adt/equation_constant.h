@@ -21,10 +21,19 @@
 
 namespace cinn::adt {
 
+// Dim = tDim UniqueId
+using Dim = tDim<UniqueId>;
+// DimTuple = [Dim]
+using DimTuple = List<Dim>;
+// Stride = tStride UniqueId
+using Stride = tStride<UniqueId>;
+// StrideTuple = [Stride]
+using StrideTuple = List<Stride>;
+
 DEFINE_ADT_UNION(Constant,
                  std::int64_t,
-                 tStride<UniqueId>,
-                 tDim<UniqueId>,
+                 Stride,
+                 Dim,
                  List<Constant>,
                  Neg<Constant>,
                  Add<Constant, Constant>,
@@ -36,15 +45,6 @@ using AddConstant = Add<Constant, Constant>;
 using MulConstant = Mul<Constant, Constant>;
 OVERLOAD_OPERATOR_EQ_NE(AddConstant, TupleEqual);
 OVERLOAD_OPERATOR_EQ_NE(MulConstant, TupleEqual);
-
-// Dim = tDim UniqueId
-using Dim = tDim<UniqueId>;
-// DimTuple = [Dim]
-using DimTuple = List<Dim>;
-// Stride = tStride UniqueId
-using Stride = tStride<UniqueId>;
-// StrideTuple = [Stride]
-using StrideTuple = List<Stride>;
 
 // EquationStaticValue = Dim | Stride | std::int64_t
 DEFINE_ADT_UNION(EquationStaticValue, Dim, Stride, std::int64_t);

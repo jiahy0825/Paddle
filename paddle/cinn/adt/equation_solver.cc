@@ -145,7 +145,7 @@ tValueInferSuccess<bool> MergeInferedValuesIntoCtx(const Function* function,
                                                    const OnFailT& OnFail) {
   auto output_variable2value = InferValues(function, ctx);
   for (const auto& [variable, unsimplified_value] : output_variable2value) {
-    Value simplified_value({SimplifyValue(unsimplified_value)});
+    Value simplified_value({SimplifyValue(unsimplified_value, *ctx)});
     if (simplified_value.Has<Undefined>()) {
       return OnFail(std::optional<Value>{std::nullopt}, simplified_value);
     }

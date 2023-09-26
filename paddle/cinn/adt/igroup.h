@@ -24,6 +24,7 @@
 #include "paddle/cinn/adt/equation_graph.h"
 #include "paddle/cinn/adt/m_expr.h"
 #include "paddle/cinn/adt/m_ir.h"
+#include "paddle/cinn/adt/naive_equation_function_constants_provider.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
 #include "paddle/cinn/adt/partition_op_stmts.h"
 
@@ -39,12 +40,16 @@ class IGroup final {
   IGroup(const IGroup&) = delete;
   IGroup(IGroup&&) = delete;
 
-  explicit IGroup(const List<OpStmt>& op_stmts,
-                  const AnchorIndex& anchor_index,
-                  const EquationCtx4OpStmtT& EquationCtx4OpStmt)
+  explicit IGroup(
+      const List<OpStmt>& op_stmts,
+      const AnchorIndex& anchor_index,
+      const EquationCtx4OpStmtT& EquationCtx4OpStmt,
+      const std::shared_ptr<const EquationFunctionConstantsProvider>&
+          constants_provider)
       : op_stmts_(op_stmts),
         anchor_index_(anchor_index),
-        EquationCtx4OpStmt_(EquationCtx4OpStmt) {
+        EquationCtx4OpStmt_(EquationCtx4OpStmt),
+        constants_provider_(constants_provider) {
     GenerateIndex2Tensor(
         op_stmts, EquationCtx4OpStmt, &index2tensor_, &tensor2indexes_);
   }
@@ -54,6 +59,11 @@ class IGroup final {
   const AnchorIndex& anchor_index() const { return anchor_index_; }
 
   const Tensor& anchor_tensor() const { return GetTensor(anchor_index()); }
+
+  const std::shared_ptr<const EquationFunctionConstantsProvider>&
+  constants_provider() const {
+    return constants_provider_;
+  }
 
   GraphView GetDefaultGraphView() const {
     return MakeGlobalEquationGraphViewForPartition(EquationCtx4OpStmt_,
@@ -112,6 +122,7 @@ class IGroup final {
   std::unordered_map<Index, Tensor> index2tensor_;
   std::unordered_map<Tensor, std::vector<Index>> tensor2indexes_;
   std::optional<config::AnchorSdEquationContext> anchor_sd_equation_ctx_;
+  std::shared_ptr<const EquationFunctionConstantsProvider> constants_provider_;
 };
 
 }  // namespace cinn::adt

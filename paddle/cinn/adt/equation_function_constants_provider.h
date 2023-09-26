@@ -14,11 +14,20 @@
 
 #pragma once
 
-#include "paddle/cinn/adt/equation_value.h"
-#include "paddle/cinn/adt/index_expr_infer_context.h"
+#include <optional>
+
+#include "paddle/cinn/adt/equation_constant.h"
 
 namespace cinn::adt {
 
-Value SimplifyValue(Value value, const IndexExprInferContext& ctx);
+class EquationFunctionConstantsProvider {
+ public:
+  virtual ~EquationFunctionConstantsProvider() = default;
 
-}
+  virtual Constant GetStrideSize(const Stride& stride) const = 0;
+
+ protected:
+  EquationFunctionConstantsProvider() = default;
+};
+
+}  // namespace cinn::adt

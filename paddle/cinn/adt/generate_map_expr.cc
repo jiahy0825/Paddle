@@ -149,10 +149,14 @@ void PartitionIGroupOpStmts(const List<OpStmt>& op_stmts,
 }
 
 std::shared_ptr<IGroup> MakeIGroup(const AnchorGroup& igroup_spec) {
-  CheckEquationSolvable(igroup_spec);
+  std::shared_ptr<const EquationFunctionConstantsProvider> constants_provider{
+      new NaiveEquationFunctionConstantsProvider{
+          igroup_spec.op_stmts, igroup_spec.EquationCtx4OpStmt}};
+  CheckEquationSolvable(igroup_spec, constants_provider);
   return std::make_shared<IGroup>(igroup_spec.op_stmts,
                                   igroup_spec.anchor_index,
-                                  igroup_spec.EquationCtx4OpStmt);
+                                  igroup_spec.EquationCtx4OpStmt,
+                                  constants_provider);
 }
 
 std::vector<std::shared_ptr<IGroup>> GenerateIGroups(
@@ -216,7 +220,8 @@ std::function<TensorIndexExpr(const Tensor&)> MakeGetterTensorIndexExpr(
   GraphView merged_view = igroup_view.Merge(sd_equation_graph_view);
 
   const auto& init_var2value = MakeSdIterator2Iterator(*igroup);
-  auto ctx = std::make_shared<IndexExprInferContext>(init_var2value);
+  auto ctx = std::make_shared<IndexExprInferContext>(
+      init_var2value, igroup->constants_provider());
 
   std::vector<Variable> starts{};
   for (const auto& loop_iterator : *igroup->loop_iterators()) {

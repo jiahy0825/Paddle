@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
-
-#include "paddle/cinn/adt/equation_value.h"
 #include "paddle/cinn/adt/index_expr_infer_context.h"
+#include "paddle/cinn/adt/equation_function_constants_provider.h"
 
 namespace cinn::adt {
 
-Value SimplifyValue(Value value, const IndexExprInferContext& ctx);
-
+Constant IndexExprInferContext::GetStrideSize(const Stride& stride) const {
+  return constants_provider_->GetStrideSize(stride);
 }
+
+}  // namespace cinn::adt
