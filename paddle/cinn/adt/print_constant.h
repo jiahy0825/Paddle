@@ -13,3 +13,11 @@
 // limitations under the License.
 
 #pragma once
+
+#include "paddle/cinn/adt/equation_constant.h"
+
+namespace cinn::adt {
+
+std::string ToTxtString(const Constant& constant);
+
+}

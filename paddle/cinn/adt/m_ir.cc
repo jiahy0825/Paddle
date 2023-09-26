@@ -23,6 +23,7 @@
 #include "paddle/cinn/adt/partition_op_stmts.h"
 #include "paddle/cinn/adt/print_equations.h"
 #include "paddle/cinn/adt/print_map_expr.h"
+#include "paddle/cinn/adt/print_value.h"
 
 namespace cinn::adt {
 
@@ -147,12 +148,17 @@ LoopIterators GetTensorLoopIterators(
     const LoopIterators& loop_iters,
     const std::function<const LoopDescriptor*(const Iterator&)>&
         GetLoopDescriptor,
-    const std::function<const TensorIndexExpr*(const Tensor&)>&
+    const std::function<TensorIndexExpr(const Tensor&)>&
         TensorIndexExpr4Tensor) {
+  Value tensor_value = TensorIndexExpr4Tensor(tensor);
+  VLOG(3) << "tensor_index_expr: ";
+  VLOG(3) << ToTxtString(tensor_value);
+
   VLOG(3) << "loop_iters: ";
   VLOG(3) << ToTxtString(loop_iters);
+
   const auto& tensor_index_loop_iters =
-      GetTensorIndexIterators(*TensorIndexExpr4Tensor(tensor));
+      GetTensorIndexIterators(TensorIndexExpr4Tensor(tensor));
 
   VLOG(3) << "tensor_index_loop_iters: ";
   for (const auto& tensor_index_loop_iter : tensor_index_loop_iters) {
@@ -252,8 +258,7 @@ Tensor GetAnchorTensor(const AnchorGroup& anchor_group) {
 
 std::unordered_map<Index, LoopIterators> GenerateAnchorIndex2LoopIterators(
     const std::vector<AnchorGroup>& partitioned_anchor_groups,
-    const std::function<const TensorIndexExpr*(const Tensor&)>&
-        TensorIndexExpr4Tensor,
+    const std::function<TensorIndexExpr(const Tensor&)>& TensorIndexExpr4Tensor,
     const LoopIterators& loop_iters,
     const std::function<const LoopDescriptor*(const Iterator&)>&
         GetLoopDescriptor) {
@@ -327,8 +332,7 @@ List<LoopIterators> MakeLoopItersList(
 
 MapIrList ConvertAnchorGroups2MapIrList(
     const std::vector<AnchorGroup>& partitioned_anchor_groups,
-    const std::function<const TensorIndexExpr*(const Tensor&)>&
-        TensorIndexExpr4Tensor,
+    const std::function<TensorIndexExpr(const Tensor&)>& TensorIndexExpr4Tensor,
     const LoopIterators& loop_iters,
     const std::function<const LoopDescriptor*(const Iterator&)>&
         GetLoopDescriptor) {
@@ -355,7 +359,7 @@ MapIrList GenerateMapIrListForLoopFuse(
     const LoopIterators& loop_iters,
     const std::function<const LoopDescriptor*(const Iterator&)>&
         GetLoopDescriptor,
-    const std::function<const TensorIndexExpr*(const Tensor&)>&
+    const std::function<TensorIndexExpr(const Tensor&)>&
         TensorIndexExpr4Tensor) {
   const auto& EquationCtx4OpStmt =
       config::GenerateContext4LocalOpStmt(op_stmts);

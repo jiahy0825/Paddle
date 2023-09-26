@@ -36,23 +36,15 @@ std::string ToTxtString(const FakeOpPlaceHolder& op);
 
 std::string ToTxtString(const List<Iterator>& iterator_list);
 
-void PrintOpStmtsEquations(const List<OpStmt>& op_stmts,
-                           const EquationCtx4OpStmtT& EquationCtx4OpStmt);
-
-void PrintIndexVector(const std::vector<Index>& indexes);
-
-// std::string ToTxtString(const std::vector<std::uint64_t>& tensors_ranks);
-
 std::string ToTxtString(const tInMsgBox<List<Index>>& in_msg_box_indexes_);
 
 std::string ToTxtString(const tOutMsgBox<List<Index>>& out_msg_box_indexes_);
 
-// std::string ToTxtString(const std::vector<IteratorTuple>& iterator_tuples_);
+void PrintEquations(const Equations& equations, const std::string& separator);
 
-// std::string ToTxtString(const std::vector<StrideTuple>& stride_tuples_);
+void PrintOpStmtsEquations(const List<OpStmt>& op_stmts,
+                           const EquationCtx4OpStmtT& EquationCtx4OpStmt);
 
-// std::string ToTxtString(const std::vector<DimTuple>& dim_tuples_);
-
-// std::string ToTxtString(const FakeOpPlaceHolder& op);
+void PrintIndexVector(const std::vector<Index>& indexes);
 
 }  // namespace cinn::adt

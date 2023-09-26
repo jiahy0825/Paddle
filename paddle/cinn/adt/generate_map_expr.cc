@@ -209,7 +209,7 @@ std::unordered_map<Variable, const Value> MakeSdIterator2Iterator(
   return ret;
 }
 
-std::function<const TensorIndexExpr*(const Tensor&)> MakeGetterTensorIndexExpr(
+std::function<TensorIndexExpr(const Tensor&)> MakeGetterTensorIndexExpr(
     const std::shared_ptr<IGroup>& igroup,
     const GraphView& sd_equation_graph_view) {
   GraphView igroup_view = igroup->GetDefaultGraphView();
@@ -226,7 +226,7 @@ std::function<const TensorIndexExpr*(const Tensor&)> MakeGetterTensorIndexExpr(
   return [ctx, igroup](const Tensor& tensor) {
     // All indexes of same tensor have the same Value.
     const auto index = igroup->GetIndexes(tensor).at(0);
-    return &ctx->GetValue(index);
+    return ctx->GetValue(index);
   };
 }
 

@@ -52,7 +52,7 @@ MapIrList GenerateMapIrListForLoopFuse(
     const LoopIterators& loop_iters,
     const std::function<const LoopDescriptor*(const Iterator&)>&
         GetLoopDescriptor,
-    const std::function<const TensorIndexExpr*(const Tensor&)>&
+    const std::function<TensorIndexExpr(const Tensor&)>&
         TensorIndexExpr4Tensor);
 
 }  // namespace cinn::adt

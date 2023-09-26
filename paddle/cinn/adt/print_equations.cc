@@ -13,11 +13,21 @@
 // limitations under the License.
 
 #include "paddle/cinn/adt/print_equations.h"
+#include "paddle/cinn/adt/print_constant.h"
 
 #include <sstream>
 #include <string>
 
 namespace cinn::adt {
+
+namespace {
+
+std::string ToTxtString(const tStride<UniqueId>& constant) {
+  std::size_t constant_unique_id = constant.value().unique_id();
+  return "stride_" + std::to_string(constant_unique_id);
+}
+
+}  // namespace
 
 std::string ToTxtString(const Iterator& iterator) {
   std::size_t iterator_unique_id = iterator.value().unique_id();
@@ -29,11 +39,6 @@ std::string ToTxtString(const Index& index) {
   return "idx_" + std::to_string(index_unique_id);
 }
 
-std::string ToTxtString(const Stride& stride) {
-  std::size_t stride_unique_id = stride.value().unique_id();
-  return "stride_" + std::to_string(stride_unique_id);
-}
-
 std::string ToTxtString(const FakeOpPlaceHolder& op) {
   std::size_t op_unique_id = op.value().unique_id();
   return "op_" + std::to_string(op_unique_id);
@@ -41,7 +46,7 @@ std::string ToTxtString(const FakeOpPlaceHolder& op) {
 
 std::string ToTxtString(const List<Index>& index_list) {
   std::string ret;
-  ret += "(";
+  ret += "List(";
 
   for (std::size_t idx = 0; idx < index_list->size(); ++idx) {
     if (idx != 0) {
@@ -56,7 +61,7 @@ std::string ToTxtString(const List<Index>& index_list) {
 
 std::string ToTxtString(const List<std::optional<Index>>& index_list) {
   std::string ret;
-  ret += "(";
+  ret += "List(";
 
   for (std::size_t idx = 0; idx < index_list->size(); ++idx) {
     if (idx != 0) {
@@ -73,7 +78,7 @@ std::string ToTxtString(const List<std::optional<Index>>& index_list) {
 
 std::string ToTxtString(const List<Iterator>& iterator_list) {
   std::string ret;
-  ret += "(";
+  ret += "List(";
   for (std::size_t idx = 0; idx < iterator_list->size(); ++idx) {
     if (idx != 0) {
       ret += ", ";
@@ -86,7 +91,7 @@ std::string ToTxtString(const List<Iterator>& iterator_list) {
 
 std::string ToTxtString(const List<Stride>& stride_list) {
   std::string ret;
-  ret += "(";
+  ret += "List(";
   for (std::size_t idx = 0; idx < stride_list->size(); ++idx) {
     if (idx != 0) {
       ret += ", ";
@@ -110,6 +115,7 @@ std::string ToTxtString(const tOutMsgBox<List<Index>>& out_msg_box_indexes) {
   ret += ToTxtString(index_list);
   return ret;
 }
+namespace {
 
 struct ToTxtStringStruct {
   std::string operator()(
@@ -187,6 +193,8 @@ struct ToTxtStringStruct {
   }
 };
 
+}  // namespace
+
 std::string ToTxtString(const Equation& equation) {
   return std::visit(ToTxtStringStruct{}, equation.variant());
 }
@@ -204,6 +212,10 @@ std::string ToTxtString(const Equations& equations,
     ret << ToTxtString(equation);
   }
   return ret.str();
+}
+
+void PrintEquations(const Equations& equations, const std::string& separator) {
+  VLOG(3) << ToTxtString(equations, separator);
 }
 
 void PrintOpStmtsEquations(const List<OpStmt>& op_stmts,

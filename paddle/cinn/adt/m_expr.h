@@ -133,8 +133,7 @@ class MapStmt final : public Tuple<ScheduleDescriptor, List<T>> {
 DEFINE_ADT_UNION(Stmt, OpStmt, MapStmt<Stmt>);
 
 using TensorIndexExpr = Value;
-using TensorIndexExpr4TensorT =
-    std::function<const TensorIndexExpr*(const Tensor&)>;
+using TensorIndexExpr4TensorT = std::function<TensorIndexExpr(const Tensor&)>;
 
 // AnchoredMapStmt = (MapStmt Stmt, tAnchor Tensor, TensorIndexExpr4TensorT)
 class AnchoredMapStmt final
