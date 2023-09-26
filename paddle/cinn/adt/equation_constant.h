@@ -57,6 +57,13 @@ using EquationStaticLogical = Logical<EquationStaticValue>;
 namespace std {
 
 template <>
+struct hash<::cinn::adt::Stride> final {
+  std::size_t operator()(const ::cinn::adt::Stride& stride) const {
+    return stride.value().unique_id();
+  }
+};
+
+template <>
 struct hash<::cinn::adt::Dim> final {
   std::size_t operator()(const ::cinn::adt::Dim& dim) const {
     return dim.value().unique_id();

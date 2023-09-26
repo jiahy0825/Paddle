@@ -26,8 +26,8 @@ class NaiveEquationFunctionConstantsProvider final
     : public EquationFunctionConstantsProvider {
  public:
   using EquationCtx4OpStmtT =
-      std::function <
-      std::shared_ptr<config::NaiveOpEquationContext>(const OpStmt&);
+      std::function<std::shared_ptr<config::NaiveOpEquationContext>(
+          const OpStmt&)>;
 
   NaiveEquationFunctionConstantsProvider(
       const List<OpStmt>& op_stmts,
