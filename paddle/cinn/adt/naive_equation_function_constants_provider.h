@@ -46,6 +46,10 @@ class NaiveEquationFunctionConstantsProvider final
     return iter->second;
   }
 
+  bool AddStride(const Stride& stride, std::int64_t stride_value) override {
+    return stride2constant_.emplace(stride, stride_value).second;
+  }
+
  private:
   void Init(const List<OpStmt>& op_stmts,
             const EquationCtx4OpStmtT& EquationCtx4OpStmt) {

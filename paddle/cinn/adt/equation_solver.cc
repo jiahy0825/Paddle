@@ -20,6 +20,7 @@
 #include "paddle/cinn/adt/equation_solver.h"
 #include "paddle/cinn/adt/equation_value.h"
 #include "paddle/cinn/adt/index_expr_infer_context.h"
+#include "paddle/cinn/adt/print_value.h"
 #include "paddle/cinn/adt/simplify_value.h"
 #include "paddle/cinn/adt/tags.h"
 #include "paddle/cinn/common/equation_graph_topo_walker.h"
@@ -69,7 +70,7 @@ std::unordered_map<Variable, Value> InferValuesImpl(
   for (const auto& stride : *strides) {
     stride_constants->emplace_back(stride);
   }
-  IndexDot<Value> index_dot{in_values, stride_constants};
+  IndexDot<Value, Constant> index_dot{in_values, stride_constants};
   return {{out_index.value(), index_dot}};
 }
 
@@ -82,8 +83,8 @@ std::unordered_map<Variable, Value> InferValuesImpl(
   for (const auto& stride : *strides) {
     stride_constants->emplace_back(stride);
   }
-  IndexUnDot<Value> index_undot{ctx->GetValue(in_index.value()),
-                                stride_constants};
+  IndexUnDot<Value, Constant> index_undot{ctx->GetValue(in_index.value()),
+                                          stride_constants};
 
   std::unordered_map<Variable, Value> ret{};
   for (std::size_t idx = 0; idx < out_iters.value()->size(); ++idx) {

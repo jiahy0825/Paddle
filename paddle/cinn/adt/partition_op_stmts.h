@@ -22,6 +22,8 @@
 
 namespace cinn::adt {
 
+class EquationFunctionConstantsProvider;
+
 using EquationCtx4OpStmtT =
     std::function<std::shared_ptr<config::NaiveOpEquationContext>(
         const OpStmt&)>;

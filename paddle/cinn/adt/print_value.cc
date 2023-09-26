@@ -57,7 +57,7 @@ struct ToTxtStringStruct {
     return ret;
   }
 
-  std::string operator()(const IndexDot<Value>& value) {
+  std::string operator()(const IndexDot<Value, Constant>& value) {
     std::string ret;
     const auto& [_, constant] = value.tuple();
     const Value& value_ = value.GetIteratorsValue();
@@ -66,7 +66,7 @@ struct ToTxtStringStruct {
     return ret;
   }
 
-  std::string operator()(const IndexUnDot<Value>& value) {
+  std::string operator()(const IndexUnDot<Value, Constant>& value) {
     std::string ret;
     const auto& [_, constant] = value.tuple();
     const Value& value_ = value.GetIndexValue();

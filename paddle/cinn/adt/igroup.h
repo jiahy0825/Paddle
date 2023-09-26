@@ -21,6 +21,7 @@
 #include "paddle/cinn/adt/adt.h"
 #include "paddle/cinn/adt/anchor_sd_equation_context.h"
 #include "paddle/cinn/adt/equation.h"
+#include "paddle/cinn/adt/equation_function_constants_provider.h"
 #include "paddle/cinn/adt/equation_graph.h"
 #include "paddle/cinn/adt/m_expr.h"
 #include "paddle/cinn/adt/m_ir.h"
@@ -83,8 +84,21 @@ class IGroup final {
     return anchor_sd_equation_ctx_;
   }
 
-  void set_anchor_sd_equation_ctx(const config::AnchorSdEquationContext& ctx) {
+  void set_anchor_sd_equation_ctx(const config::AnchorSdEquationContext& ctx,
+                                  const ScheduleDescriptor& sd) {
     anchor_sd_equation_ctx_ = ctx;
+    CHECK_EQ(ctx.strides()->size(), sd->size());
+    auto* mut_constants_provider =
+        const_cast<EquationFunctionConstantsProvider*>(
+            constants_provider_.get());
+    std::int64_t loop_acc_size = 1;
+    for (int i = ctx.strides()->size() - 1; i >= 0; --i) {
+      CHECK(mut_constants_provider->AddStride(ctx.strides()->at(i),
+                                              loop_acc_size));
+      const auto& [loop_type, loop_size] = sd->at(i).tuple();
+      CHECK(loop_size.Has<std::int64_t>());
+      loop_acc_size *= loop_size.Get<std::int64_t>();
+    }
   }
 
   const List<Iterator>& loop_iterators() const {

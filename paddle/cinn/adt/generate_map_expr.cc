@@ -182,7 +182,7 @@ std::shared_ptr<KGroup> GenerateKGroups(
 Equations MakeSdEquations(const std::shared_ptr<IGroup>& igroup,
                           const ScheduleDescriptor& sd) {
   config::AnchorSdEquationContext ctx{sd->size(), igroup->anchor_index()};
-  igroup->set_anchor_sd_equation_ctx(ctx);
+  igroup->set_anchor_sd_equation_ctx(ctx, sd);
 
   return igroup->anchor_sd_equation_ctx().value().equations();
 }
