@@ -24,7 +24,7 @@ inputs = {"x": OpTest.random([8, 8], "float32", -1.0, 1.0)}
 builder = NetBuilder("ReduceMapExprTest")
 x = builder.create_input(Float(32), inputs["x"].shape, "x")
 
-out = builder.reduce_sum(x, [1], True)
+out = builder.reduce_sum(x, [1], False)
 
 prog = builder.build()
 

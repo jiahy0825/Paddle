@@ -12,7 +12,8 @@ gather_srcs(
   partition_op_stmts.cc
   print_map_expr.cc
   schedule_descriptor.cc
-  simplify_value.cc)
+  simplify_value.cc
+  print_equations.cc)
 
 cinn_cc_test(equation_value_match_trait_test SRCS
              equation_value_match_trait_test.cc DEPS gtest glog)

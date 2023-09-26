@@ -308,6 +308,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
     }
     return Undefined{};
   }
+  
+  void Print();
 
  private:
   template <typename value_type, typename ContainerT>
@@ -360,23 +362,29 @@ class NaiveOpEquationContext final : public OpEquationContext {
   FakeOpPlaceHolder GenerateFakeOpPlaceholder() const {
     FakeOpPlaceHolder fake_op_placeholder{UniqueId::New()};
 
-    equations_->emplace_back(InMsgBox2OutMsgBox<tOut<FakeOpPlaceHolder>,
-                                                tOut<tOutMsgBox<OpArgIndexes>>,
-                                                tIn<tInMsgBox<OpArgIndexes>>>{
-        fake_op_placeholder,
-        MakeOutMsgBoxOpArgIndexes(),
-        MakeInMsgBoxOpArgIndexes()});
+    equations_->emplace_back(
+        InMsgBox2OutMsgBox<tOut<FakeOpPlaceHolder>,
+                           tOut<OpArgIndexes<std::optional<Index>>>,
+                           tIn<OpArgIndexes<Index>>>{
+            fake_op_placeholder,
+            MakeOutMsgBoxOpArgIndexes(),
+            MakeInMsgBoxOpArgIndexes()});
 
     return fake_op_placeholder;
   }
 
-  tOutMsgBox<OpArgIndexes> MakeOutMsgBoxOpArgIndexes() const {
-    return tOutMsgBox<OpArgIndexes>{OpArgIndexes{
-        out_msg_box_in_indexes_.value(), out_msg_box_out_indexes_.value()}};
+  OpArgIndexes<std::optional<Index>> MakeOutMsgBoxOpArgIndexes() const {
+    List<std::optional<Index>> out_msg_box_out_indexes{};
+    for (const auto& out_index : *out_msg_box_out_indexes_.value()) {
+      out_msg_box_out_indexes->emplace_back(out_index);
+    }
+    return OpArgIndexes<std::optional<Index>>{
+        OpArgIndexes<std::optional<Index>>{out_msg_box_in_indexes_.value(),
+                                           out_msg_box_out_indexes}};
   }
 
-  tInMsgBox<OpArgIndexes> MakeInMsgBoxOpArgIndexes() const {
-    return tInMsgBox<OpArgIndexes>{OpArgIndexes{
+  OpArgIndexes<Index> MakeInMsgBoxOpArgIndexes() const {
+    return OpArgIndexes<Index>{OpArgIndexes<Index>{
         in_msg_box_in_indexes_.value(), in_msg_box_out_indexes_.value()}};
   }
 

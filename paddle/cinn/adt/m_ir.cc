@@ -21,6 +21,7 @@
 #include "paddle/cinn/adt/m_ir.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
 #include "paddle/cinn/adt/partition_op_stmts.h"
+#include "paddle/cinn/adt/print_equations.h"
 #include "paddle/cinn/adt/print_map_expr.h"
 
 namespace cinn::adt {
@@ -171,7 +172,8 @@ bool LocalEquationsSolvable(const GraphView& graph_view,
   IndexExprInferContext ctx{init_var2value};
   bool has_no_conflict_value =
       TrySolveEquations(graph_view, anchor_index, &ctx).value();
-  return has_no_conflict_value && ctx.HasValue(fake_op_placeholder);
+  bool ret = has_no_conflict_value && ctx.HasValue(fake_op_placeholder);
+  return ret;
 }
 
 std::vector<Index> GenerateWriteBroadcastTensorIndexs(
@@ -341,7 +343,7 @@ MapIrList GenerateMapIrListForLoopFuse(
   EraseWriteBroadcastOutMsgBoxes(op_stmts, EquationCtx4OpStmt);
 
   const auto& partitioned_anchor_groups =
-      PartitionOpStmts(EquationCtx4OpStmt, op_stmts);
+      PartitionOpStmtsV2(EquationCtx4OpStmt, op_stmts);
 
   return ConvertAnchorGroups2MapIrList(partitioned_anchor_groups,
                                        TensorIndexExpr4Tensor,
