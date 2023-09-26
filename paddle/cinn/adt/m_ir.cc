@@ -149,11 +149,21 @@ LoopIterators GetTensorLoopIterators(
         GetLoopDescriptor,
     const std::function<const TensorIndexExpr*(const Tensor&)>&
         TensorIndexExpr4Tensor) {
+  VLOG(3) << "loop_iters: ";
+  VLOG(3) << ToTxtString(loop_iters);
   const auto& tensor_index_loop_iters =
       GetTensorIndexIterators(*TensorIndexExpr4Tensor(tensor));
 
-  return GetLeftAlignedSdIterators(
+  VLOG(3) << "tensor_index_loop_iters: ";
+  for (const auto& tensor_index_loop_iter : tensor_index_loop_iters) {
+    VLOG(3) << "tensor_index_loop_iter: "
+            << ToTxtString(tensor_index_loop_iter);
+  }
+  const auto& ret = GetLeftAlignedSdIterators(
       tensor_index_loop_iters, loop_iters, GetLoopDescriptor);
+  VLOG(3) << "ret: ";
+  VLOG(3) << ToTxtString(ret);
+  return ret;
 }
 
 namespace {
@@ -249,6 +259,7 @@ std::unordered_map<Index, LoopIterators> GenerateAnchorIndex2LoopIterators(
         GetLoopDescriptor) {
   std::unordered_map<Index, LoopIterators> anchor_index2loop_iters{};
   for (const auto& anchor_group : partitioned_anchor_groups) {
+    anchor_group.PrintEquations();
     const auto& anchor_index = anchor_group.anchor_index;
     const auto& anchor_tensor = GetAnchorTensor(anchor_group);
     const auto& anchor_loop_iters = GetTensorLoopIterators(
@@ -276,10 +287,18 @@ std::set<std::size_t> GetLoopIteratorSizes(
   return ret;
 }
 
+void PrintLoopIteratorSize(const std::set<std::size_t>& loop_iter_sizes) {
+  VLOG(3) << "loop_iter_sizes.size(): " << loop_iter_sizes.size();
+  for (const auto& loop_iter_size : loop_iter_sizes) {
+    VLOG(3) << "loop_iter_size: " << loop_iter_size;
+  }
+}
+
 std::vector<IteratorsSlice> GetLoopIteratorSlices(
     const std::unordered_map<Index, LoopIterators>& index2loop_iters) {
   std::set<std::size_t> loop_iter_sizes =
       GetLoopIteratorSizes(index2loop_iters);
+
   std::vector<IteratorsSlice> ret{};
   ret.reserve(index2loop_iters.size());
   std::size_t pos = 0;
@@ -341,10 +360,10 @@ MapIrList GenerateMapIrListForLoopFuse(
   const auto& EquationCtx4OpStmt =
       config::GenerateContext4LocalOpStmt(op_stmts);
   EraseWriteBroadcastOutMsgBoxes(op_stmts, EquationCtx4OpStmt);
-
+  VLOG(3) << "after EraseWriteBroadcastOutMsgBoxes...";
   const auto& partitioned_anchor_groups =
       PartitionOpStmtsV2(EquationCtx4OpStmt, op_stmts);
-
+  VLOG(3) << "after PartitionOpStmtsV2...";
   return ConvertAnchorGroups2MapIrList(partitioned_anchor_groups,
                                        TensorIndexExpr4Tensor,
                                        loop_iters,

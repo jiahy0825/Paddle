@@ -32,6 +32,8 @@ struct AnchorGroup {
   OpStmt op_stmt;
   List<OpStmt> op_stmts;
   EquationCtx4OpStmtT EquationCtx4OpStmt;
+
+  void PrintEquations() const;
 };
 
 std::vector<AnchorGroup> PartitionOpStmts(

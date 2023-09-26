@@ -69,9 +69,6 @@ List<std::optional<Index>> GetMaskedOutIndexes(
 Equation EraseIndexes(
     const Equation& equation,
     const std::vector<Index>& erased_in_msg_box_out_tensor_indexes) {
-  VLOG(3) << "origin-equation: " << ToTxtString(equation);
-  VLOG(3) << "erased_output_tensor_indexes: ";
-  PrintIndexVector(erased_in_msg_box_out_tensor_indexes);
   const auto& in_msg_box2out_msg_box = equation.Get<InBox2OutBox>();
   const auto& [op_placeholder, out_box_indexes, in_box_indexes] =
       in_msg_box2out_msg_box.tuple();
@@ -88,7 +85,8 @@ Equation EraseIndexes(
                                              masked_out_indexes};
 
   Equation ret_equation = InBox2OutBox{op_placeholder, out_box, in_box_indexes};
-  VLOG(3) << "ret-equation: " << ToTxtString(ret_equation);
+
+  VLOG(3) << "EraseIndexes finish..";
   return ret_equation;
 }
 
@@ -104,7 +102,9 @@ void NaiveOpEquationContext::EraseOutMsgBoxIndexes(
   const auto& Erase = [&](const Equation& equation) {
     return EraseIndexes(equation, erased_output_tensor_indexes);
   };
+  VLOG(3) << "before TransformEquations...";
   equations_ = TransformEquations(equations_, Erase, Identity);
+  VLOG(3) << "after TransformEquations...";
 }
 
 std::vector<std::uint64_t> MakeTensorRanks(const List<Arg>& arg_lists) {

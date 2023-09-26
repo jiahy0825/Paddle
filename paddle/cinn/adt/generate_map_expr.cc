@@ -249,12 +249,22 @@ List<LoopIteratorsAndMapIrList> GroupByFirstLoopIterators(
 
   const auto& VisitSkipPosition = [&](const auto& DoEach) {
     for (std::size_t i = 1; i < map_irs->size(); ++i) {
+      VLOG(3) << "before loop in VisitSkipPosition...";
+      VLOG(3) << "map_irs.size(): " << map_irs->size();
+      VLOG(3) << "pre loop_iters_list().size(): "
+              << map_irs->at(i - 1).loop_iters_list()->size();
+      VLOG(3) << "next loop_iters_list().size(): "
+              << map_irs->at(i).loop_iters_list()->size();
       const auto& prev_loop_iters = map_irs->at(i - 1).loop_iters_list()->at(0);
+
       const auto& next_loop_iters = map_irs->at(i).loop_iters_list()->at(0);
+      VLOG(3) << "ing loop in VisitSkipPosition...";
       if (prev_loop_iters != next_loop_iters) {
         DoEach(i);
       }
+      VLOG(3) << "after DoEach in VisitSkipPosition...";
     }
+    VLOG(3) << "after loop in VisitSkipPosition...";
   };
 
   const auto& VisitRangeWithSameFirstLoopIterators = [&](const auto& DoEach) {
@@ -288,9 +298,11 @@ List<LoopIteratorsAndMapIrList> GroupByFirstLoopIterators(
   };
 
   List<LoopIteratorsAndMapIrList> ret{};
+
   VisitRangeWithSameFirstLoopIterators([&](std::size_t begin, std::size_t end) {
     ret->emplace_back(MakeLoopIteratorsAndMapIrList(begin, end));
   });
+  VLOG(3) << "after VisitRangeWithSameFirstLoopIterators...";
 
   return ret;
 }
@@ -316,19 +328,23 @@ LoopIteratorsAndMapIrList GetStrippedMapIrs(const MapIrList& map_irs) {
   for (const auto& map_ir : *map_irs) {
     const auto& op_stmts = map_ir.op_stmts();
     const auto& origin_loops = map_ir.loop_iters_list();
+    VLOG(3) << "origin_loops.size(): " << origin_loops->size();
     List<LoopIterators> loop_iters_list{std::next(origin_loops->begin()),
                                         origin_loops->end()};
     ret_map_irs->emplace_back(MapIr{op_stmts, loop_iters_list});
   }
   CHECK(!map_irs->at(0).loop_iters_list()->empty());
+  VLOG(3) << "ret_map_irs.loop_list.size(): "
+          << ret_map_irs->at(0).loop_iters_list()->size();
   return {map_irs->at(0).loop_iters_list()->at(0), ret_map_irs};
 }
 
 List<Stmt> MakeStmtList(const MapIrList& map_irs,
                         const LoopDescriptor4IterVarT& LoopDescriptor4IterVar) {
+  VLOG(3) << "before GroupByFirstLoopIterators...";
   const auto& grouped_map_irs = GroupByFirstLoopIterators(map_irs);
   List<Stmt> ret{};
-
+  VLOG(3) << "after GroupByFirstLoopIterators...";
   const auto& CollectOpStmts = [&](const auto& inner_map_irs) {
     for (const auto& map_ir : *inner_map_irs) {
       CHECK(map_ir.loop_iters_list()->empty());
@@ -345,6 +361,7 @@ List<Stmt> MakeStmtList(const MapIrList& map_irs,
       ret->emplace_back(MakeMapStmt(inner_map_irs, LoopDescriptor4IterVar));
     }
   }
+  VLOG(3) << "ret.size(): " << ret->size();
 
   return ret;
 }
@@ -364,10 +381,18 @@ MapStmt<Stmt> MakeMapStmt(
     const LoopDescriptor4IterVarT& LoopDescriptor4IterVar) {
   const auto& [first_loop_iters, first_stripped_map_irs] =
       GetStrippedMapIrs(map_irs);
-
-  return MapStmt<Stmt>{
-      MakeScheduleDescriptor(first_loop_iters, LoopDescriptor4IterVar),
-      MakeStmtList(first_stripped_map_irs, LoopDescriptor4IterVar)};
+  VLOG(3) << "before MakeScheduleDescriptor...";
+  VLOG(3) << "first_loop_iters.size(): " << first_loop_iters->size();
+  const auto& schedule_descriptor =
+      MakeScheduleDescriptor(first_loop_iters, LoopDescriptor4IterVar);
+  VLOG(3) << "after MakeScheduleDescriptor...";
+  VLOG(3) << "before MakeStmtList...";
+  VLOG(3) << "first_stripped_map_irs.size(): "
+          << first_stripped_map_irs->size();
+  const auto& stmt_list =
+      MakeStmtList(first_stripped_map_irs, LoopDescriptor4IterVar);
+  VLOG(3) << "after MakeStmtList...";
+  return MapStmt<Stmt>{schedule_descriptor, stmt_list};
 }
 
 Tensor GetAnchorTensor(const std::shared_ptr<IGroup>& igroup) {
@@ -422,9 +447,14 @@ AnchoredMapStmt GenerateAnchoredMapStmt(
                                                      TensorIndexExpr4Tensor);
 
   // AnchoredMapStmt = (MapStmt Stmt, tAnchor Tensor, TensorIndexExpr4TensorT)
-  return AnchoredMapStmt{MakeMapStmt(map_irs, LoopDescriptor4IterVar),
-                         GetAnchorTensor(igroup),
-                         TensorIndexExpr4Tensor};
+  VLOG(3) << "before MakeMapStmt...";
+  VLOG(3) << "map_irs.size(): " << map_irs->size();
+  const auto& map_stmt = MakeMapStmt(map_irs, LoopDescriptor4IterVar);
+
+  VLOG(3) << "after MakeMapStmt...";
+  const auto& anchor_tensor = GetAnchorTensor(igroup);
+  VLOG(3) << "after GetAnchorTensor...";
+  return AnchoredMapStmt{map_stmt, anchor_tensor, TensorIndexExpr4Tensor};
 }
 
 AnchoredMapStmt GenerateAnchoredMapStmt(const std::shared_ptr<IGroup>& igroup,
@@ -449,6 +479,7 @@ List<AnchoredMapStmt> MakeAnchoredMapStmts(
     const auto& sd = kgroup->GetDefaultScheduleDescriptor(igroup);
     ret->emplace_back(GenerateAnchoredMapStmt(igroup, sd));
   }
+  VLOG(3) << "after GenerateAnchoredMapStmt...";
   return ret;
 }
 

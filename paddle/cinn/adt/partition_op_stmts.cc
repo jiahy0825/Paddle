@@ -360,6 +360,14 @@ std::unordered_map<AnchorIndex, AnchorGroup> PartitionOpStmtsIntoAnchorGroups(
   return anchor_index2igroup_spec;
 }
 
+void AnchorGroup::PrintEquations() const {
+  const auto& ctx = EquationCtx4OpStmt(op_stmt);
+  VLOG(3) << "anchor_index: ";
+  VLOG(3) << ToTxtString(anchor_index);
+  VLOG(3) << "AnchorGroup.equations: ";
+  ctx->Print();
+}
+
 std::unordered_map<AnchorIndex, AnchorGroup> PartitionOpStmtsIntoAnchorGroupsV2(
     std::unordered_set<AnchorIndex>* candidate_anchor_indexes,
     const EquationCtx4OpStmtT& EquationCtx4OpStmt,
