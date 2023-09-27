@@ -68,6 +68,9 @@ struct TreeMerger {
 };
 
 template <typename TreeT>
+List<TreeT> MergeTwoInnerTree(const TreeT& lhs, const TreeT& rhs);
+
+template <typename TreeT>
 List<TreeT> MergeTwoInnerTreeImpl(
     const typename TreeTrait<TreeT>::inner_type& lhs,
     const typename TreeTrait<TreeT>::inner_type& rhs) {
@@ -101,11 +104,13 @@ List<TreeT> MergeTwoInnerTreeImpl(
     const TreeT last_lhs_child = lhs_children->back();
     const auto merged_last_children =
         MergeTwoInnerTree<TreeT>(last_lhs_child, new_rhs);
-    List<TreeT> new_lhs_children{lhs_children->begin(),
-                                 std::prev(lhs_children->end())};
+    List<TreeT> new_lhs_children{};
     new_lhs_children->insert(new_lhs_children->end(),
-                             merged_last_children.begin(),
-                             merged_last_children.end());
+                             lhs_children->begin(),
+                             std::prev(lhs_children->end()));
+    new_lhs_children->insert(new_lhs_children->end(),
+                             merged_last_children->begin(),
+                             merged_last_children->end());
     const auto ret =
         TreeMerger<TreeT>::MakeInnerNode(common.value(), new_lhs_children);
     return List<TreeT>{ret};
