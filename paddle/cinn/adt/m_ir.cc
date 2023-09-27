@@ -154,25 +154,11 @@ LoopIterators GetTensorLoopIterators(
     const std::function<TensorIndexExpr(const Tensor&)>&
         TensorIndexExpr4Tensor) {
   Value tensor_value = TensorIndexExpr4Tensor(tensor);
-  VLOG(3) << "tensor_index_expr: ";
-  VLOG(3) << ToTxtString(tensor_value);
-
-  VLOG(3) << "loop_iters: ";
-  VLOG(3) << ToTxtString(loop_iters);
-
   const auto& tensor_index_loop_iters =
       GetTensorIndexIterators(TensorIndexExpr4Tensor(tensor));
 
-  VLOG(3) << "tensor_index_loop_iters: ";
-  for (const auto& tensor_index_loop_iter : tensor_index_loop_iters) {
-    VLOG(3) << "tensor_index_loop_iter: "
-            << ToTxtString(tensor_index_loop_iter);
-  }
-  const auto& ret = GetLeftAlignedSdIterators(
+  return GetLeftAlignedSdIterators(
       tensor_index_loop_iters, loop_iters, GetLoopDescriptor);
-  VLOG(3) << "ret: ";
-  VLOG(3) << ToTxtString(ret);
-  return ret;
 }
 
 namespace {
@@ -301,13 +287,6 @@ std::set<std::size_t> GetLoopIteratorSizes(
   std::set<std::size_t> ret{};
   VisitLoopIteratorsSize([&](std::size_t size) { ret.emplace(size); });
   return ret;
-}
-
-void PrintLoopIteratorSize(const std::set<std::size_t>& loop_iter_sizes) {
-  VLOG(3) << "loop_iter_sizes.size(): " << loop_iter_sizes.size();
-  for (const auto& loop_iter_size : loop_iter_sizes) {
-    VLOG(3) << "loop_iter_size: " << loop_iter_size;
-  }
 }
 
 std::vector<IteratorsSlice> GetLoopIteratorSlices(

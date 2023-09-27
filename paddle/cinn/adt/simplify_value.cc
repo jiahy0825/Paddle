@@ -68,10 +68,8 @@ struct SimplifyUnDot {
       const Constant& int64_stride =
           ctx.GetStrideSize(stride_constant.Get<Stride>());
       if (int64_stride.Has<std::int64_t>()) {
-        VLOG(1) << "MatchAndRewrite SimplifyUnDot: match std::int64_t succ";
         int64_strides->emplace_back(int64_stride);
       } else {
-        VLOG(1) << "MatchAndRewrite SimplifyUnDot: match std::int64_t false";
         return IndexUnDot<Value, Constant>{SimplifyValue(index, ctx),
                                            strides_constants};
       }
@@ -183,9 +181,6 @@ struct SimplifyListGetItemList {
 // Only simplify top-layer of value
 Value SimplifyValue(Value value, const IndexExprInferContext& ctx) {
   value = MatchAndRewrite<SimplifyDot>(value, ctx);
-  VLOG(1) << "Match value: " << ToTxtString(value);
-  VLOG(1) << "Match SimplifyUnDot: "
-          << cinn::adt::Match<SimplifyUnDot::source_pattern_type>(value);
   value = MatchAndRewrite<SimplifyUnDot>(value, ctx);
   value = MatchAndRewrite<SimplifyList>(value, ctx);
   value = MatchAndRewrite<SimplifyListGetItem>(value, ctx);

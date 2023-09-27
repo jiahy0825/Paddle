@@ -86,7 +86,6 @@ Equation EraseIndexes(
 
   Equation ret_equation = InBox2OutBox{op_placeholder, out_box, in_box_indexes};
 
-  VLOG(3) << "EraseIndexes finish..";
   return ret_equation;
 }
 
@@ -102,9 +101,7 @@ void NaiveOpEquationContext::EraseOutMsgBoxIndexes(
   const auto& Erase = [&](const Equation& equation) {
     return EraseIndexes(equation, erased_output_tensor_indexes);
   };
-  VLOG(3) << "before TransformEquations...";
   equations_ = TransformEquations(equations_, Erase, Identity);
-  VLOG(3) << "after TransformEquations...";
 }
 
 std::vector<std::uint64_t> MakeTensorRanks(const List<Arg>& arg_lists) {
