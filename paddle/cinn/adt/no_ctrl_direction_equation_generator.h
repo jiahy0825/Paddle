@@ -27,7 +27,13 @@ class NoCtrlDirectionEquationGenerator final
 
   NoCtrlDirectionEquationGenerator();
 
-  Equations GetDirectionEquations() const override {}
+  Equations GetDirectionEquations() const override;
+
+  std::function<const OpStmt*(const FakeOpPlaceHolder&)>
+  MakeGetterOpStmt4OpPlaceHolder() const override;
+
+  std::optional<Index> OutMsgBoxIndex4InMsgBoxIndex(
+      const Index& index) const override;
 
  private:
 };
