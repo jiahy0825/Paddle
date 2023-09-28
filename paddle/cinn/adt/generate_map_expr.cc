@@ -17,6 +17,7 @@
 #include "paddle/cinn/adt/equation.h"
 #include "paddle/cinn/adt/equation_solver.h"
 #include "paddle/cinn/adt/igroup.h"
+#include "paddle/cinn/adt/in_msg_box2out_msg_box_direction_equation_generator.h"
 #include "paddle/cinn/adt/index_expr_infer_context.h"
 #include "paddle/cinn/adt/kgroup.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
@@ -185,7 +186,11 @@ void PartitionIGroupOpStmts(const List<OpStmt>& op_stmts,
                             const DoEachT& DoEach) {
   const auto& EquationCtx4OpStmt =
       config::GenerateContext4LocalOpStmt(op_stmts);
-  const auto& igroup_specs = PartitionOpStmts(EquationCtx4OpStmt, op_stmts);
+  auto direction_equation_generator =
+      std::make_shared<InMsgBox2OutMsgBoxDirectionEquationGenerator>(
+          op_stmts, EquationCtx4OpStmt);
+  const auto& igroup_specs = PartitionOpStmts(
+      EquationCtx4OpStmt, op_stmts, direction_equation_generator);
   for (const auto& igroup_spec : igroup_specs) {
     DoEach(igroup_spec);
   }

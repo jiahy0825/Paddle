@@ -14,6 +14,7 @@
 #include <algorithm>
 
 #include "paddle/cinn/adt/adt.h"
+#include "paddle/cinn/adt/direction_equation_generator.h"
 #include "paddle/cinn/adt/equation.h"
 #include "paddle/cinn/adt/equation_solver.h"
 #include "paddle/cinn/adt/equation_util.h"
@@ -272,14 +273,21 @@ GraphView MakeParametersGraphViewForPartition(
 
 GraphView MakeGlobalEquationGraphViewForPartition(
     const EquationCtx4OpStmtT& EquationCtx4OpStmt,
-    const List<OpStmt>& op_stmts) {
+    const List<OpStmt>& op_stmts,
+    const std::shared_ptr<DirectionEquationGenerator>&
+        direction_equation_generator) {
   const auto& ops_graph_view =
       MakeOpsGraphViewForPartition(EquationCtx4OpStmt, op_stmts);
+
+  const auto& direction_equation_view =
+      Graph::New(direction_equation_generator->generate_direction_equations())
+          ->GetGraphView();
 
   const auto& parameters_graph_view =
       MakeParametersGraphViewForPartition(EquationCtx4OpStmt, op_stmts);
 
-  return ops_graph_view.Merge(parameters_graph_view);
+  return ops_graph_view.Merge(direction_equation_view)
+      .Merge(parameters_graph_view);
 }
 
 template <typename DoEachT>
@@ -320,14 +328,16 @@ void EraseCandidateAnchorIndexes(
 std::unordered_map<AnchorIndex, AnchorGroup> PartitionOpStmtsIntoAnchorGroups(
     std::unordered_set<AnchorIndex>* candidate_anchor_indexes,
     const EquationCtx4OpStmtT& EquationCtx4OpStmt,
-    const List<OpStmt>& op_stmts) {
+    const List<OpStmt>& op_stmts,
+    const std::shared_ptr<DirectionEquationGenerator>&
+        direction_equation_generator) {
   std::unordered_map<AnchorIndex, AnchorGroup> anchor_index2igroup_spec{};
 
   const auto& OpStmt4OpPlaceHolder =
-      MakeGetterOpStmt4OpPlaceHolder(EquationCtx4OpStmt, op_stmts);
+      direction_equation_generator->MakeGetterOpStmt4OpPlaceHolder();
 
-  const auto& equation_graph_view =
-      MakeGlobalEquationGraphViewForPartition(EquationCtx4OpStmt, op_stmts);
+  const auto& equation_graph_view = MakeGlobalEquationGraphViewForPartition(
+      EquationCtx4OpStmt, op_stmts, direction_equation_generator);
 
   std::unordered_set<OpStmt> all_visited_op_stmts{};
   while (!candidate_anchor_indexes->empty()) {
@@ -484,13 +494,17 @@ std::vector<AnchorGroup> SortedAnchorGroups(
 
 std::vector<AnchorGroup> PartitionOpStmts(
     const EquationCtx4OpStmtT& EquationCtx4OpStmt,
-    const List<OpStmt>& op_stmts) {
+    const List<OpStmt>& op_stmts,
+    const std::shared_ptr<DirectionEquationGenerator>&
+        direction_equation_generator) {
   std::unordered_set<AnchorIndex> candidate_anchor_indexes =
       InitCandidateAnchorIndex(EquationCtx4OpStmt, op_stmts);
 
   std::unordered_map<AnchorIndex, AnchorGroup> anchor_index2igroup_spec =
-      PartitionOpStmtsIntoAnchorGroups(
-          &candidate_anchor_indexes, EquationCtx4OpStmt, op_stmts);
+      PartitionOpStmtsIntoAnchorGroups(&candidate_anchor_indexes,
+                                       EquationCtx4OpStmt,
+                                       op_stmts,
+                                       direction_equation_generator);
 
   return SortedAnchorGroups(&anchor_index2igroup_spec, op_stmts);
 }

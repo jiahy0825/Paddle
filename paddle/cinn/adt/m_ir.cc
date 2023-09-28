@@ -17,6 +17,7 @@
 
 #include "paddle/cinn/adt/adt.h"
 #include "paddle/cinn/adt/equation_solver.h"
+#include "paddle/cinn/adt/in_msg_box2out_msg_box_direction_equation_generator.h"
 #include "paddle/cinn/adt/index_expr_infer_context.h"
 #include "paddle/cinn/adt/m_ir.h"
 #include "paddle/cinn/adt/naive_equation_function_constants_provider.h"
@@ -296,9 +297,12 @@ MapIrList GenerateMapIrListForLoopFuse(
         TensorIndexExpr4Tensor) {
   const auto& EquationCtx4OpStmt =
       config::GenerateContext4LocalOpStmt(op_stmts);
-  EraseWriteBroadcastOutMsgBoxes(op_stmts, EquationCtx4OpStmt);
-  const auto& partitioned_anchor_groups =
-      PartitionOpStmts(EquationCtx4OpStmt, op_stmts);
+  auto direction_equation_generator =
+      std::make_shared<InMsgBox2OutMsgBoxDirectionEquationGenerator>(
+          op_stmts, EquationCtx4OpStmt);
+  direction_equation_generator->EraseWriteBroadcastOutMsgBoxes();
+  const auto& partitioned_anchor_groups = PartitionOpStmts(
+      EquationCtx4OpStmt, op_stmts, direction_equation_generator);
   return ConvertAnchorGroups2MapIrList(partitioned_anchor_groups,
                                        TensorIndexExpr4Tensor,
                                        loop_iters,
