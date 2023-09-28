@@ -125,14 +125,13 @@ std::unordered_set<Iterator> GetTensorIndexIterators(
 LoopIterators GetLeftAlignedSdIterators(
     const std::unordered_set<Iterator>& tensor_index_loop_iters,
     const LoopIterators& loop_iters,
-    const std::function<const LoopDescriptor*(const Iterator&)>&
-        GetLoopDescriptor) {
+    const std::function<LoopDescriptor(const Iterator&)>& GetLoopDescriptor) {
   const auto& Used = [&](const Iterator& iter_var) {
     return tensor_index_loop_iters.count(iter_var) != 0;
   };
 
   const auto& IsIterVarLoopTypeSpatial = [&](const Iterator& iter_var) {
-    return IsSpatial(GetLoopDescriptor(iter_var)->GetLoopType());
+    return IsSpatial(GetLoopDescriptor(iter_var).GetLoopType());
   };
 
   LoopIterators ret{loop_iters->begin(), loop_iters->end()};
@@ -149,8 +148,7 @@ LoopIterators GetLeftAlignedSdIterators(
 LoopIterators GetTensorLoopIterators(
     const Tensor& tensor,
     const LoopIterators& loop_iters,
-    const std::function<const LoopDescriptor*(const Iterator&)>&
-        GetLoopDescriptor,
+    const std::function<LoopDescriptor(const Iterator&)>& GetLoopDescriptor,
     const std::function<TensorIndexExpr(const Tensor&)>&
         TensorIndexExpr4Tensor) {
   Value tensor_value = TensorIndexExpr4Tensor(tensor);
@@ -257,8 +255,7 @@ std::unordered_map<Index, LoopIterators> GenerateAnchorIndex2LoopIterators(
     const std::vector<AnchorGroup>& partitioned_anchor_groups,
     const std::function<TensorIndexExpr(const Tensor&)>& TensorIndexExpr4Tensor,
     const LoopIterators& loop_iters,
-    const std::function<const LoopDescriptor*(const Iterator&)>&
-        GetLoopDescriptor) {
+    const std::function<LoopDescriptor(const Iterator&)>& GetLoopDescriptor) {
   std::unordered_map<Index, LoopIterators> anchor_index2loop_iters{};
   for (const auto& anchor_group : partitioned_anchor_groups) {
     anchor_group.PrintEquations();
@@ -272,74 +269,23 @@ std::unordered_map<Index, LoopIterators> GenerateAnchorIndex2LoopIterators(
   return anchor_index2loop_iters;
 }
 
-struct IteratorsSlice {
-  std::size_t start;
-  std::size_t end;
-};
-
-std::set<std::size_t> GetLoopIteratorSizes(
-    const std::unordered_map<Index, LoopIterators>& index2loop_iters) {
-  const auto& VisitLoopIteratorsSize = [&](const auto& DoEach) {
-    for (const auto& [_, loop_iters] : index2loop_iters) {
-      DoEach(loop_iters->size());
-    }
-  };
-  std::set<std::size_t> ret{};
-  VisitLoopIteratorsSize([&](std::size_t size) { ret.emplace(size); });
-  return ret;
-}
-
-std::vector<IteratorsSlice> GetLoopIteratorSlices(
-    const std::unordered_map<Index, LoopIterators>& index2loop_iters) {
-  std::set<std::size_t> loop_iter_sizes =
-      GetLoopIteratorSizes(index2loop_iters);
-
-  std::vector<IteratorsSlice> ret{};
-  ret.reserve(index2loop_iters.size());
-  std::size_t pos = 0;
-  for (std::size_t size : loop_iter_sizes) {
-    ret.push_back(IteratorsSlice{pos, size});
-    pos = size;
-  }
-  return ret;
-}
-
-List<LoopIterators> MakeLoopItersList(
-    const LoopIterators& loop_iters,
-    const std::vector<IteratorsSlice>& slices) {
-  List<LoopIterators> ret{};
-  for (const auto& slice : slices) {
-    const auto& begin = std::next(loop_iters->begin(), slice.start);
-    const auto& end = std::next(loop_iters->begin(), slice.end);
-    if (slice.start < loop_iters->size()) {
-      ret->emplace_back(LoopIterators{begin, end});
-    }
-  }
-  return ret;
-}
-
 }  // namespace
 
 MapIrList ConvertAnchorGroups2MapIrList(
     const std::vector<AnchorGroup>& partitioned_anchor_groups,
     const std::function<TensorIndexExpr(const Tensor&)>& TensorIndexExpr4Tensor,
     const LoopIterators& loop_iters,
-    const std::function<const LoopDescriptor*(const Iterator&)>&
-        GetLoopDescriptor) {
+    const std::function<LoopDescriptor(const Iterator&)>& GetLoopDescriptor) {
   const auto& anchor_index2loop_iters =
       GenerateAnchorIndex2LoopIterators(partitioned_anchor_groups,
                                         TensorIndexExpr4Tensor,
                                         loop_iters,
                                         GetLoopDescriptor);
-  std::vector<IteratorsSlice> loop_iter_slices =
-      GetLoopIteratorSlices(anchor_index2loop_iters);
   MapIrList ret{};
   for (const auto& anchor_group : partitioned_anchor_groups) {
     const auto& anchor_index = anchor_group.anchor_index;
     const auto& anchor_loop_iters = anchor_index2loop_iters.at(anchor_index);
-    const auto& loop_iters_list =
-        MakeLoopItersList(anchor_loop_iters, loop_iter_slices);
-    ret->emplace_back(MapIr{anchor_group.op_stmts, loop_iters_list});
+    ret->emplace_back(MapIr{anchor_group.op_stmts, anchor_loop_iters});
   }
   return ret;
 }
@@ -347,8 +293,7 @@ MapIrList ConvertAnchorGroups2MapIrList(
 MapIrList GenerateMapIrListForLoopFuse(
     const List<OpStmt>& op_stmts,
     const LoopIterators& loop_iters,
-    const std::function<const LoopDescriptor*(const Iterator&)>&
-        GetLoopDescriptor,
+    const std::function<LoopDescriptor(const Iterator&)>& GetLoopDescriptor,
     const std::function<TensorIndexExpr(const Tensor&)>&
         TensorIndexExpr4Tensor) {
   const auto& EquationCtx4OpStmt =

@@ -23,6 +23,7 @@
 #include "paddle/cinn/adt/partition_op_stmts.h"
 #include "paddle/cinn/adt/print_map_expr.h"
 #include "paddle/cinn/adt/schedule_descriptor.h"
+#include "paddle/cinn/adt/tree.h"
 #include "paddle/cinn/runtime/flags.h"
 
 #include "glog/logging.h"
@@ -31,10 +32,52 @@ PD_DECLARE_bool(cinn_enable_map_expr);
 
 namespace cinn::adt {
 
+template <>
+struct TreeMerger<Stmt> {
+  using TreeT = Stmt;
+  using tree_type = TreeT;
+  using inner_type = typename TreeTrait<TreeT>::inner_type;
+  using leaf_type = typename TreeTrait<TreeT>::leaf_type;
+
+  using inner_data_type = typename inner_type::value_type;
+  std::function<inner_data_type(const leaf_type&)> GetInnerDataForLeaf;
+
+  inner_type MakeInnerNode(const inner_data_type& inner_data,
+                           const List<TreeT>& children) const {
+    return MapStmt<Stmt>{inner_data, children};
+  }
+
+  using MergeResult = std::tuple<tCommon<inner_data_type>,
+                                 tLhsRemainder<inner_data_type>,
+                                 tRhsRemainder<inner_data_type>>;
+
+  MergeResult MergeInnerValue(const inner_data_type& lhs,
+                              const inner_data_type& rhs) const {
+    inner_data_type common{};
+    inner_data_type lhs_remainder{};
+    inner_data_type rhs_remainder{};
+    int min_size = std::min(lhs->size(), rhs->size());
+    int idx = 0;
+    for (; idx < min_size; ++idx) {
+      if (lhs->at(idx) == rhs->at(idx)) {
+        common->emplace_back(lhs->at(idx));
+      } else {
+        break;
+      }
+    }
+    for (int lhs_idx = idx; lhs_idx < lhs->size(); ++lhs_idx) {
+      lhs_remainder->emplace_back(lhs->at(lhs_idx));
+    }
+    for (int rhs_idx = idx; rhs_idx < rhs->size(); ++rhs_idx) {
+      rhs_remainder->emplace_back(rhs->at(rhs_idx));
+    }
+    return MergeResult{common, lhs_remainder, rhs_remainder};
+  }
+};
+
 namespace {
 
-using LoopDescriptor4IterVarT =
-    std::function<const LoopDescriptor*(const Iterator&)>;
+using LoopDescriptor4IterVarT = std::function<LoopDescriptor(const Iterator&)>;
 
 using AnchorTensor = Variable;
 using FakeOpPlaceHolders = List<FakeOpPlaceHolder>;
@@ -243,161 +286,33 @@ LoopDescriptor4IterVarT MakeGetterLoopDescriptor4IterVar(
   for (std::size_t i = 0; i < loop_iters->size(); ++i) {
     CHECK(sd_iter2sd->emplace(loop_iters->at(i), sd->at(i)).second);
   }
-  return [sd_iter2sd](const auto& sd_iter) { return &sd_iter2sd->at(sd_iter); };
+  return [sd_iter2sd](const auto& sd_iter) { return sd_iter2sd->at(sd_iter); };
 }
 
-using LoopIteratorsAndMapIrList = std::pair<LoopIterators, MapIrList>;
-
-List<LoopIteratorsAndMapIrList> GroupByFirstLoopIterators(
-    const MapIrList& map_irs) {
-  CHECK(!map_irs->empty());
-
-  const auto& VisitSkipPosition = [&](const auto& DoEach) {
-    for (std::size_t i = 1; i < map_irs->size(); ++i) {
-      VLOG(3) << "before loop in VisitSkipPosition...";
-      VLOG(3) << "map_irs.size(): " << map_irs->size();
-      VLOG(3) << "pre loop_iters_list().size(): "
-              << map_irs->at(i - 1).loop_iters_list()->size();
-      VLOG(3) << "next loop_iters_list().size(): "
-              << map_irs->at(i).loop_iters_list()->size();
-      const auto& prev_loop_iters = map_irs->at(i - 1).loop_iters_list()->at(0);
-
-      const auto& next_loop_iters = map_irs->at(i).loop_iters_list()->at(0);
-      VLOG(3) << "ing loop in VisitSkipPosition...";
-      if (prev_loop_iters != next_loop_iters) {
-        DoEach(i);
-      }
-      VLOG(3) << "after DoEach in VisitSkipPosition...";
-    }
-    VLOG(3) << "after loop in VisitSkipPosition...";
-  };
-
-  const auto& VisitRangeWithSameFirstLoopIterators = [&](const auto& DoEach) {
-    std::size_t begin = 0;
-    VisitSkipPosition([&](std::size_t end) {
-      DoEach(begin, end);
-      begin = end;
-    });
-    DoEach(begin, map_irs->size());
-  };
-
-  const auto& GetFirstLoopIterators = [&](std::size_t begin) -> LoopIterators {
-    if (map_irs->at(begin).loop_iters_list()->empty()) {
-      return LoopIterators{};
-    }
-    return map_irs->at(begin).loop_iters_list()->at(0);
-  };
-
-  const auto& MakeMapIrList = [&](std::size_t begin, std::size_t end) {
-    MapIrList map_ir_list{};
-    for (std::size_t i = begin; i < end; ++i) {
-      map_ir_list->emplace_back(map_irs->at(i));
-    }
-    return map_ir_list;
-  };
-
-  const auto& MakeLoopIteratorsAndMapIrList = [&](std::size_t begin,
-                                                  std::size_t end) {
-    return LoopIteratorsAndMapIrList{GetFirstLoopIterators(begin),
-                                     MakeMapIrList(begin, end)};
-  };
-
-  List<LoopIteratorsAndMapIrList> ret{};
-
-  VisitRangeWithSameFirstLoopIterators([&](std::size_t begin, std::size_t end) {
-    ret->emplace_back(MakeLoopIteratorsAndMapIrList(begin, end));
-  });
-  VLOG(3) << "after VisitRangeWithSameFirstLoopIterators...";
-
-  return ret;
-}
-
-MapStmt<Stmt> MakeMapStmt(
-    const MapIrList& map_irs,
-    const LoopDescriptor4IterVarT& LoopDescriptor4IterVar);
-
-void CheckFirstLoopAllSame(const MapIrList& map_irs) {
-  if (map_irs->empty()) {
-    return;
+TreeMerger<Stmt> MakeTreeMerger(const MapIr& map_ir) {
+  using Cache = std::unordered_map<OpStmt, LoopIterators>;
+  auto cache = std::make_shared<Cache>();
+  for (const auto& op_stmt : *(map_ir.op_stmts())) {
+    CHECK(cache->emplace(op_stmt, map_ir.loop_iterators()).second);
   }
-  for (std::size_t i = 1; i < map_irs->size(); ++i) {
-    const auto& prev_loop_iters = map_irs->at(i - 1).loop_iters_list()->at(0);
-    const auto& next_loop_iters = map_irs->at(i).loop_iters_list()->at(0);
-    CHECK(prev_loop_iters == next_loop_iters);
-  }
+
+  TreeMerger<Stmt> tree_merger{};
+  tree_merger.GetInnerDataForLeaf =
+      ([=](const OpStmt& op_stmt) -> LoopIterators {
+        return cache->at(op_stmt);
+      });
+  return tree_merger;
 }
 
-LoopIteratorsAndMapIrList GetStrippedMapIrs(const MapIrList& map_irs) {
-  CheckFirstLoopAllSame(map_irs);
-  MapIrList ret_map_irs{};
+MapStmt<Stmt> MakeMapStmt(const MapIrList& map_irs) {
+  List<Stmt> stmts{};
   for (const auto& map_ir : *map_irs) {
-    const auto& op_stmts = map_ir.op_stmts();
-    const auto& origin_loops = map_ir.loop_iters_list();
-    VLOG(3) << "origin_loops.size(): " << origin_loops->size();
-    List<LoopIterators> loop_iters_list{std::next(origin_loops->begin()),
-                                        origin_loops->end()};
-    ret_map_irs->emplace_back(MapIr{op_stmts, loop_iters_list});
+    const TreeMerger<Stmt>& tree_merger = MakeTreeMerger(map_ir);
+    MergeTrees(tree_merger, &stmts, map_ir.op_stmts());
   }
-  CHECK(!map_irs->at(0).loop_iters_list()->empty());
-  VLOG(3) << "ret_map_irs.loop_list.size(): "
-          << ret_map_irs->at(0).loop_iters_list()->size();
-  return {map_irs->at(0).loop_iters_list()->at(0), ret_map_irs};
-}
-
-List<Stmt> MakeStmtList(const MapIrList& map_irs,
-                        const LoopDescriptor4IterVarT& LoopDescriptor4IterVar) {
-  VLOG(3) << "before GroupByFirstLoopIterators...";
-  const auto& grouped_map_irs = GroupByFirstLoopIterators(map_irs);
-  List<Stmt> ret{};
-  VLOG(3) << "after GroupByFirstLoopIterators...";
-  const auto& CollectOpStmts = [&](const auto& inner_map_irs) {
-    for (const auto& map_ir : *inner_map_irs) {
-      CHECK(map_ir.loop_iters_list()->empty());
-      for (const auto& op_stmt : *map_ir.op_stmts()) {
-        ret->emplace_back(op_stmt);
-      }
-    }
-  };
-
-  for (const auto& [loop_iters, inner_map_irs] : *grouped_map_irs) {
-    if (loop_iters->empty()) {
-      CollectOpStmts(inner_map_irs);
-    } else {
-      ret->emplace_back(MakeMapStmt(inner_map_irs, LoopDescriptor4IterVar));
-    }
-  }
-  VLOG(3) << "ret.size(): " << ret->size();
-
-  return ret;
-}
-
-ScheduleDescriptor MakeScheduleDescriptor(
-    const LoopIterators& first_loop_iters,
-    const LoopDescriptor4IterVarT& LoopDescriptor4IterVar) {
-  ScheduleDescriptor ret{};
-  for (const auto& loop_iterator : *first_loop_iters) {
-    ret->emplace_back(*LoopDescriptor4IterVar(loop_iterator));
-  }
-  return ret;
-}
-
-MapStmt<Stmt> MakeMapStmt(
-    const MapIrList& map_irs,
-    const LoopDescriptor4IterVarT& LoopDescriptor4IterVar) {
-  const auto& [first_loop_iters, first_stripped_map_irs] =
-      GetStrippedMapIrs(map_irs);
-  VLOG(3) << "before MakeScheduleDescriptor...";
-  VLOG(3) << "first_loop_iters.size(): " << first_loop_iters->size();
-  const auto& schedule_descriptor =
-      MakeScheduleDescriptor(first_loop_iters, LoopDescriptor4IterVar);
-  VLOG(3) << "after MakeScheduleDescriptor...";
-  VLOG(3) << "before MakeStmtList...";
-  VLOG(3) << "first_stripped_map_irs.size(): "
-          << first_stripped_map_irs->size();
-  const auto& stmt_list =
-      MakeStmtList(first_stripped_map_irs, LoopDescriptor4IterVar);
-  VLOG(3) << "after MakeStmtList...";
-  return MapStmt<Stmt>{schedule_descriptor, stmt_list};
+  CHECK_EQ(stmts->size(), 1);
+  CHECK(stmts->at(0).Has<MapStmt<Stmt>>());
+  return stmts->at(0).Get<MapStmt<Stmt>>();
 }
 
 Tensor GetAnchorTensor(const std::shared_ptr<IGroup>& igroup) {
@@ -454,12 +369,13 @@ AnchoredMapStmt GenerateAnchoredMapStmt(
   // AnchoredMapStmt = (MapStmt Stmt, tAnchor Tensor, TensorIndexExpr4TensorT)
   VLOG(3) << "before MakeMapStmt...";
   VLOG(3) << "map_irs.size(): " << map_irs->size();
-  const auto& map_stmt = MakeMapStmt(map_irs, LoopDescriptor4IterVar);
+  const auto& map_stmt = MakeMapStmt(map_irs);
 
   VLOG(3) << "after MakeMapStmt...";
   const auto& anchor_tensor = GetAnchorTensor(igroup);
   VLOG(3) << "after GetAnchorTensor...";
-  return AnchoredMapStmt{map_stmt, anchor_tensor, TensorIndexExpr4Tensor};
+  return AnchoredMapStmt{
+      map_stmt, anchor_tensor, TensorIndexExpr4Tensor, LoopDescriptor4IterVar};
 }
 
 AnchoredMapStmt GenerateAnchoredMapStmt(const std::shared_ptr<IGroup>& igroup,

@@ -170,13 +170,14 @@ List<typename TreeMergerT::tree_type> MergeTwoInnerTree(
 }
 
 template <typename TreeMergerT>
-List<typename TreeMergerT::tree_type> MakeTreeByMerger(
+void MergeTrees(
     const TreeMergerT& tree_merger,
+    List<typename TreeMergerT::tree_type>* acc,
     const List<typename TreeTrait<typename TreeMergerT::tree_type>::leaf_type>&
         leaves) {
   using TreeT = typename TreeMergerT::tree_type;
   if (leaves->empty()) {
-    return List<TreeT>{};
+    return;
   }
   using leaf_type = typename TreeTrait<TreeT>::leaf_type;
   using inner_type = typename TreeTrait<TreeT>::inner_type;
@@ -189,18 +190,31 @@ List<typename TreeMergerT::tree_type> MakeTreeByMerger(
     return ret;
   };
 
-  const auto& Aggregate = [&](const TreeT& init) -> List<TreeT> {
-    List<TreeT> acc{init};
-    for (std::size_t i = 1; i < leaves->size(); ++i) {
-      const auto merged = MergeTwoInnerTree(
-          tree_merger, acc->back(), MakeTreeFromLeaf(leaves->at(i)));
-      acc->erase(std::prev(acc->end()));
-      acc->insert(acc->end(), merged->begin(), merged->end());
-    }
-    return acc;
-  };
+  // Handle init
+  std::size_t leaf_start = 0;
+  if ((*acc)->empty()) {
+    (*acc)->emplace_back(MakeTreeFromLeaf(leaves->at(0)));
+    leaf_start = 1;
+  }
 
-  return Aggregate(MakeTreeFromLeaf(leaves->at(0)));
+  for (std::size_t i = leaf_start; i < leaves->size(); ++i) {
+    const auto merged = MergeTwoInnerTree(
+        tree_merger, (*acc)->back(), MakeTreeFromLeaf(leaves->at(i)));
+    (*acc)->erase(std::prev((*acc)->end()));
+    (*acc)->insert((*acc)->end(), merged->begin(), merged->end());
+  }
+}
+
+template <typename TreeMergerT>
+List<typename TreeMergerT::tree_type> MakeMergedTrees(
+    const TreeMergerT& tree_merger,
+    const List<typename TreeTrait<typename TreeMergerT::tree_type>::leaf_type>&
+        leaves) {
+  using TreeT = typename TreeMergerT::tree_type;
+
+  List<TreeT> acc{};
+  MergeTrees(tree_merger, &acc, leaves);
+  return acc;
 }
 
 }  // namespace cinn::adt

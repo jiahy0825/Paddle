@@ -15,6 +15,7 @@
 #include <string>
 
 #include "paddle/cinn/adt/m_expr.h"
+#include "paddle/cinn/adt/print_equations.h"
 #include "paddle/cinn/adt/print_map_expr.h"
 #include "paddle/cinn/adt/schedule_descriptor.h"
 
@@ -140,9 +141,9 @@ void ToTextString(const Stmt& stmt,
 void ToTextStringImpl(const MapStmt<Stmt>& map_stmt,
                       std::size_t indent_size,
                       std::string* string) {
-  const auto& [schedule_descriptor, stmts] = map_stmt.tuple();
+  const auto& [loop_iterators, stmts] = map_stmt.tuple();
   *string += GetIndentString(indent_size * kIndentSpaceSize) + "MapStmt(";
-  ToTextString(schedule_descriptor, indent_size, string);
+  *string += ToTxtString(loop_iterators);
   *string += ") {\n";
   for (const auto& stmt : *stmts) {
     ToTextString(stmt, indent_size + 1, string);
@@ -153,7 +154,7 @@ void ToTextStringImpl(const MapStmt<Stmt>& map_stmt,
 void ToTextString(const AnchoredMapStmt& anchored_map_stmt,
                   std::size_t indent_size,
                   std::string* string) {
-  const auto& [map_stmt, anchor_tensor, _] = anchored_map_stmt.tuple();
+  const auto& [map_stmt, anchor_tensor, _0, _1] = anchored_map_stmt.tuple();
   *string +=
       GetIndentString(indent_size * kIndentSpaceSize) + "AnchoredMapStmt(";
   ToTensorTxtString(anchor_tensor.value(), string);
