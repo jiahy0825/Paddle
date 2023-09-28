@@ -365,17 +365,10 @@ AnchoredMapStmt GenerateAnchoredMapStmt(
                                                      loop_iters,
                                                      LoopDescriptor4IterVar,
                                                      TensorIndexExpr4Tensor);
-
-  // AnchoredMapStmt = (MapStmt Stmt, tAnchor Tensor, TensorIndexExpr4TensorT)
-  VLOG(3) << "before MakeMapStmt...";
-  VLOG(3) << "map_irs.size(): " << map_irs->size();
-  const auto& map_stmt = MakeMapStmt(map_irs);
-
-  VLOG(3) << "after MakeMapStmt...";
-  const auto& anchor_tensor = GetAnchorTensor(igroup);
-  VLOG(3) << "after GetAnchorTensor...";
-  return AnchoredMapStmt{
-      map_stmt, anchor_tensor, TensorIndexExpr4Tensor, LoopDescriptor4IterVar};
+  return AnchoredMapStmt{MakeMapStmt(map_irs),
+                         GetAnchorTensor(igroup),
+                         TensorIndexExpr4Tensor,
+                         LoopDescriptor4IterVar};
 }
 
 AnchoredMapStmt GenerateAnchoredMapStmt(const std::shared_ptr<IGroup>& igroup,
@@ -400,7 +393,6 @@ List<AnchoredMapStmt> MakeAnchoredMapStmts(
     const auto& sd = kgroup->GetDefaultScheduleDescriptor(igroup);
     ret->emplace_back(GenerateAnchoredMapStmt(igroup, sd));
   }
-  VLOG(3) << "after GenerateAnchoredMapStmt...";
   return ret;
 }
 

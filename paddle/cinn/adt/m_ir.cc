@@ -299,10 +299,8 @@ MapIrList GenerateMapIrListForLoopFuse(
   const auto& EquationCtx4OpStmt =
       config::GenerateContext4LocalOpStmt(op_stmts);
   EraseWriteBroadcastOutMsgBoxes(op_stmts, EquationCtx4OpStmt);
-  VLOG(3) << "after EraseWriteBroadcastOutMsgBoxes...";
   const auto& partitioned_anchor_groups =
       PartitionOpStmtsV2(EquationCtx4OpStmt, op_stmts);
-  VLOG(3) << "after PartitionOpStmtsV2...";
   return ConvertAnchorGroups2MapIrList(partitioned_anchor_groups,
                                        TensorIndexExpr4Tensor,
                                        loop_iters,
