@@ -21,7 +21,7 @@ from op_test import OpTest
 
 inputs = {
     "x1": OpTest.random([4, 16], "float32", -1.0, 1.0),
-    "x2": OpTest.random([4, 1], "float32", -1.0, 1.0),
+    "x2": OpTest.random([16], "float32", -1.0, 1.0),
 }
 
 builder = NetBuilder("MapExprTest")
