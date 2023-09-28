@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "paddle/cinn/adt/equation_function.h"
 
 namespace cinn::adt {
@@ -24,10 +26,13 @@ class DirectionEquationGenerator {
   DirectionEquationGenerator(DirectionEquationGenerator&&) = delete;
   ~DirectionEquationGenerator() = default;
 
-  virtual Equations generate_direction_equations() const = 0;
+  virtual Equations GetDirectionEquations() const = 0;
 
   virtual std::function<const OpStmt*(const FakeOpPlaceHolder&)>
   MakeGetterOpStmt4OpPlaceHolder() const = 0;
+
+  virtual std::optional<Index> OutMsgBoxIndex4InMsgBoxIndex(
+      const Index& index) const = 0;
 
  protected:
   DirectionEquationGenerator() = default;

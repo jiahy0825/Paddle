@@ -27,7 +27,7 @@ class NoCtrlDirectionEquationGenerator final
 
   NoCtrlDirectionEquationGenerator();
 
-  Equations generate_direction_equations() const override {}
+  Equations GetDirectionEquations() const override {}
 
  private:
 };

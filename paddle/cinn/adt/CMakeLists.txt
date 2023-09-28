@@ -6,6 +6,7 @@ gather_srcs(
   equation_solver.cc
   equation_value.cc
   generate_map_expr.cc
+  in_msg_box2out_msg_box_direction_equation_generator.cc
   index_expr_infer_context.cc
   kgroup.cc
   m_ir.cc

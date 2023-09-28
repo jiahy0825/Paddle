@@ -14,11 +14,18 @@
 
 #pragma once
 
+#include <unordered_map>
+
 #include "paddle/cinn/adt/direction_equation_generator.h"
 #include "paddle/cinn/adt/m_expr.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
 
 namespace cinn::adt {
+
+class EquationFunctionConstantsProvider;
+namespace config {
+class NaiveOpEquationContext;
+}
 
 class InMsgBox2OutMsgBoxDirectionEquationGenerator final
     : public DirectionEquationGenerator {
@@ -35,15 +42,56 @@ class InMsgBox2OutMsgBoxDirectionEquationGenerator final
   InMsgBox2OutMsgBoxDirectionEquationGenerator(
       const List<OpStmt>& op_stmts,
       const EquationCtx4OpStmtT& EquationCtx4OpStmt)
-      : op_stmts_(op_stmts), EquationCtx4OpStmt_(EquationCtx4OpStmt) {}
+      : op_stmts_(op_stmts), EquationCtx4OpStmt_(EquationCtx4OpStmt) {
+    Init();
+  }
 
-  Equations generate_direction_equations() const override {}
+  Equations GetDirectionEquations() const override { return equations_; }
+
+  std::function<const OpStmt*(const FakeOpPlaceHolder&)>
+  MakeGetterOpStmt4OpPlaceHolder() const override {
+    using FakeOpPlaceHolder2OpStmt =
+        std::unordered_map<FakeOpPlaceHolder, OpStmt>;
+    const auto& fake_op_placeholder2op_stmt =
+        std::make_shared<FakeOpPlaceHolder2OpStmt>();
+
+    for (std::size_t i = 0; i < fake_op_placeholders_->size(); ++i) {
+      CHECK(fake_op_placeholder2op_stmt
+                ->emplace(fake_op_placeholders_->at(i), op_stmts_->at(i))
+                .second);
+    }
+
+    return [fake_op_placeholder2op_stmt](
+               const FakeOpPlaceHolder& fake_op_placeholder) {
+      return &fake_op_placeholder2op_stmt->at(fake_op_placeholder);
+    };
+  }
+
+  std::optional<Index> OutMsgBoxIndex4InMsgBoxIndex(
+      const Index& index) const override {
+    const auto& iter = in_msg_box_index2out_msg_box_index_.find(index);
+    if (iter == in_msg_box_index2out_msg_box_index_.end()) {
+      return std::nullopt;
+    } else {
+      return iter->second;
+    }
+  }
 
   void EraseWriteBroadcastOutMsgBoxes();
 
  private:
+  void Init();
+
+  std::vector<Index> GenerateWriteBroadcastTensorIndexs(
+      const std::shared_ptr<config::NaiveOpEquationContext>& ctx,
+      const std::shared_ptr<const EquationFunctionConstantsProvider>&
+          constants_provider);
+
   List<OpStmt> op_stmts_;
   EquationCtx4OpStmtT EquationCtx4OpStmt_;
+  Equations equations_;
+  List<FakeOpPlaceHolder> fake_op_placeholders_;
+  std::unordered_map<Index, Index> in_msg_box_index2out_msg_box_index_;
 };
 
 }  // namespace cinn::adt

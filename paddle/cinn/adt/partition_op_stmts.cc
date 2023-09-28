@@ -46,27 +46,6 @@ std::unordered_set<AnchorIndex> InitCandidateAnchorIndex(
   return ret;
 }
 
-std::function<const OpStmt*(const FakeOpPlaceHolder&)>
-MakeGetterOpStmt4OpPlaceHolder(const EquationCtx4OpStmtT& EquationCtx4OpStmt,
-                               const List<OpStmt>& op_stmts) {
-  using FakeOpPlaceHolder2OpStmt =
-      std::unordered_map<FakeOpPlaceHolder, OpStmt>;
-  const auto& fake_op_placeholder2op_stmt =
-      std::make_shared<FakeOpPlaceHolder2OpStmt>();
-
-  for (const auto& op_stmt : *op_stmts) {
-    const auto& ctx = EquationCtx4OpStmt(op_stmt);
-    CHECK(fake_op_placeholder2op_stmt
-              ->emplace(ctx->fake_op_placeholder(), op_stmt)
-              .second);
-  }
-
-  return [fake_op_placeholder2op_stmt](
-             const FakeOpPlaceHolder& fake_op_placeholder) {
-    return &fake_op_placeholder2op_stmt->at(fake_op_placeholder);
-  };
-}
-
 std::pair<std::optional<OpStmt>, List<OpStmt>> FindVisitedOpStmts(
     const AnchorIndex& anchor_index,
     const GraphView& equation_graph,
@@ -139,18 +118,16 @@ void VisitEachIndexAndAsOutput(const List<OpStmt>& op_stmts,
 void MakeGetters4Indexes(
     const List<OpStmt>& op_stmts,
     const EquationCtx4OpStmtT& EquationCtx4OpStmt,
+    const std::shared_ptr<DirectionEquationGenerator>&
+        direction_equation_generator,
     std::function<tOut<bool>(const Index&)>* AsOutput4Index,
     std::function<Index(const Index&)>* OutMsgBoxIndex4InMsgBoxIndex) {
   using Index2AsOutput = std::unordered_map<Index, tOut<bool>>;
   const auto& index2as_output = std::make_shared<Index2AsOutput>();
 
-  using Index2OwnerOpStmt = std::unordered_map<Index, OpStmt>;
-  const auto& index2owner_op_stmt = std::make_shared<Index2OwnerOpStmt>();
-
   const auto& UpdateCaches =
       [&](const auto& op_stmt, const auto& index, const auto& as_output) {
         CHECK(index2as_output->emplace(index, as_output).second);
-        CHECK(index2owner_op_stmt->emplace(index, op_stmt).second);
       };
 
   VisitEachIndexAndAsOutput(op_stmts, EquationCtx4OpStmt, UpdateCaches);
@@ -160,10 +137,9 @@ void MakeGetters4Indexes(
   };
 
   *OutMsgBoxIndex4InMsgBoxIndex =
-      [index2owner_op_stmt, EquationCtx4OpStmt](const Index& index) -> Index {
-    const auto& op_stmt = index2owner_op_stmt->at(index);
-    const auto& ctx = EquationCtx4OpStmt(op_stmt);
-    const auto& out_msg_box_index = ctx->OutMsgBoxIndex4InMsgBoxIndex(index);
+      [direction_equation_generator](const Index& index) -> Index {
+    const auto& out_msg_box_index =
+        direction_equation_generator->OutMsgBoxIndex4InMsgBoxIndex(index);
     CHECK(out_msg_box_index.has_value());
     return out_msg_box_index.value();
   };
@@ -246,13 +222,16 @@ void CollectIdentity(const Index& in_tensor_index,
 
 GraphView MakeParametersGraphViewForPartition(
     const EquationCtx4OpStmtT& EquationCtx4OpStmt,
-    const List<OpStmt>& op_stmts) {
+    const List<OpStmt>& op_stmts,
+    const std::shared_ptr<DirectionEquationGenerator>&
+        direction_equation_generator) {
   Equations equations{};
 
   std::function<tOut<bool>(const Index&)> AsOutput4Index{};
   std::function<Index(const Index&)> OutMsgBoxIndex4InMsgBoxIndex{};
   MakeGetters4Indexes(op_stmts,
                       EquationCtx4OpStmt,
+                      direction_equation_generator,
                       &AsOutput4Index,
                       &OutMsgBoxIndex4InMsgBoxIndex);
 
@@ -280,11 +259,11 @@ GraphView MakeGlobalEquationGraphViewForPartition(
       MakeOpsGraphViewForPartition(EquationCtx4OpStmt, op_stmts);
 
   const auto& direction_equation_view =
-      Graph::New(direction_equation_generator->generate_direction_equations())
+      Graph::New(direction_equation_generator->GetDirectionEquations())
           ->GetGraphView();
 
-  const auto& parameters_graph_view =
-      MakeParametersGraphViewForPartition(EquationCtx4OpStmt, op_stmts);
+  const auto& parameters_graph_view = MakeParametersGraphViewForPartition(
+      EquationCtx4OpStmt, op_stmts, direction_equation_generator);
 
   return ops_graph_view.Merge(direction_equation_view)
       .Merge(parameters_graph_view);
