@@ -19,6 +19,7 @@
 #include "paddle/cinn/adt/direction_equation_generator.h"
 #include "paddle/cinn/adt/m_expr.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
+#include "paddle/cinn/adt/equation_function.h"
 
 namespace cinn::adt {
 
@@ -63,7 +64,13 @@ class InMsgBox2OutMsgBoxDirectionEquationGenerator final
   void EraseWriteBroadcastOutMsgBoxes();
 
  private:
-  void Init();
+  void InitInMsgBoxIndex2OutMsgBoxIndex();
+  void InitEquations();
+
+  void Init() {
+    InitInMsgBoxIndex2OutMsgBoxIndex();
+    InitEquations();
+  }
 
   std::vector<Index> GenerateWriteBroadcastTensorIndexs(
       const std::shared_ptr<config::NaiveOpEquationContext>& ctx,
