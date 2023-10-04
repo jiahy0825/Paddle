@@ -24,8 +24,8 @@ using EquationCtx4OpStmtT =
     std::function<std::shared_ptr<config::NaiveOpEquationContext>(
         const OpStmt&)>;
 
-template <typename DoEachT>
-void VisitEachOpStmt(const List<OpStmt>& op_stmts,
+template <typename DoEachT/*: void(&)(std::size_t, OpStmt, OpEquationContext)*/>
+void VisitEachOpStmtAndEquationCtx(const List<OpStmt>& op_stmts,
                      const EquationCtx4OpStmtT& EquationCtx4OpStmt,
                      const DoEachT& DoEach) {
   for (std::size_t i = 0; i < op_stmts->size(); ++i) {
@@ -171,20 +171,18 @@ void NaiveOpEquationContext::EraseOutMsgBoxIndexes(
 }  // namespace
 
 void InMsgBox2OutMsgBoxDirectionEquationGenerator::Init() {
-  VisitEachOpStmt(
+  VisitEachOpStmtAndEquationCtx(
       this->op_stmts_,
       this->EquationCtx4OpStmt_,
       [&](std::size_t idx,
           const OpStmt& op_stmt,
           const std::shared_ptr<config::NaiveOpEquationContext>& ctx) {
         Equation equation = GenerateInMsgBox2OutMsgBoxEquation(op_stmt, ctx);
-        const auto& [fake_op_placeholder, out_msg_box, in_msg_box] =
-            equation
-                .Get<
-                    InMsgBox2OutMsgBox<tOut<FakeOpPlaceHolder>,
+        using InMsgBox2OutMsgBoxT = InMsgBox2OutMsgBox<tOut<FakeOpPlaceHolder>,
                                        tOut<OpArgIndexes<std::optional<Index>>>,
-                                       tIn<OpArgIndexes<Index>>>>()
-                .tuple();
+                                       tIn<OpArgIndexes<Index>>>;
+        const auto& [fake_op_placeholder, out_msg_box, in_msg_box] =
+            equation.Get<InMsgBox2OutMsgBoxT>().tuple();
         this->fake_op_placeholders_->emplace_back(fake_op_placeholder.value());
         this->equations_->emplace_back(equation);
         VisitEachInMsgOutMsgPair(
@@ -223,7 +221,7 @@ void InMsgBox2OutMsgBoxDirectionEquationGenerator::
   std::shared_ptr<const EquationFunctionConstantsProvider> constants_provider{
       new NaiveEquationFunctionConstantsProvider{this->op_stmts_,
                                                  this->EquationCtx4OpStmt_}};
-  VisitEachOpStmt(
+  VisitEachOpStmtAndEquationCtx(
       this->op_stmts_,
       this->EquationCtx4OpStmt_,
       [&](std::size_t idx,
@@ -234,6 +232,25 @@ void InMsgBox2OutMsgBoxDirectionEquationGenerator::
         this->equstions_->at(idx) = EraseWriteBroadcastOutMsgBox(
             truncated_output_tensor_idxes, this->equations_->at(i));
       });
+}
+
+std::function<const OpStmt*(const FakeOpPlaceHolder&)>
+InMsgBox2OutMsgBoxDirectionEquationGenerator::MakeGetterOpStmt4OpPlaceHolder() const override {
+  using FakeOpPlaceHolder2OpStmt =
+      std::unordered_map<FakeOpPlaceHolder, OpStmt>;
+  const auto& fake_op_placeholder2op_stmt =
+      std::make_shared<FakeOpPlaceHolder2OpStmt>();
+
+  for (std::size_t i = 0; i < fake_op_placeholders_->size(); ++i) {
+    CHECK(fake_op_placeholder2op_stmt
+              ->emplace(fake_op_placeholders_->at(i), op_stmts_->at(i))
+              .second);
+  }
+
+  return [fake_op_placeholder2op_stmt](
+              const FakeOpPlaceHolder& fake_op_placeholder) {
+    return &fake_op_placeholder2op_stmt->at(fake_op_placeholder);
+  };
 }
 
 }  // namespace cinn::adt

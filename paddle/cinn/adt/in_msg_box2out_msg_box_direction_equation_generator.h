@@ -48,24 +48,7 @@ class InMsgBox2OutMsgBoxDirectionEquationGenerator final
 
   Equations GetDirectionEquations() const override { return equations_; }
 
-  std::function<const OpStmt*(const FakeOpPlaceHolder&)>
-  MakeGetterOpStmt4OpPlaceHolder() const override {
-    using FakeOpPlaceHolder2OpStmt =
-        std::unordered_map<FakeOpPlaceHolder, OpStmt>;
-    const auto& fake_op_placeholder2op_stmt =
-        std::make_shared<FakeOpPlaceHolder2OpStmt>();
-
-    for (std::size_t i = 0; i < fake_op_placeholders_->size(); ++i) {
-      CHECK(fake_op_placeholder2op_stmt
-                ->emplace(fake_op_placeholders_->at(i), op_stmts_->at(i))
-                .second);
-    }
-
-    return [fake_op_placeholder2op_stmt](
-               const FakeOpPlaceHolder& fake_op_placeholder) {
-      return &fake_op_placeholder2op_stmt->at(fake_op_placeholder);
-    };
-  }
+  std::function<const OpStmt*(const FakeOpPlaceHolder&)> MakeGetterOpStmt4OpPlaceHolder() const override;
 
   std::optional<Index> OutMsgBoxIndex4InMsgBoxIndex(
       const Index& index) const override {
