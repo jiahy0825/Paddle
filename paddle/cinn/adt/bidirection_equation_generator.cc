@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/cinn/adt/in_msg_box2out_msg_box_direction_equation_generator.h"
+#include "paddle/cinn/adt/bidirection_equation_generator.h"
 
 #include "paddle/cinn/adt/equation_graph.h"
 #include "paddle/cinn/adt/equation_solver.h"
@@ -77,7 +77,7 @@ void VisitEachInMsgOutMsgPair(const List<Index>& in_msg_box,
 
 List<std::optional<Index>> GetOutMsgBoxIndexes(
     const List<Index>& in_indexes,
-    const InMsgBox2OutMsgBoxDirectionEquationGenerator& generator) {
+    const BidirectionEquationGenerator& generator) {
   List<std::optional<Index>> ret{};
   for (const auto& index : *in_indexes) {
     ret->emplace_back(generator.OutMsgBoxIndex4InMsgBoxIndex(index));
@@ -85,74 +85,14 @@ List<std::optional<Index>> GetOutMsgBoxIndexes(
   return ret;
 }
 
-std::unordered_map<Variable, const Value> MakeAnchorIndex2Ok(
-    const Index& anchor_index) {
-  return {{anchor_index, Ok{}}};
-}
-
-bool LocalEquationsSolvable(
-    const GraphView& graph_view,
-    const Index& anchor_index,
-    const FakeOpPlaceHolder& fake_op_placeholder,
-    const std::shared_ptr<const EquationFunctionConstantsProvider>&
-        constants_provider) {
-  const auto& init_var2value = MakeAnchorIndex2Ok(anchor_index);
-  IndexExprInferContext ctx{init_var2value, constants_provider};
-  bool has_no_conflict_value =
-      TrySolveEquations(graph_view, anchor_index, &ctx).value();
-  return has_no_conflict_value && ctx.HasValue(fake_op_placeholder);
-}
-
 using InBox2OutBox =
     InMsgBox2OutMsgBox<tOut<FakeOpPlaceHolder>,
                        tOut<OpArgIndexes<std::optional<Index>>>,
                        tIn<OpArgIndexes<Index>>>;
 
-List<std::optional<Index>> GetMaskedOutIndexes(
-    const List<Index>& in_box_out_indexes,
-    const List<std::optional<Index>>& out_box_out_indexes,
-    const std::vector<Index>& erased_in_msg_box_out_tensor_indexes) {
-  List<std::optional<Index>> ret{};
-  const auto& erased = erased_in_msg_box_out_tensor_indexes;
-  CHECK_EQ(in_box_out_indexes->size(), out_box_out_indexes->size());
-  for (std::size_t i = 0; i < in_box_out_indexes->size(); ++i) {
-    const auto& in_box_index = in_box_out_indexes->at(i);
-    if (std::find(erased.begin(), erased.end(), in_box_index) == erased.end()) {
-      ret->emplace_back(out_box_out_indexes->at(i));
-    } else {
-      ret->emplace_back(std::nullopt);
-    }
-  }
-  return ret;
-}
-
-Equation EraseIndexes(
-    const Equation& equation,
-    const std::vector<Index>& erased_in_msg_box_out_tensor_indexes) {
-  const auto& in_msg_box2out_msg_box = equation.Get<InBox2OutBox>();
-  const auto& [op_placeholder, out_box_indexes, in_box_indexes] =
-      in_msg_box2out_msg_box.tuple();
-
-  const auto& [_, in_box_out_indexes] = in_box_indexes.value().tuple();
-  const auto& [out_box_in_indexes, out_box_out_indexes] =
-      out_box_indexes.value().tuple();
-  const auto& masked_out_indexes =
-      GetMaskedOutIndexes(in_box_out_indexes.value(),
-                          out_box_out_indexes.value(),
-                          erased_in_msg_box_out_tensor_indexes);
-
-  OpArgIndexes<std::optional<Index>> out_box{out_box_in_indexes,
-                                             masked_out_indexes};
-
-  Equation ret_equation = InBox2OutBox{op_placeholder, out_box, in_box_indexes};
-
-  return ret_equation;
-}
-
 }  // namespace
 
-void InMsgBox2OutMsgBoxDirectionEquationGenerator::
-    InitInMsgBoxIndex2OutMsgBoxIndex() {
+void BidirectionEquationGenerator::InitInMsgBoxIndex2OutMsgBoxIndex() {
   const auto& InitEachOpInMsgBoxIndex2OutMsgBoxIndex =
       [&](const std::shared_ptr<config::NaiveOpEquationContext>& ctx,
           bool is_output) {
@@ -184,7 +124,7 @@ void InMsgBox2OutMsgBoxDirectionEquationGenerator::
       });
 }
 
-void InMsgBox2OutMsgBoxDirectionEquationGenerator::InitEquations() {
+void BidirectionEquationGenerator::InitEquations() {
   VisitEachOpStmtAndEquationCtx(
       this->op_stmts_,
       this->EquationCtx4OpStmt_,
@@ -210,47 +150,8 @@ void InMsgBox2OutMsgBoxDirectionEquationGenerator::InitEquations() {
       });
 }
 
-std::vector<Index> InMsgBox2OutMsgBoxDirectionEquationGenerator::
-    GenerateWriteBroadcastTensorIndexs(
-        const std::shared_ptr<config::NaiveOpEquationContext>& ctx,
-        const std::shared_ptr<const EquationFunctionConstantsProvider>&
-            constants_provider) {
-  const auto& eqaution_graph_view =
-      Graph::New(ctx->equations())->GetGraphView();
-  GraphView graph_view = eqaution_graph_view.Merge(
-      Graph::New(this->GetDirectionEquations())->GetGraphView());
-  std::vector<Index> ret{};
-  const auto& fake_op_placeholder = ctx->fake_op_placeholder();
-  ctx->VisitEachOutputTensorIndex([&](const auto& out_index) {
-    if (!LocalEquationsSolvable(
-            graph_view, out_index, fake_op_placeholder, constants_provider)) {
-      ret.emplace_back(out_index);
-    }
-  });
-  return ret;
-}
-
-void InMsgBox2OutMsgBoxDirectionEquationGenerator::
-    EraseWriteBroadcastOutMsgBoxes() {
-  std::shared_ptr<const EquationFunctionConstantsProvider> constants_provider{
-      new NaiveEquationFunctionConstantsProvider{this->op_stmts_,
-                                                 this->EquationCtx4OpStmt_}};
-  VisitEachOpStmtAndEquationCtx(
-      this->op_stmts_,
-      this->EquationCtx4OpStmt_,
-      [&](std::size_t idx,
-          const OpStmt& op_stmt,
-          const std::shared_ptr<config::NaiveOpEquationContext>& ctx) {
-        const auto& truncated_output_tensor_idxes =
-            GenerateWriteBroadcastTensorIndexs(ctx, constants_provider);
-        this->equations_->at(idx) = EraseIndexes(this->equations_->at(idx),
-                                                 truncated_output_tensor_idxes);
-      });
-}
-
 std::function<const OpStmt*(const FakeOpPlaceHolder&)>
-InMsgBox2OutMsgBoxDirectionEquationGenerator::MakeGetterOpStmt4OpPlaceHolder()
-    const {
+BidirectionEquationGenerator::MakeGetterOpStmt4OpPlaceHolder() const {
   using FakeOpPlaceHolder2OpStmt =
       std::unordered_map<FakeOpPlaceHolder, OpStmt>;
   const auto& fake_op_placeholder2op_stmt =

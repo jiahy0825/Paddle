@@ -17,9 +17,9 @@
 #include <unordered_map>
 
 #include "paddle/cinn/adt/direction_equation_generator.h"
+#include "paddle/cinn/adt/equation_function.h"
 #include "paddle/cinn/adt/m_expr.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
-#include "paddle/cinn/adt/equation_function.h"
 
 namespace cinn::adt {
 
@@ -28,28 +28,25 @@ namespace config {
 class NaiveOpEquationContext;
 }
 
-class InMsgBox2OutMsgBoxDirectionEquationGenerator final
-    : public DirectionEquationGenerator {
+class BidirectionEquationGenerator : public DirectionEquationGenerator {
  public:
   using EquationCtx4OpStmtT =
       std::function<std::shared_ptr<config::NaiveOpEquationContext>(
           const OpStmt&)>;
 
-  InMsgBox2OutMsgBoxDirectionEquationGenerator(
-      const InMsgBox2OutMsgBoxDirectionEquationGenerator&) = delete;
-  InMsgBox2OutMsgBoxDirectionEquationGenerator(
-      InMsgBox2OutMsgBoxDirectionEquationGenerator&&) = delete;
+  BidirectionEquationGenerator(const BidirectionEquationGenerator&) = delete;
+  BidirectionEquationGenerator(BidirectionEquationGenerator&&) = delete;
 
-  InMsgBox2OutMsgBoxDirectionEquationGenerator(
-      const List<OpStmt>& op_stmts,
-      const EquationCtx4OpStmtT& EquationCtx4OpStmt)
+  BidirectionEquationGenerator(const List<OpStmt>& op_stmts,
+                               const EquationCtx4OpStmtT& EquationCtx4OpStmt)
       : op_stmts_(op_stmts), EquationCtx4OpStmt_(EquationCtx4OpStmt) {
     Init();
   }
 
-  Equations GetDirectionEquations() const override { return equations_; }
+  virtual Equations GetDirectionEquations() const = 0;
 
-  std::function<const OpStmt*(const FakeOpPlaceHolder&)> MakeGetterOpStmt4OpPlaceHolder() const override;
+  std::function<const OpStmt*(const FakeOpPlaceHolder&)>
+  MakeGetterOpStmt4OpPlaceHolder() const override;
 
   std::optional<Index> OutMsgBoxIndex4InMsgBoxIndex(
       const Index& index) const override {
@@ -61,8 +58,6 @@ class InMsgBox2OutMsgBoxDirectionEquationGenerator final
     }
   }
 
-  void EraseWriteBroadcastOutMsgBoxes();
-
  private:
   void InitInMsgBoxIndex2OutMsgBoxIndex();
   void InitEquations();
@@ -72,11 +67,7 @@ class InMsgBox2OutMsgBoxDirectionEquationGenerator final
     InitEquations();
   }
 
-  std::vector<Index> GenerateWriteBroadcastTensorIndexs(
-      const std::shared_ptr<config::NaiveOpEquationContext>& ctx,
-      const std::shared_ptr<const EquationFunctionConstantsProvider>&
-          constants_provider);
-
+ protected:
   List<OpStmt> op_stmts_;
   EquationCtx4OpStmtT EquationCtx4OpStmt_;
   Equations equations_;

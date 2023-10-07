@@ -3,10 +3,10 @@ core_gather_headers()
 gather_srcs(
   cinnapi_src
   SRCS
+  bidirection_equation_generator.cc
   equation_solver.cc
   equation_value.cc
   generate_map_expr.cc
-  in_msg_box2out_msg_box_direction_equation_generator.cc
   index_expr_infer_context.cc
   kgroup.cc
   m_ir.cc
@@ -17,7 +17,8 @@ gather_srcs(
   print_map_expr.cc
   print_value.cc
   schedule_descriptor.cc
-  simplify_value.cc)
+  simplify_value.cc
+  write_broadcast_disabled_bidirection_equation_generator.cc)
 
 cinn_cc_test(equation_value_match_trait_test SRCS
              equation_value_match_trait_test.cc DEPS gtest glog)

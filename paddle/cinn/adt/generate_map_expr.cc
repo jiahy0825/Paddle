@@ -17,9 +17,9 @@
 #include "paddle/cinn/adt/equation.h"
 #include "paddle/cinn/adt/equation_solver.h"
 #include "paddle/cinn/adt/igroup.h"
-#include "paddle/cinn/adt/in_msg_box2out_msg_box_direction_equation_generator.h"
 #include "paddle/cinn/adt/index_expr_infer_context.h"
 #include "paddle/cinn/adt/kgroup.h"
+#include "paddle/cinn/adt/naive_bidirection_equation_generator.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
 #include "paddle/cinn/adt/partition_op_stmts.h"
 #include "paddle/cinn/adt/print_map_expr.h"
@@ -187,8 +187,8 @@ void PartitionIGroupOpStmts(const List<OpStmt>& op_stmts,
   const auto& EquationCtx4OpStmt =
       config::GenerateContext4LocalOpStmt(op_stmts);
   auto direction_equation_generator =
-      std::make_shared<InMsgBox2OutMsgBoxDirectionEquationGenerator>(
-          op_stmts, EquationCtx4OpStmt);
+      std::make_shared<NaiveBidirectionEquationGenerator>(op_stmts,
+                                                          EquationCtx4OpStmt);
   const auto& igroup_specs = PartitionOpStmts(
       EquationCtx4OpStmt, op_stmts, direction_equation_generator);
   for (const auto& igroup_spec : igroup_specs) {
@@ -201,8 +201,8 @@ std::shared_ptr<IGroup> MakeIGroup(const AnchorGroup& igroup_spec) {
       new NaiveEquationFunctionConstantsProvider{
           igroup_spec.op_stmts, igroup_spec.EquationCtx4OpStmt}};
   std::shared_ptr<DirectionEquationGenerator> direction_equation_generator{
-      new InMsgBox2OutMsgBoxDirectionEquationGenerator{
-          igroup_spec.op_stmts, igroup_spec.EquationCtx4OpStmt}};
+      new NaiveBidirectionEquationGenerator{igroup_spec.op_stmts,
+                                            igroup_spec.EquationCtx4OpStmt}};
   CheckEquationSolvable(
       igroup_spec, constants_provider, direction_equation_generator);
   return std::make_shared<IGroup>(igroup_spec.op_stmts,
