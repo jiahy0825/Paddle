@@ -200,7 +200,11 @@ std::shared_ptr<IGroup> MakeIGroup(const AnchorGroup& igroup_spec) {
   std::shared_ptr<const EquationFunctionConstantsProvider> constants_provider{
       new NaiveEquationFunctionConstantsProvider{
           igroup_spec.op_stmts, igroup_spec.EquationCtx4OpStmt}};
-  CheckEquationSolvable(igroup_spec, constants_provider);
+  std::shared_ptr<DirectionEquationGenerator> direction_equation_generator{
+      new InMsgBox2OutMsgBoxDirectionEquationGenerator{
+          igroup_spec.op_stmts, igroup_spec.EquationCtx4OpStmt}};
+  CheckEquationSolvable(
+      igroup_spec, constants_provider, direction_equation_generator);
   return std::make_shared<IGroup>(igroup_spec.op_stmts,
                                   igroup_spec.anchor_index,
                                   igroup_spec.EquationCtx4OpStmt,

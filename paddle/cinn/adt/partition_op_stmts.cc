@@ -377,9 +377,13 @@ tBreak<bool> AggregateAnchorGroupOpStmt(const AnchorGroup& igroup_spec,
 void CheckEquationSolvable(
     const AnchorGroup& igroup_spec,
     const std::shared_ptr<const EquationFunctionConstantsProvider>&
-        constants_provider) {
-  const auto& equation_graph_view = MakeGlobalEquationGraphViewForPartition(
-      igroup_spec.EquationCtx4OpStmt, igroup_spec.op_stmts);
+        constants_provider,
+    const std::shared_ptr<DirectionEquationGenerator>&
+        direction_equation_generator) {
+  const auto& equation_graph_view =
+      MakeGlobalEquationGraphViewForPartition(igroup_spec.EquationCtx4OpStmt,
+                                              igroup_spec.op_stmts,
+                                              direction_equation_generator);
 
   const auto& init_var2value = MakeAnchorIndex2Ok(igroup_spec);
   IndexExprInferContext ctx{init_var2value, constants_provider};

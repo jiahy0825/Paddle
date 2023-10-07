@@ -14,6 +14,8 @@
 
 #include "paddle/cinn/adt/in_msg_box2out_msg_box_direction_equation_generator.h"
 
+#include "paddle/cinn/adt/equation_graph.h"
+#include "paddle/cinn/adt/equation_solver.h"
 #include "paddle/cinn/adt/naive_equation_function_constants_provider.h"
 
 namespace cinn::adt {
@@ -24,10 +26,12 @@ using EquationCtx4OpStmtT =
     std::function<std::shared_ptr<config::NaiveOpEquationContext>(
         const OpStmt&)>;
 
-template <typename DoEachT/*: void(&)(std::size_t, OpStmt, OpEquationContext)*/>
-void VisitEachOpStmtAndEquationCtx(const List<OpStmt>& op_stmts,
-                     const EquationCtx4OpStmtT& EquationCtx4OpStmt,
-                     const DoEachT& DoEach) {
+template <
+    typename DoEachT /*: void(&)(std::size_t, OpStmt, OpEquationContext)*/>
+void VisitEachOpStmtAndEquationCtx(
+    const List<OpStmt>& op_stmts,
+    const EquationCtx4OpStmtT& EquationCtx4OpStmt,
+    const DoEachT& DoEach) {
   for (std::size_t i = 0; i < op_stmts->size(); ++i) {
     const auto& ctx = EquationCtx4OpStmt(op_stmts->at(i));
     DoEach(i, op_stmts->at(i), ctx);
@@ -62,10 +66,9 @@ OpArgIndexes<Index> MakeInMsgBoxOpArgIndexes(
 }
 
 template <typename DoEachT>
-void VisitEachInMsgOutMsgPair(
-    const List<Index>& in_msg_box,
-    const List<Index>& out_msg_box,
-    const DoEachT& DoEach) {
+void VisitEachInMsgOutMsgPair(const List<Index>& in_msg_box,
+                              const List<Index>& out_msg_box,
+                              const DoEachT& DoEach) {
   CHECK_EQ(in_msg_box->size(), out_msg_box->size());
   for (std::size_t i = 0; i < in_msg_box->size(); ++i) {
     DoEach(in_msg_box->at(i), out_msg_box->at(i));
@@ -73,12 +76,18 @@ void VisitEachInMsgOutMsgPair(
 }
 
 List<std::optional<Index>> GetOutMsgBoxIndexes(
-    const List<Index>& in_indexes, 
+    const List<Index>& in_indexes,
     const InMsgBox2OutMsgBoxDirectionEquationGenerator& generator) {
   List<std::optional<Index>> ret{};
-  for (const auto& index: in_indexes) {
+  for (const auto& index : *in_indexes) {
     ret->emplace_back(generator.OutMsgBoxIndex4InMsgBoxIndex(index));
   }
+  return ret;
+}
+
+std::unordered_map<Variable, const Value> MakeAnchorIndex2Ok(
+    const Index& anchor_index) {
+  return {{anchor_index, Ok{}}};
 }
 
 bool LocalEquationsSolvable(
@@ -142,36 +151,36 @@ Equation EraseIndexes(
 
 }  // namespace
 
+void InMsgBox2OutMsgBoxDirectionEquationGenerator::
+    InitInMsgBoxIndex2OutMsgBoxIndex() {
+  const auto& InitEachOpInMsgBoxIndex2OutMsgBoxIndex =
+      [&](const std::shared_ptr<config::NaiveOpEquationContext>& ctx,
+          bool is_output) {
+        List<Index> in_msg_box_indexes =
+            is_output ? ctx->out_indexes() : ctx->in_indexes();
+        std::size_t out_msg_box_index_size =
+            is_output ? ctx->GetOutTensorsRanks().size()
+                      : ctx->GetInTensorsRanks().size();
+        List<Index> out_msg_box_indexes =
+            MakeArgIndexes(out_msg_box_index_size);
+        VisitEachInMsgOutMsgPair(
+            in_msg_box_indexes,
+            out_msg_box_indexes,
+            [&](const Index& in_index, const Index& out_index) {
+              CHECK(this->in_msg_box_index2out_msg_box_index_
+                        .emplace(in_index, out_index)
+                        .second);
+            });
+      };
 
-void InMsgBox2OutMsgBoxDirectionEquationGenerator::InitInMsgBoxIndex2OutMsgBoxIndex() {
   VisitEachOpStmtAndEquationCtx(
       this->op_stmts_,
       this->EquationCtx4OpStmt_,
       [&](std::size_t idx,
           const OpStmt& op_stmt,
           const std::shared_ptr<config::NaiveOpEquationContext>& ctx) {
-        List<Index> in_msg_box_in_indexes = ctx->in_indexes();
-        List<Index> in_msg_box_out_indexes = ctx->out_indexes();
-        List<Index> out_msg_box_in_indexes =
-            MakeArgIndexes(ctx->GetInTensorsRanks().size());
-        List<Index> out_msg_box_out_indexes =
-            MakeArgIndexes(ctx->GetOutTensorsRanks().size());
-        VisitEachInMsgOutMsgPair(
-            in_msg_box_in_indexes,
-            out_msg_box_in_indexes,
-            [&](const Index& in_index, const Index& out_index) {
-              CHECK(this->in_msg_box_index2out_msg_box_index_
-                        .emplace(in_index, out_index)
-                        .second);
-            });
-        VisitEachInMsgOutMsgPair(
-            in_msg_box_out_indexes,
-            out_msg_box_out_indexes,
-            [&](const Index& in_index, const Index& out_index) {
-              CHECK(this->in_msg_box_index2out_msg_box_index_
-                        .emplace(in_index, out_index)
-                        .second);
-            });
+        InitEachOpInMsgBoxIndex2OutMsgBoxIndex(ctx, /*is_output=*/false);
+        InitEachOpInMsgBoxIndex2OutMsgBoxIndex(ctx, /*is_output=*/true);
       });
 }
 
@@ -184,14 +193,17 @@ void InMsgBox2OutMsgBoxDirectionEquationGenerator::InitEquations() {
           const std::shared_ptr<config::NaiveOpEquationContext>& ctx) {
         List<Index> in_msg_box_in_indexes = ctx->in_indexes();
         List<Index> in_msg_box_out_indexes = ctx->out_indexes();
-        List<std::optional<Index>> out_msg_box_in_indexes = GetOutMsgBoxIndexes(in_msg_box_in_indexes, *this);
-        List<std::optional<Index>> out_msg_box_out_indexes = GetOutMsgBoxIndexes(in_msg_box_out_indexes, *this);
+        List<std::optional<Index>> out_msg_box_in_indexes =
+            GetOutMsgBoxIndexes(in_msg_box_in_indexes, *this);
+        List<std::optional<Index>> out_msg_box_out_indexes =
+            GetOutMsgBoxIndexes(in_msg_box_out_indexes, *this);
 
-        Equation equation = InBox2OutBox{
-            ctx->fake_op_placeholder(),
-            MakeOutMsgBoxOpArgIndexes(out_msg_box_in_indexes,
-                                      out_msg_box_out_indexes),
-            MakeInMsgBoxOpArgIndexes(in_msg_box_in_indexes, in_msg_box_out_indexes)};
+        Equation equation =
+            InBox2OutBox{ctx->fake_op_placeholder(),
+                         MakeOutMsgBoxOpArgIndexes(out_msg_box_in_indexes,
+                                                   out_msg_box_out_indexes),
+                         MakeInMsgBoxOpArgIndexes(in_msg_box_in_indexes,
+                                                  in_msg_box_out_indexes)};
 
         this->fake_op_placeholders_->emplace_back(ctx->fake_op_placeholder());
         this->equations_->emplace_back(equation);
@@ -231,13 +243,14 @@ void InMsgBox2OutMsgBoxDirectionEquationGenerator::
           const std::shared_ptr<config::NaiveOpEquationContext>& ctx) {
         const auto& truncated_output_tensor_idxes =
             GenerateWriteBroadcastTensorIndexs(ctx, constants_provider);
-        this->equstions_->at(idx) = EraseWriteBroadcastOutMsgBox(
-            truncated_output_tensor_idxes, this->equations_->at(i));
+        this->equations_->at(idx) = EraseIndexes(this->equations_->at(idx),
+                                                 truncated_output_tensor_idxes);
       });
 }
 
 std::function<const OpStmt*(const FakeOpPlaceHolder&)>
-InMsgBox2OutMsgBoxDirectionEquationGenerator::MakeGetterOpStmt4OpPlaceHolder() const override {
+InMsgBox2OutMsgBoxDirectionEquationGenerator::MakeGetterOpStmt4OpPlaceHolder()
+    const {
   using FakeOpPlaceHolder2OpStmt =
       std::unordered_map<FakeOpPlaceHolder, OpStmt>;
   const auto& fake_op_placeholder2op_stmt =
@@ -250,7 +263,7 @@ InMsgBox2OutMsgBoxDirectionEquationGenerator::MakeGetterOpStmt4OpPlaceHolder() c
   }
 
   return [fake_op_placeholder2op_stmt](
-              const FakeOpPlaceHolder& fake_op_placeholder) {
+             const FakeOpPlaceHolder& fake_op_placeholder) {
     return &fake_op_placeholder2op_stmt->at(fake_op_placeholder);
   };
 }

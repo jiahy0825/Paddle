@@ -20,6 +20,8 @@
 
 namespace cinn::adt {
 
+class OpStmt;
+
 class DirectionEquationGenerator {
  public:
   DirectionEquationGenerator(const DirectionEquationGenerator&) = delete;

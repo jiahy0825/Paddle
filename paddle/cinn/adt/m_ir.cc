@@ -161,15 +161,6 @@ LoopIterators GetTensorLoopIterators(
 
 namespace {
 
-std::unordered_map<Variable, const Value> MakeAnchorIndex2Ok(
-    const Index& anchor_index) {
-  return {{anchor_index, Ok{}}};
-}
-
-}  // namespace
-
-namespace {
-
 Tensor GetTensorImpl(const OpStmt& op_stmt, const Undefined& undefined) {
   LOG(FATAL) << "position not found";
 }

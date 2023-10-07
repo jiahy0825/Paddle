@@ -49,10 +49,14 @@ std::vector<AnchorGroup> PartitionOpStmts(
 void CheckEquationSolvable(
     const AnchorGroup& igroup_spec,
     const std::shared_ptr<const EquationFunctionConstantsProvider>&
-        constant_provider);
+        constant_provider,
+    const std::shared_ptr<DirectionEquationGenerator>&
+        direction_equation_generator);
 
 GraphView MakeGlobalEquationGraphViewForPartition(
     const EquationCtx4OpStmtT& EquationCtx4OpStmt,
-    const List<OpStmt>& op_stmts);
+    const List<OpStmt>& op_stmts,
+    const std::shared_ptr<DirectionEquationGenerator>&
+        direction_equation_generator);
 
 }  // namespace cinn::adt
