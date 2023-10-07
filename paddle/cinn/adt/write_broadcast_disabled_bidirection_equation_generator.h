@@ -16,12 +16,12 @@
 
 #include <unordered_map>
 
-#include "paddle/cinn/adt/bidirection_equation_generator.h"
+#include "paddle/cinn/adt/naive_bidirection_equation_generator.h"
 
 namespace cinn::adt {
 
 class WriteBroadcastDisabledBidirectionEquationGenerator final
-    : public BidirectionEquationGenerator {
+    : public DirectionEquationGenerator {
  public:
   using EquationCtx4OpStmtT =
       std::function<std::shared_ptr<config::NaiveOpEquationContext>(
@@ -35,9 +35,26 @@ class WriteBroadcastDisabledBidirectionEquationGenerator final
   WriteBroadcastDisabledBidirectionEquationGenerator(
       const List<OpStmt>& op_stmts,
       const EquationCtx4OpStmtT& EquationCtx4OpStmt)
-      : BidirectionEquationGenerator(op_stmts, EquationCtx4OpStmt) {}
+      : naive_bidirection_equation_generator_(
+            std::make_unique<NaiveBidirectionEquationGenerator>(
+                op_stmts, EquationCtx4OpStmt)) {}
 
   Equations GetDirectionEquations() const override;
+
+  std::function<const OpStmt*(const FakeOpPlaceHolder&)>
+  MakeGetterOpStmt4OpPlaceHolder() const override {
+    return naive_bidirection_equation_generator_
+        ->MakeGetterOpStmt4OpPlaceHolder();
+  }
+
+  std::optional<Index> OutMsgIndex4InMsgIndex(
+      const Index& index) const override {
+    return naive_bidirection_equation_generator_->OutMsgIndex4InMsgIndex(index);
+  }
+
+ private:
+  std::unique_ptr<NaiveBidirectionEquationGenerator>
+      naive_bidirection_equation_generator_;
 };
 
 }  // namespace cinn::adt

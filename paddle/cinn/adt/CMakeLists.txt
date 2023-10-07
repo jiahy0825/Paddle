@@ -3,7 +3,7 @@ core_gather_headers()
 gather_srcs(
   cinnapi_src
   SRCS
-  bidirection_equation_generator.cc
+  naive_bidirection_equation_generator.cc
   equation_solver.cc
   equation_value.cc
   generate_map_expr.cc

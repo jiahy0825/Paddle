@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/cinn/adt/bidirection_equation_generator.h"
+#include "paddle/cinn/adt/naive_bidirection_equation_generator.h"
 
 #include "paddle/cinn/adt/equation_graph.h"
 #include "paddle/cinn/adt/equation_solver.h"
@@ -77,7 +77,7 @@ void VisitEachInMsgOutMsgPair(const List<Index>& in_msg_indexes,
 
 List<std::optional<Index>> GetOutMsgIndexes(
     const List<Index>& in_indexes,
-    const BidirectionEquationGenerator& generator) {
+    const NaiveBidirectionEquationGenerator& generator) {
   List<std::optional<Index>> ret{};
   for (const auto& index : *in_indexes) {
     ret->emplace_back(generator.OutMsgIndex4InMsgIndex(index));
@@ -91,7 +91,7 @@ using InMsg2OutMsgT = InMsg2OutMsg<tOut<FakeOpPlaceHolder>,
 
 }  // namespace
 
-void BidirectionEquationGenerator::InitInMsgIndex2OutMsgIndex() {
+void NaiveBidirectionEquationGenerator::InitInMsgIndex2OutMsgIndex() {
   const auto& InitEachOpInMsgIndex2OutMsgIndex =
       [&](const std::shared_ptr<config::NaiveOpEquationContext>& ctx,
           bool is_output) {
@@ -122,7 +122,7 @@ void BidirectionEquationGenerator::InitInMsgIndex2OutMsgIndex() {
       });
 }
 
-void BidirectionEquationGenerator::InitEquations() {
+void NaiveBidirectionEquationGenerator::InitEquations() {
   VisitEachOpStmtAndEquationCtx(
       this->op_stmts_,
       this->EquationCtx4OpStmt_,
@@ -147,7 +147,7 @@ void BidirectionEquationGenerator::InitEquations() {
 }
 
 std::function<const OpStmt*(const FakeOpPlaceHolder&)>
-BidirectionEquationGenerator::MakeGetterOpStmt4OpPlaceHolder() const {
+NaiveBidirectionEquationGenerator::MakeGetterOpStmt4OpPlaceHolder() const {
   using FakeOpPlaceHolder2OpStmt =
       std::unordered_map<FakeOpPlaceHolder, OpStmt>;
   const auto& fake_op_placeholder2op_stmt =
