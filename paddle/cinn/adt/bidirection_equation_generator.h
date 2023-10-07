@@ -48,10 +48,10 @@ class BidirectionEquationGenerator : public DirectionEquationGenerator {
   std::function<const OpStmt*(const FakeOpPlaceHolder&)>
   MakeGetterOpStmt4OpPlaceHolder() const override;
 
-  std::optional<Index> OutMsgBoxIndex4InMsgBoxIndex(
+  std::optional<Index> OutMsgIndex4InMsgIndex(
       const Index& index) const override {
-    const auto& iter = in_msg_box_index2out_msg_box_index_.find(index);
-    if (iter == in_msg_box_index2out_msg_box_index_.end()) {
+    const auto& iter = in_msg_index2out_msg_index_.find(index);
+    if (iter == in_msg_index2out_msg_index_.end()) {
       return std::nullopt;
     } else {
       return iter->second;
@@ -59,11 +59,11 @@ class BidirectionEquationGenerator : public DirectionEquationGenerator {
   }
 
  private:
-  void InitInMsgBoxIndex2OutMsgBoxIndex();
+  void InitInMsgIndex2OutMsgIndex();
   void InitEquations();
 
   void Init() {
-    InitInMsgBoxIndex2OutMsgBoxIndex();
+    InitInMsgIndex2OutMsgIndex();
     InitEquations();
   }
 
@@ -72,7 +72,7 @@ class BidirectionEquationGenerator : public DirectionEquationGenerator {
   EquationCtx4OpStmtT EquationCtx4OpStmt_;
   Equations equations_;
   List<FakeOpPlaceHolder> fake_op_placeholders_;
-  std::unordered_map<Index, Index> in_msg_box_index2out_msg_box_index_;
+  std::unordered_map<Index, Index> in_msg_index2out_msg_index_;
 };
 
 }  // namespace cinn::adt

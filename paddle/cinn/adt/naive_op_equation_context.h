@@ -124,9 +124,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
                                 Equations* equations) const {
     using ConstF = ConstantFunction<tOut<Iterator>, tIn<Index>>;
     Iterator const_iter{UniqueId::New()};
-    VisitEachTensorIndex([&](const auto& in_msg_box_index) {
-      (*equations)
-          ->emplace_back(ConstF{const_iter, in_msg_box_index, constant});
+    VisitEachTensorIndex([&](const auto& in_msg_index) {
+      (*equations)->emplace_back(ConstF{const_iter, in_msg_index, constant});
     });
     return const_iter;
   }

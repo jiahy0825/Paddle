@@ -32,7 +32,7 @@ class NoCtrlDirectionEquationGenerator final
   std::function<const OpStmt*(const FakeOpPlaceHolder&)>
   MakeGetterOpStmt4OpPlaceHolder() const override;
 
-  std::optional<Index> OutMsgBoxIndex4InMsgBoxIndex(
+  std::optional<Index> OutMsgIndex4InMsgIndex(
       const Index& index) const override;
 
  private:

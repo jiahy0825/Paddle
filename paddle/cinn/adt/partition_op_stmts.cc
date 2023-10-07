@@ -121,7 +121,7 @@ void MakeGetters4Indexes(
     const std::shared_ptr<DirectionEquationGenerator>&
         direction_equation_generator,
     std::function<tOut<bool>(const Index&)>* AsOutput4Index,
-    std::function<Index(const Index&)>* OutMsgBoxIndex4InMsgBoxIndex) {
+    std::function<Index(const Index&)>* OutMsgIndex4InMsgIndex) {
   using Index2AsOutput = std::unordered_map<Index, tOut<bool>>;
   const auto& index2as_output = std::make_shared<Index2AsOutput>();
 
@@ -136,12 +136,12 @@ void MakeGetters4Indexes(
     return index2as_output->at(index);
   };
 
-  *OutMsgBoxIndex4InMsgBoxIndex =
+  *OutMsgIndex4InMsgIndex =
       [direction_equation_generator](const Index& index) -> Index {
-    const auto& out_msg_box_index =
-        direction_equation_generator->OutMsgBoxIndex4InMsgBoxIndex(index);
-    CHECK(out_msg_box_index.has_value());
-    return out_msg_box_index.value();
+    const auto& out_msg_index =
+        direction_equation_generator->OutMsgIndex4InMsgIndex(index);
+    CHECK(out_msg_index.has_value());
+    return out_msg_index.value();
   };
 }
 
@@ -228,21 +228,19 @@ GraphView MakeParametersGraphViewForPartition(
   Equations equations{};
 
   std::function<tOut<bool>(const Index&)> AsOutput4Index{};
-  std::function<Index(const Index&)> OutMsgBoxIndex4InMsgBoxIndex{};
+  std::function<Index(const Index&)> OutMsgIndex4InMsgIndex{};
   MakeGetters4Indexes(op_stmts,
                       EquationCtx4OpStmt,
                       direction_equation_generator,
                       &AsOutput4Index,
-                      &OutMsgBoxIndex4InMsgBoxIndex);
+                      &OutMsgIndex4InMsgIndex);
 
   const auto& CollectEquation = [&](const auto& producer_index,
                                     const auto& consumer_index) {
-    CollectIdentity(OutMsgBoxIndex4InMsgBoxIndex(producer_index),
-                    consumer_index,
-                    &equations);
-    CollectIdentity(OutMsgBoxIndex4InMsgBoxIndex(consumer_index),
-                    producer_index,
-                    &equations);
+    CollectIdentity(
+        OutMsgIndex4InMsgIndex(producer_index), consumer_index, &equations);
+    CollectIdentity(
+        OutMsgIndex4InMsgIndex(consumer_index), producer_index, &equations);
   };
   VisitProducerConsumerTensorIndexPair(
       op_stmts, EquationCtx4OpStmt, AsOutput4Index, CollectEquation);

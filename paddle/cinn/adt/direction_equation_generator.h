@@ -33,7 +33,7 @@ class DirectionEquationGenerator {
   virtual std::function<const OpStmt*(const FakeOpPlaceHolder&)>
   MakeGetterOpStmt4OpPlaceHolder() const = 0;
 
-  virtual std::optional<Index> OutMsgBoxIndex4InMsgBoxIndex(
+  virtual std::optional<Index> OutMsgIndex4InMsgIndex(
       const Index& index) const = 0;
 
  protected:

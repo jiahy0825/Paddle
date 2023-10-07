@@ -38,10 +38,9 @@ void VisitEachOpStmtAndEquationCtx(
   }
 }
 
-using InBox2OutBox =
-    InMsgBox2OutMsgBox<tOut<FakeOpPlaceHolder>,
-                       tOut<OpArgIndexes<std::optional<Index>>>,
-                       tIn<OpArgIndexes<Index>>>;
+using InMsg2OutMsgT = InMsg2OutMsg<tOut<FakeOpPlaceHolder>,
+                                   tOut<OpArgIndexes<std::optional<Index>>>,
+                                   tIn<OpArgIndexes<Index>>>;
 
 std::unordered_map<Variable, const Value> MakeAnchorIndex2Ok(
     const Index& anchor_index) {
@@ -62,16 +61,16 @@ bool LocalEquationsSolvable(
 }
 
 List<std::optional<Index>> GetMaskedOutIndexes(
-    const List<Index>& in_box_out_indexes,
-    const List<std::optional<Index>>& out_box_out_indexes,
-    const std::vector<Index>& erased_in_msg_box_out_tensor_indexes) {
+    const List<Index>& in_msg_out_indexes,
+    const List<std::optional<Index>>& out_msg_out_indexes,
+    const std::vector<Index>& erased_in_msg_out_tensor_indexes) {
   List<std::optional<Index>> ret{};
-  const auto& erased = erased_in_msg_box_out_tensor_indexes;
-  CHECK_EQ(in_box_out_indexes->size(), out_box_out_indexes->size());
-  for (std::size_t i = 0; i < in_box_out_indexes->size(); ++i) {
-    const auto& in_box_index = in_box_out_indexes->at(i);
-    if (std::find(erased.begin(), erased.end(), in_box_index) == erased.end()) {
-      ret->emplace_back(out_box_out_indexes->at(i));
+  const auto& erased = erased_in_msg_out_tensor_indexes;
+  CHECK_EQ(in_msg_out_indexes->size(), out_msg_out_indexes->size());
+  for (std::size_t i = 0; i < in_msg_out_indexes->size(); ++i) {
+    const auto& in_msg_index = in_msg_out_indexes->at(i);
+    if (std::find(erased.begin(), erased.end(), in_msg_index) == erased.end()) {
+      ret->emplace_back(out_msg_out_indexes->at(i));
     } else {
       ret->emplace_back(std::nullopt);
     }
@@ -81,36 +80,37 @@ List<std::optional<Index>> GetMaskedOutIndexes(
 
 Equation EraseIndexes(
     const Equation& equation,
-    const std::vector<Index>& erased_in_msg_box_out_tensor_indexes) {
-  const auto& in_msg_box2out_msg_box = equation.Get<InBox2OutBox>();
-  const auto& [op_placeholder, out_box_indexes, in_box_indexes] =
-      in_msg_box2out_msg_box.tuple();
+    const std::vector<Index>& erased_in_msg_out_tensor_indexes) {
+  const auto& in_msg2out_msg = equation.Get<InMsg2OutMsgT>();
+  const auto& [op_placeholder, out_msg_indexes, in_msg_indexes] =
+      in_msg2out_msg.tuple();
 
-  const auto& [_, in_box_out_indexes] = in_box_indexes.value().tuple();
-  const auto& [out_box_in_indexes, out_box_out_indexes] =
-      out_box_indexes.value().tuple();
+  const auto& [_, in_msg_out_indexes] = in_msg_indexes.value().tuple();
+  const auto& [out_msg_in_indexes, out_msg_out_indexes] =
+      out_msg_indexes.value().tuple();
   const auto& masked_out_indexes =
-      GetMaskedOutIndexes(in_box_out_indexes.value(),
-                          out_box_out_indexes.value(),
-                          erased_in_msg_box_out_tensor_indexes);
+      GetMaskedOutIndexes(in_msg_out_indexes.value(),
+                          out_msg_out_indexes.value(),
+                          erased_in_msg_out_tensor_indexes);
 
-  OpArgIndexes<std::optional<Index>> out_box{out_box_in_indexes,
-                                             masked_out_indexes};
+  OpArgIndexes<std::optional<Index>> new_out_msg_indexes{out_msg_in_indexes,
+                                                         masked_out_indexes};
 
-  Equation ret_equation = InBox2OutBox{op_placeholder, out_box, in_box_indexes};
+  Equation ret_equation =
+      InMsg2OutMsgT{op_placeholder, new_out_msg_indexes, in_msg_indexes};
 
   return ret_equation;
 }
 
 std::vector<Index> GenerateWriteBroadcastTensorIndexs(
     const std::shared_ptr<config::NaiveOpEquationContext>& ctx,
-    const Equations& in_msg_box2out_msg_box_equations,
+    const Equations& in_msg2out_msg_equations,
     const std::shared_ptr<const EquationFunctionConstantsProvider>&
         constants_provider) {
   const auto& eqaution_graph_view =
       Graph::New(ctx->equations())->GetGraphView();
   GraphView graph_view = eqaution_graph_view.Merge(
-      Graph::New(in_msg_box2out_msg_box_equations)->GetGraphView());
+      Graph::New(in_msg2out_msg_equations)->GetGraphView());
   std::vector<Index> ret{};
   const auto& fake_op_placeholder = ctx->fake_op_placeholder();
   ctx->VisitEachOutputTensorIndex([&](const auto& out_index) {
