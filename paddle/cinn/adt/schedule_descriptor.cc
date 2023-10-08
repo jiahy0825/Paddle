@@ -13,8 +13,111 @@
 // limitations under the License.
 
 #include "paddle/cinn/adt/schedule_descriptor.h"
+#include "paddle/cinn/adt/equation_solver.h"
+#include "paddle/cinn/adt/igroup.h"
+#include "paddle/cinn/adt/index_expr_infer_context.h"
+#include "paddle/cinn/adt/kgroup.h"
+#include "paddle/cinn/adt/reduce_tagged_loop_size.h"
 
 namespace cinn::adt {
+
+namespace {
+
+Equations MakeSdEquations(const std::shared_ptr<IGroup>& igroup,
+                          const List<LoopSize>& sd_sizes) {
+  config::AnchorSdEquationContext ctx{sd_sizes->size(), igroup->anchor_index()};
+  igroup->set_anchor_sd_equation_ctx(ctx, sd_sizes);
+
+  return igroup->anchor_sd_equation_ctx().value().equations();
+}
+
+GraphView GenerateSdEquationGraphView(const std::shared_ptr<IGroup>& igroup,
+                                      const List<LoopSize>& sd_sizes) {
+  Equations equations = MakeSdEquations(igroup, sd_sizes);
+  return Graph::New(equations)->GetGraphView();
+}
+
+std::unordered_map<Variable, const Value> MakeSdIterator2Iterator(
+    const IGroup& igroup) {
+  std::unordered_map<Variable, const Value> ret{};
+
+  for (std::size_t i = 0; i < igroup.loop_iterators()->size(); ++i) {
+    CHECK(ret.emplace(igroup.loop_iterators()->at(i),
+                      igroup.loop_iterators()->at(i))
+              .second);
+  }
+
+  return ret;
+}
+
+std::shared_ptr<IndexExprInferContext> SolveEquationsThenReturnCtx(
+    const std::shared_ptr<IGroup>& igroup,
+    const GraphView& sd_equation_graph_view) {
+  GraphView igroup_view = igroup->GetDefaultGraphView();
+  GraphView merged_view = igroup_view.Merge(sd_equation_graph_view);
+
+  const auto& init_var2value = MakeSdIterator2Iterator(*igroup);
+  auto ctx = std::make_shared<IndexExprInferContext>(
+      init_var2value, igroup->constants_provider());
+
+  std::vector<Variable> starts{};
+  for (const auto& loop_iterator : *igroup->loop_iterators()) {
+    starts.emplace_back(loop_iterator);
+  }
+  SolveEquations(merged_view, starts, ctx.get());
+  return ctx;
+}
+
+std::function<Value(const Iterator&)> MakeGetterValue4Iterator(
+    const std::shared_ptr<IndexExprInferContext>& ctx) {
+  return [ctx](const Iterator& iterator) { return ctx->GetValue(iterator); };
+}
+
+const std::vector<int32_t>& GetTensorShape(const Tensor& tensor) {
+  CHECK(tensor.Has<adapter::Tensor>());
+  return tensor.Get<adapter::Tensor>().GetShape();
+}
+
+}  // namespace
+
+ScheduleDescriptor MakeOptimizedScheduleDescriptor(
+    const std::shared_ptr<KGroup>& kgroup,
+    const std::shared_ptr<IGroup>& igroup) {
+  List<LoopSize> sd_sizes = kgroup->GetDefaultScheduleSizes(igroup);
+  const auto& sd_equation_graph_view =
+      GenerateSdEquationGraphView(igroup, sd_sizes);
+
+  const auto& infer_ctx =
+      SolveEquationsThenReturnCtx(igroup, sd_equation_graph_view);
+
+  const auto& Value4Iterator = MakeGetterValue4Iterator(infer_ctx);
+
+  List<ReduceTaggedLoopSize> loop_sizes =
+      MakeReduceTaggedLoopSizes(igroup, Value4Iterator, sd_sizes);
+  // TODO(Hongyu Jia): Use loop_sizes to generate sd
+}
+
+ScheduleDescriptor MakeNaiveScheduleDescriptor(
+    const std::shared_ptr<KGroup>& kgroup,
+    const std::shared_ptr<IGroup>& igroup) {
+  const Tensor& tensor = igroup->anchor_tensor();
+
+  List<LoopDescriptor> ret{};
+  const auto tensor_shape = GetTensorShape(tensor);
+  for (int32_t dim : tensor_shape) {
+    ret->emplace_back(LoopDescriptor{Temporal{}, dim});
+  }
+  return ret;
+}
+
+List<LoopSize> GenerateLoopSizeFromSd(const ScheduleDescriptor& sd) {
+  List<LoopSize> sd_sizes{};
+  for (const auto& loop_descriptor : *sd) {
+    const auto& [loop_type, loop_size] = loop_descriptor.tuple();
+    sd_sizes->emplace_back(loop_size);
+  }
+  return sd_sizes;
+}
 
 std::string DebugStringImpl(const LoopDescriptor& loop_descriptor) {
   const auto& [loop_type, loop_size] = loop_descriptor.tuple();

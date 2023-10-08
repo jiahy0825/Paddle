@@ -16,6 +16,7 @@ gather_srcs(
   print_equations.cc
   print_map_expr.cc
   print_value.cc
+  reduce_tagged_loop_size.cc
   schedule_descriptor.cc
   simplify_value.cc
   write_broadcast_disabled_bidirection_equation_generator.cc)

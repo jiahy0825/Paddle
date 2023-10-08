@@ -62,6 +62,10 @@ class IGroup final {
 
   const Tensor& anchor_tensor() const { return GetTensor(anchor_index()); }
 
+  const EquationCtx4OpStmtT& EquationCtx4OpStmt() const {
+    return EquationCtx4OpStmt_;
+  }
+
   const std::shared_ptr<const EquationFunctionConstantsProvider>&
   constants_provider() const {
     return constants_provider_;
@@ -89,9 +93,9 @@ class IGroup final {
   }
 
   void set_anchor_sd_equation_ctx(const config::AnchorSdEquationContext& ctx,
-                                  const ScheduleDescriptor& sd) {
+                                  const List<LoopSize>& sd_sizes) {
     anchor_sd_equation_ctx_ = ctx;
-    CHECK_EQ(ctx.strides()->size(), sd->size());
+    CHECK_EQ(ctx.strides()->size(), sd_sizes->size());
     auto* mut_constants_provider =
         const_cast<EquationFunctionConstantsProvider*>(
             constants_provider_.get());
@@ -99,7 +103,7 @@ class IGroup final {
     for (int i = ctx.strides()->size() - 1; i >= 0; --i) {
       CHECK(mut_constants_provider->AddStride(ctx.strides()->at(i),
                                               loop_acc_size));
-      const auto& [loop_type, loop_size] = sd->at(i).tuple();
+      const auto& loop_size = sd_sizes->at(i);
       CHECK(loop_size.Has<std::int64_t>());
       loop_acc_size *= loop_size.Get<std::int64_t>();
     }
