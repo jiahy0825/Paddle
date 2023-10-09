@@ -17,8 +17,8 @@
 #include "paddle/cinn/adt/igroup.h"
 #include "paddle/cinn/adt/index_expr_infer_context.h"
 #include "paddle/cinn/adt/m_ir.h"
-#include "paddle/cinn/adt/reduce_tagged_loop_size.h"
 #include "paddle/cinn/adt/schedule_descriptor.h"
+#include "paddle/cinn/adt/schedule_dim.h"
 #include "paddle/cinn/hlir/framework/graph.h"
 
 namespace cinn::adt {

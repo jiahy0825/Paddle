@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/cinn/adt/reduce_tagged_loop_size.h"
+#include "paddle/cinn/adt/schedule_dim.h"
 
 #include "paddle/cinn/adt/equation_function_constants_provider.h"
 #include "paddle/cinn/adt/equation_graph.h"
@@ -27,10 +27,9 @@ namespace cinn::adt {
 namespace {
 
 template <typename DoEachT>
-void VisitEachOpEquationContext(const std::shared_ptr<IGroup>& igroup,
-                                const DoEachT& DoEach) {
-  for (const auto& op_stmt : *igroup->op_stmts()) {
-    const auto& EquationCtx4OpStmt = igroup->EquationCtx4OpStmt();
+void VisitEachOpEquationContext(const IGroup& igroup, const DoEachT& DoEach) {
+  for (const auto& op_stmt : *igroup.op_stmts()) {
+    const auto& EquationCtx4OpStmt = igroup.EquationCtx4OpStmt();
     const auto& ctx = EquationCtx4OpStmt(op_stmt);
     DoEach(ctx);
   }
@@ -140,14 +139,14 @@ std::unordered_set<Iterator> GenerateReducedIterator(
 }
 
 std::unordered_set<Iterator> FilterTemporalIterators(
-    const std::shared_ptr<IGroup>& igroup,
+    const IGroup& igroup,
     const std::function<Value(const Iterator&)>& Value4Iterator) {
   std::unordered_set<Iterator> ret{};
 
   VisitEachOpEquationContext(
       igroup, [&](const std::shared_ptr<config::NaiveOpEquationContext>& ctx) {
         std::unordered_set<Iterator> reduced_iterators =
-            GenerateReducedIterator(ctx, igroup->constants_provider());
+            GenerateReducedIterator(ctx, igroup.constants_provider());
         for (const auto& input_reduced_iterator : reduced_iterators) {
           const auto& sd_iterator_expr = Value4Iterator(input_reduced_iterator);
           CollectTensorIndexIterators(sd_iterator_expr, &ret);
@@ -159,20 +158,21 @@ std::unordered_set<Iterator> FilterTemporalIterators(
 
 }  // namespace
 
-List<ReduceTaggedLoopSize> MakeReduceTaggedLoopSizes(
-    const std::shared_ptr<IGroup>& igroup,
+List<ScheduleDim> MakeAnchorScheduleDims(
+    const IGroup& igroup,
     const std::function<Value(const Iterator&)>& Value4Iterator,
-    const List<LoopSize>& sd_sizes) {
+    const List<LoopSize>& loop_sizes,
+    const List<Iterator>& anchor_iterators) {
   std::unordered_set<Iterator> temporal_sd_iterators =
       FilterTemporalIterators(igroup, Value4Iterator);
 
-  List<ReduceTaggedLoopSize> ret{};
-  for (std::size_t i = 0; i < sd_sizes->size(); ++i) {
-    const auto& loop_iterator = igroup->loop_iterators()->at(i);
+  List<ScheduleDim> ret{};
+  for (std::size_t i = 0; i < loop_sizes->size(); ++i) {
+    const auto& loop_iterator = anchor_iterators->at(i);
     if (temporal_sd_iterators.count(loop_iterator) > 0) {
-      ret->emplace_back(tReduced<LoopSize>{sd_sizes->at(i)});
+      ret->emplace_back(tReduced<LoopSize>{loop_sizes->at(i)});
     } else {
-      ret->emplace_back(tNonReduced<LoopSize>{sd_sizes->at(i)});
+      ret->emplace_back(tInjective<LoopSize>{loop_sizes->at(i)});
     }
   }
 

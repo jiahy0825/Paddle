@@ -23,17 +23,16 @@
 
 namespace cinn::adt {
 
+DEFINE_ADT_TAG(tReduced);
+DEFINE_ADT_TAG(tInjective);
+DEFINE_ADT_UNION(ScheduleDim, tReduced<LoopSize>, tInjective<LoopSize>);
+
 class IGroup;
 
-DEFINE_ADT_TAG(tReduced);
-DEFINE_ADT_TAG(tNonReduced);
-DEFINE_ADT_UNION(ReduceTaggedLoopSize,
-                 tReduced<LoopSize>,
-                 tNonReduced<LoopSize>);
-
-List<ReduceTaggedLoopSize> MakeReduceTaggedLoopSizes(
-    const std::shared_ptr<IGroup>& igroup,
+List<ScheduleDim> MakeAnchorScheduleDims(
+    const IGroup& igroup,
     const std::function<Value(const Iterator&)>& Value4Iterator,
-    const List<LoopSize>& sd_sizes);
+    const List<LoopSize>& loop_sizes,
+    const List<Iterator>& anchor_iterators);
 
 }  // namespace cinn::adt
