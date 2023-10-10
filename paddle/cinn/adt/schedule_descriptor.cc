@@ -44,15 +44,6 @@ LoopDescriptors CreateScheduleDescriptor(const ScheduleMesh& sched_mesh,
   return ret;
 }
 
-LoopDescriptors MakeOptimizedScheduleDescriptor(
-    const std::shared_ptr<KGroup>& kgroup,
-    const std::shared_ptr<IGroup>& igroup) {
-  std::tuple<ScheduleMesh, List<LoopType>> sched_tuple =
-      CreateOptimizedScheduleMesh(igroup->anchor_schedule_dims());
-  return CreateScheduleDescriptor(std::get<0>(sched_tuple),
-                                  std::get<1>(sched_tuple));
-}
-
 LoopDescriptors MakeNaiveScheduleDescriptor(
     const std::shared_ptr<KGroup>& kgroup,
     const std::shared_ptr<IGroup>& igroup) {

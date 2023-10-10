@@ -21,6 +21,7 @@
 #include "paddle/cinn/adt/index_expr_infer_context.h"
 #include "paddle/cinn/adt/m_ir.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
+#include "paddle/cinn/adt/print_equations.h"
 
 namespace cinn::adt {
 
@@ -86,6 +87,7 @@ void VisitEachOutputIterator(
 void FilterReducedIterator(
     const std::shared_ptr<IndexExprInferContext>& infer_ctx,
     const std::shared_ptr<config::NaiveOpEquationContext>& op_ctx,
+    const List<Iterator>& input_iterators,
     std::unordered_set<Iterator>* unused_input_iterators) {
   std::unordered_set<Iterator> used{};
   bool is_output_infered = true;
@@ -100,7 +102,6 @@ void FilterReducedIterator(
   if (!is_output_infered) {
     return;
   }
-  const auto& input_iterators = GetOpEquationCtxInputIterators(op_ctx);
   for (const auto& input_iterator : *input_iterators) {
     if (used.find(input_iterator) == used.end()) {
       unused_input_iterators->emplace(input_iterator);
@@ -132,7 +133,7 @@ std::unordered_set<Iterator> GenerateReducedIterator(
       used_set = {x_i, x_j, ...}
       reduce_iterator = input_all_iterator_set - used_set
     */
-    FilterReducedIterator(infer_ctx, ctx, &ret);
+    FilterReducedIterator(infer_ctx, ctx, input_iterators, &ret);
   });
 
   return ret;

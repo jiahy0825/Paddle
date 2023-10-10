@@ -250,7 +250,7 @@ std::vector<std::int64_t> ConcatIntLists(const std::vector<std::int64_t>& lhs,
   return ret;
 }
 
-const std::vector<std::optional<std::int64_t>>& ConcatIntListsToOptionalList(
+std::vector<std::optional<std::int64_t>> ConcatIntListsToOptionalList(
     const std::vector<std::int64_t>& lhs,
     const std::vector<std::int64_t>& rhs) {
   std::vector<std::optional<std::int64_t>> ret{};

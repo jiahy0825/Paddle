@@ -143,7 +143,7 @@ void AnchorSdEquationContext::InitStride2Constant(
   const auto& AddStrideValue = [&](const List<Stride>& strides,
                                    const List<Constant>& stride_values) {
     CHECK_EQ(strides->size(), stride_values->size());
-    for (std::size_t i = 0; strides->size(); ++i) {
+    for (std::size_t i = 0; i < strides->size(); ++i) {
       CHECK(stride2constant_.emplace(strides->at(i), stride_values->at(i))
                 .second);
     }
