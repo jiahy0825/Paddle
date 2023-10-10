@@ -22,7 +22,10 @@ gather_srcs(
   schedule_dim.cc
   schedule_mesh.cc
   simplify_value.cc
-  write_broadcast_disabled_bidirection_equation_generator.cc)
+  write_broadcast_disabled_bidirection_equation_generator.cc
+  print_schedule_mesh.cc
+  print_schedule_dim.cc
+  print_loop_size.cc)
 
 cinn_cc_test(equation_value_match_trait_test SRCS
              equation_value_match_trait_test.cc DEPS gtest glog)
