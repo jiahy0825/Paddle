@@ -226,12 +226,6 @@ struct SimplifyGcdShape {
       const std::vector<std::pair<int, int>>& dim_ranges,
       std::int64_t constant_idx);
 
-  List<Constant> GetSubRangeDotDims(const List<Constant>& dims,
-                                    const std::pair<int, int>& range);
-
-  List<Value> GetSubRangeDotIterators(const List<Value>& iterators,
-                                      const std::pair<int, int>& range);
-
   Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
     const auto& [index_undot_value, constant_idx] =
         value.Get<ListGetItem<Value, Constant>>().tuple();
