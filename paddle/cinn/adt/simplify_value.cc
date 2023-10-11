@@ -244,10 +244,6 @@ struct SimplifyGcdShape {
     return std::make_tuple(lhs_ranges, rhs_ranges);
   }
 
-  std::tuple<std::pair<int, int>, int> GetSubRangeItemIdx(
-      const std::vector<std::pair<int, int>>& dim_ranges,
-      std::int64_t constant_idx);
-
   Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
     const auto& [index_undot_value, constant_idx] =
         value.Get<ListGetItem<Value, Constant>>().tuple();
@@ -265,15 +261,15 @@ struct SimplifyGcdShape {
 
     const auto& [undot_dim_ranges, dot_dim_ranges] =
         GetSubReshapeDimRanges(undot_dim_values, dot_dim_values);
-    if (undot_dim_ranges->size() > 1) {
+    if (undot_dim_ranges.size() > 1) {
       const auto& [sub_range_idx, sub_range_item_idx] = GetSubRangeItemIdx(
           undot_dim_ranges, constant_idx.Get<std::int64_t>());
       List<Constant> sub_range_undot_dims = GetSubRangeDotDims(
-          undot_dim_values, undot_dim_ranges->at(sub_range_idx));
+          undot_dim_values, undot_dim_ranges.at(sub_range_idx));
       List<Value> sub_range_dot_iterators = GetSubRangeDotIterators(
-          iter_values, dot_dim_ranges->at(sub_range_idx));
+          iter_values, dot_dim_ranges.at(sub_range_idx));
       List<Constant> sub_range_dot_dims =
-          GetSubRangeDotDims(dot_dim_values, dot_dim_ranges->at(sub_range_idx));
+          GetSubRangeDotDims(dot_dim_values, dot_dim_ranges.at(sub_range_idx));
       if (sub_range_dot_dims == sub_range_undot_dims) {
         return sub_range_dot_iterators.Get(sub_range_item_idx);
       } else {
@@ -289,33 +285,40 @@ struct SimplifyGcdShape {
                                         constant_idx};
   }
 
-  std::pair<int, int> GetSubRangeItemIdx(const std::vector<std::pair<int, int>>& ranges, std::int64_t index) const {
-    for (std::size_t i = 0; i < ragnes.size(); ++i) {
-      const auto& [begin, end] = ragnes.at(i);
+  std::pair<int, int> GetSubRangeItemIdx(
+      const std::vector<std::pair<int, int>>& ranges,
+      std::int64_t index) const {
+    for (std::size_t i = 0; i < ranges.size(); ++i) {
+      const auto& [begin, end] = ranges.at(i);
       if (index >= begin && index < end) {
         return std::pair<int, int>{i, index - begin};
       }
     }
   }
 
-  List<Value> GetSubRangeDotIterators(const List<Value>& iterators, const std::pair<int, int>& range) const {
+  List<Value> GetSubRangeDotIterators(const List<Value>& iterators,
+                                      const std::pair<int, int>& range) const {
     return GetSubRange<List<Value>>(iterators, range);
   }
 
-  List<Constant> GetSubRangeDotDims(const List<Constant>& dims, const std::pair<int, int>& range) const {
+  List<Constant> GetSubRangeDotDims(const List<Constant>& dims,
+                                    const std::pair<int, int>& range) const {
     return GetSubRange<List<Constant>>(dims, range);
   }
 
-  template<typename ContainerT>
-  ContainerT GetSubRange(const ContainerT& container, const std::pair<int, int>& range) const {
+  template <typename ContainerT>
+  ContainerT GetSubRange(const ContainerT& container,
+                         const std::pair<int, int>& range) const {
     CheckRange(container, range);
     ContainerT ret{};
-    ret.assign(std::next(container->begin(), range.first), std::next(container->begin(), range.second));
+    ret->assign(std::next(container->begin(), range.first),
+                std::next(container->begin(), range.second));
     return ret;
   }
 
-  template<typename ContainerT>
-  void CheckRange(const ContainerT& container, const std::pair<int, int>& range) const {
+  template <typename ContainerT>
+  void CheckRange(const ContainerT& container,
+                  const std::pair<int, int>& range) const {
     CHECK_GE(range.first, 0);
     CHECK_GE(range.second, 0);
     CHECK_LE(range.first, container->size());
