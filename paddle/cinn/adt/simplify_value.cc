@@ -199,15 +199,17 @@ struct SimplifyGcdShape {
     return ret;
   }
 
-  std::tuple<std::vector<int>, std::vector<int>> GetSubReshapeDimRanges(
-      const List<Constant>& lhs_dims, const List<Constant>& rhs_dims) {
+  std::tuple<std::vector<std::pair<int, int>>, std::vector<std::pair<int, int>>>
+  GetSubReshapeDimRanges(const List<Constant>& lhs_dims,
+                         const List<Constant>& rhs_dims) {
     if (GetNumel(lhs_dims) != GetNumel(rhs_dims)) {
-      return std::make_tuple(std::vector<int>{}, std::vector<int>{});
+      return std::make_tuple(std::vector<std::pair<int, int>>{},
+                             std::vector<std::pair<int, int>>{});
     }
     CHECK(!lhs_dims->empty());
     CHECK(!rhs_dims->empty());
-    std::vector<int> lhs_ranges{};
-    std::vector<int> rhs_ranges{};
+    std::vector<std::pair<int, int>> lhs_ranges{};
+    std::vector<std::pair<int, int>> rhs_ranges{};
     int lhs_start = 0;
     int rhs_start = 0;
     int lhs_end = 0;
@@ -219,6 +221,16 @@ struct SimplifyGcdShape {
 
     return std::make_tuple(lhs_ranges, rhs_ranges);
   }
+
+  std::tuple<std::pair<int, int>, int> GetSubRangeItemIdx(
+      const std::vector<std::pair<int, int>>& dim_ranges,
+      std::int64_t constant_idx);
+
+  List<Constant> GetSubRangeDotDims(const List<Constant>& dims,
+                                    const std::pair<int, int>& range);
+
+  List<Value> GetSubRangeDotIterators(const List<Value>& iterators,
+                                      const std::pair<int, int>& range);
 
   Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
     const auto& [index_undot_value, constant_idx] =
