@@ -261,16 +261,25 @@ struct SimplifyGcdShape {
                                         constant_idx};
   }
 
-  List<Value> GetSubRangeDotIterators(const List<Value>& iterators, const std::pair<int, int>& range) {
+  std::pair<int, int> GetSubRangeItemIdx(const std::vector<std::pair<int, int>>& ranges, std::int64_t index) const {
+    for (std::size_t i = 0; i < ragnes.size(); ++i) {
+      const auto& [begin, end] = ragnes.at(i);
+      if (index >= begin && index < end) {
+        return std::pair<int, int>{i, index - begin};
+      }
+    }
+  }
+
+  List<Value> GetSubRangeDotIterators(const List<Value>& iterators, const std::pair<int, int>& range) const {
     return GetSubRange<List<Value>>(iterators, range);
   }
 
-  List<Constant> GetSubRangeDotDims(const List<Constant>& dims, const std::pair<int, int>& range) {
+  List<Constant> GetSubRangeDotDims(const List<Constant>& dims, const std::pair<int, int>& range) const {
     return GetSubRange<List<Constant>>(dims, range);
   }
 
   template<typename ContainerT>
-  ContainerT GetSubRange(const ContainerT& container, const std::pair<int, int>& range) {
+  ContainerT GetSubRange(const ContainerT& container, const std::pair<int, int>& range) const {
     CheckRange(container, range);
     ContainerT ret{};
     ret.assign(std::next(container->begin(), range.first), std::next(container->begin(), range.second));
@@ -278,7 +287,7 @@ struct SimplifyGcdShape {
   }
 
   template<typename ContainerT>
-  void CheckRange(const ContainerT& container, const std::pair<int, int>& range) {
+  void CheckRange(const ContainerT& container, const std::pair<int, int>& range) const {
     CHECK_GE(range.first, 0);
     CHECK_GE(range.second, 0);
     CHECK_LE(range.first, container->size());
