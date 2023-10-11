@@ -212,13 +212,24 @@ struct SimplifyGcdShape {
     std::vector<std::pair<int, int>> rhs_ranges{};
     int lhs_start = 0;
     int rhs_start = 0;
-    int lhs_end = 0;
-    int rhs_end = 0;
+    int lhs_end = 1;
+    int rhs_end = 1;
     std::int64_t lhs_acc = lhs_dims->at(0).Get<std::int64_t>();
     std::int64_t rhs_acc = rhs_dims->at(0).Get<std::int64_t>();
     while (lhs_end < lhs_dims->size() || rhs_end < rhs_dims->size()) {
+      if (lhs_acc == rhs_acc) {
+        lhs_ranges.emplace_back(std::make_pair(lhs_start, lhs_end));
+        rhs_ranges.emplace_back(std::make_pair(rhs_start, rhs_end));
+        lhs_start = lhs_end;
+        rhs_start = rhs_end;
+      } else if (lhs_acc < rhs_acc) {
+        lhs_acc *= lhs_dims->at(++lhs_end).Get<std::int64_t>();
+      } else if (lhs_acc > rhs_acc) {
+        rhs_acc = rhs_dims->at(++rhs_end).Get<std::int64_t>();
+      } else {
+        LOG(FATAL) << "Dead code";
+      }
     }
-
     return std::make_tuple(lhs_ranges, rhs_ranges);
   }
 
