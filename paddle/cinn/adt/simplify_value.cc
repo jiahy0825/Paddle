@@ -214,24 +214,36 @@ struct SimplifyGcdShape {
     int rhs_start = 0;
     int lhs_end = 0;
     int rhs_end = 0;
-    std::int64_t lhs_acc = 1;
-    std::int64_t rhs_acc = 1;
+
+    const auto GetProduct = [&](const List<Constant>& dims,
+                                std::size_t end) -> std::int64_t {
+      end = (end > dims->size() ? dims->size() : end);
+      std::int64_t ret = 1;
+      for (std::size_t i = 0; i < end; ++i) {
+        CHECK(dims->at(i).Has<std::int64_t>());
+        ret *= dims->at(i).Get<std::int64_t>();
+      }
+      return ret;
+    };
+
+    const auto LhsAcc = [&]() -> std::int64_t {
+      return GetProduct(lhs_dims, lhs_end);
+    };
+
+    const auto RhsAcc = [&]() -> std::int64_t {
+      return GetProduct(rhs_dims, rhs_end);
+    };
+
     while (lhs_end < lhs_dims->size() || rhs_end < rhs_dims->size()) {
-      if (lhs_start == lhs_end) {
-        lhs_acc = lhs_dims->at(lhs_end++).Get<std::int64_t>();
-      }
-      if (rhs_start == rhs_end) {
-        rhs_acc = rhs_dims->at(rhs_end++).Get<std::int64_t>();
-      }
-      if (lhs_acc == rhs_acc) {
+      if (LhsAcc() == RhsAcc()) {
         lhs_ranges.emplace_back(std::make_pair(lhs_start, lhs_end));
         rhs_ranges.emplace_back(std::make_pair(rhs_start, rhs_end));
-        lhs_start = lhs_end;
-        rhs_start = rhs_end;
-      } else if (lhs_acc < rhs_acc) {
-        lhs_acc *= lhs_dims->at(lhs_end++).Get<std::int64_t>();
-      } else if (lhs_acc > rhs_acc) {
-        rhs_acc *= rhs_dims->at(rhs_end++).Get<std::int64_t>();
+        lhs_start = lhs_end++;
+        rhs_start = rhs_end++;
+      } else if (LhsAcc() < RhsAcc()) {
+        lhs_end++;
+      } else if (LhsAcc() > RhsAcc()) {
+        rhs_end++;
       } else {
         LOG(FATAL) << "Dead code";
       }
