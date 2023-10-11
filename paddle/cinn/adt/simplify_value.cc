@@ -176,6 +176,70 @@ struct SimplifyListGetItemList {
   }
 };
 
+struct SimplifyGcdShape {
+  using source_pattern_type = ListGetItem<
+      IndexUnDotValue<IndexDotValue<List<Value>, List<std::int64_t>>,
+                      List<std::int64_t>>,
+      std::int64_t>;
+
+  List<std::int64_t> Constants2Ints(const List<Constant>& constants) {
+    List<std::int64_t> ret{};
+    for (const auto& constant : *constants) {
+      CHECK(constant.Has<std::int64_t>());
+      ret->emplace_back(constant.Get<std::int64_t>());
+    }
+    return ret;
+  }
+
+  std::int64_t GetNumel(const List<std::int64_t>& constants) {
+    std::int64_t ret = 1;
+    for (std::int64_t constant : *constants) {
+      ret *= constant;
+    }
+    return ret;
+  }
+
+  Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
+    const auto& [index_undot_value, constant_idx] =
+        value.Get<ListGetItem<Value, Constant>>().tuple();
+    const auto& [index_value, undot_dims] =
+        index_undot_value.Get<IndexUnDotValue<Value, Constant>>().tuple();
+    const auto& [index_dot_values, dot_dims] =
+        index_value.Get<IndexDotValue<Value, Constant>>().tuple();
+    const auto& iter_values = index_dot_values.Get<List<Value>>();
+    CHECK(dot_dims.Has<List<Constant>>());
+    CHECK(undot_dims.Has<List<Constant>>());
+    const auto& undot_dim_values =
+        Constants2Ints(undot_dims.Get<List<Constant>>());
+    const auto& dot_dim_values = Constants2Ints(dot_dims.Get<List<Constant>>());
+
+    const auto& [undot_dim_ranges, dot_dim_ranges] =
+        GetSubReshapeDimRanges(undot_dim_values, dot_dim_values);
+    if (undot_dim_ranges->size() > 1) {
+      const auto& [sub_range_idx, sub_range_item_idx] = GetSubRangeItemIdx(
+          undot_dim_ranges, constant_idx.Get<std::int64_t>());
+      List<Constant> sub_range_undot_dims = GetSubRangeDotDims(
+          undot_dim_values, undot_dim_ranges->at(sub_range_idx));
+      List<Value> sub_range_dot_iterators = GetSubRangeDotIterators(
+          iter_values, dot_dim_ranges->at(sub_range_idx));
+      List<Constant> sub_range_dot_dims =
+          GetSubRangeDotDims(dot_dim_values, dot_dim_ranges->at(sub_range_idx));
+      if (sub_range_dot_dims == sub_range_undot_dims) {
+        return sub_range_dot_iterators.Get(sub_range_item_idx);
+      } else {
+        IndexDotValue<Value, Constant> sub_range_dot{sub_range_dot_iterators,
+                                                     sub_range_dot_dims};
+        IndexUnDotValue<Value, Constant> sub_range_undot{sub_range_dot,
+                                                         sub_range_undot_dims};
+        return ListGetItem<Value, Constant>{sub_range_undot,
+                                            sub_range_item_idx};
+      }
+    }
+    return ListGetItem<Value, Constant>{SimplifyValue(index_undot_value, ctx),
+                                        constant_idx};
+  }
+};
+
 // Only simplify top-layer of value
 Value SimplifyValue(Value value, const IndexExprInferContext& ctx) {
   value = MatchAndRewrite<SimplifyDot>(value, ctx);
@@ -185,6 +249,7 @@ Value SimplifyValue(Value value, const IndexExprInferContext& ctx) {
   value = MatchAndRewrite<SimplifyDotUndot>(value, ctx);
   value = MatchAndRewrite<SimplifyUndotDot>(value, ctx);
   value = MatchAndRewrite<SimplifyListGetItemList>(value, ctx);
+  value = MatchAndRewrite<SimplifyGcdShape>(value, ctx);
   return value;
 }
 
