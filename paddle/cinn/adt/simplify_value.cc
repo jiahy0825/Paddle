@@ -182,21 +182,42 @@ struct SimplifyGcdShape {
                       List<std::int64_t>>,
       std::int64_t>;
 
-  List<std::int64_t> Constants2Ints(const List<Constant>& constants) {
-    List<std::int64_t> ret{};
+  bool IsConstantListAllPositiveInt64(const List<Constant>& constants) {
     for (const auto& constant : *constants) {
-      CHECK(constant.Has<std::int64_t>());
-      ret->emplace_back(constant.Get<std::int64_t>());
+      if (!constant.Has<std::int64_t>() || constant.Get<std::int64_t>() <= 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  std::int64_t GetNumel(const List<Constant>& constants) {
+    std::int64_t ret = 1;
+    for (const auto& constant : *constants) {
+      ret *= constant.Get<std::int64_t>();
     }
     return ret;
   }
 
-  std::int64_t GetNumel(const List<std::int64_t>& constants) {
-    std::int64_t ret = 1;
-    for (std::int64_t constant : *constants) {
-      ret *= constant;
+  std::tuple<std::vector<int>, std::vector<int>> GetSubReshapeDimRanges(
+      const List<Constant>& lhs_dims, const List<Constant>& rhs_dims) {
+    if (GetNumel(lhs_dims) != GetNumel(rhs_dims)) {
+      return std::make_tuple(std::vector<int>{}, std::vector<int>{});
     }
-    return ret;
+    CHECK(!lhs_dims->empty());
+    CHECK(!rhs_dims->empty());
+    std::vector<int> lhs_ranges{};
+    std::vector<int> rhs_ranges{};
+    int lhs_start = 0;
+    int rhs_start = 0;
+    int lhs_end = 0;
+    int rhs_end = 0;
+    std::int64_t lhs_acc = lhs_dims->at(0).Get<std::int64_t>();
+    std::int64_t rhs_acc = rhs_dims->at(0).Get<std::int64_t>();
+    while (lhs_end < lhs_dims->size() || rhs_end < rhs_dims->size()) {
+    }
+
+    return std::make_tuple(lhs_ranges, rhs_ranges);
   }
 
   Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
@@ -209,9 +230,10 @@ struct SimplifyGcdShape {
     const auto& iter_values = index_dot_values.Get<List<Value>>();
     CHECK(dot_dims.Has<List<Constant>>());
     CHECK(undot_dims.Has<List<Constant>>());
-    const auto& undot_dim_values =
-        Constants2Ints(undot_dims.Get<List<Constant>>());
-    const auto& dot_dim_values = Constants2Ints(dot_dims.Get<List<Constant>>());
+    const auto& undot_dim_values = undot_dims.Get<List<Constant>>();
+    const auto& dot_dim_values = dot_dims.Get<List<Constant>>();
+    CHECK(IsConstantListAllPositiveInt64(undot_dim_values));
+    CHECK(IsConstantListAllPositiveInt64(dot_dim_values));
 
     const auto& [undot_dim_ranges, dot_dim_ranges] =
         GetSubReshapeDimRanges(undot_dim_values, dot_dim_values);
