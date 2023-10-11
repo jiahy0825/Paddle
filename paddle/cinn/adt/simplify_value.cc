@@ -260,6 +260,31 @@ struct SimplifyGcdShape {
     return ListGetItem<Value, Constant>{SimplifyValue(index_undot_value, ctx),
                                         constant_idx};
   }
+
+  List<Value> GetSubRangeDotIterators(const List<Value>& iterators, const std::pair<int, int>& range) {
+    return GetSubRange<List<Value>>(iterators, range);
+  }
+
+  List<Constant> GetSubRangeDotDims(const List<Constant>& dims, const std::pair<int, int>& range) {
+    return GetSubRange<List<Constant>>(dims, range);
+  }
+
+  template<typename ContainerT>
+  ContainerT GetSubRange(const ContainerT& container, const std::pair<int, int>& range) {
+    CheckRange(container, range);
+    ContainerT ret{};
+    ret.assign(std::next(container->begin(), range.first), std::next(container->begin(), range.second));
+    return ret;
+  }
+
+  template<typename ContainerT>
+  void CheckRange(const ContainerT& container, const std::pair<int, int>& range) {
+    CHECK_GE(range.first, 0);
+    CHECK_GE(range.second, 0);
+    CHECK_LE(range.first, container->size());
+    CHECK_LE(range.second, container->size());
+    CHECK_LT(range.first, range.second);
+  }
 };
 
 // Only simplify top-layer of value
