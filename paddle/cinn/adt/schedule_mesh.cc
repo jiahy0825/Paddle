@@ -291,11 +291,33 @@ class GeneralScheduleMeshPolicy final : public ScheduleMeshPolicy {
   }
 };
 
+class NaiveScheduleMeshPolicy final : public ScheduleMeshPolicy {
+ public:
+  NaiveScheduleMeshPolicy() = default;
+
+  bool Match(const List<ScheduleDim>& loop_sizes) const override {
+    for (const auto& sched_dim : *loop_sizes) {
+      if (!GetLoopSize(sched_dim).Has<std::int64_t>()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  std::tuple<ScheduleMesh, List<LoopType>> Optimize(
+      const List<ScheduleDim>& loop_sizes) const override {
+    ScheduleMesh sched_mesh{loop_sizes};
+    return std::make_tuple(sched_mesh,
+                           List<LoopType>{S0x{}, Temporal{}, S1x{}});
+  }
+};
+
 const std::vector<std::unique_ptr<ScheduleMeshPolicy>>&
 GetAllScheduleMeshPolicies() {
   static std::vector<std::unique_ptr<ScheduleMeshPolicy>> policies{};
   policies.emplace_back(std::make_unique<AllInjectiveScheduleMeshPolicy>());
-  policies.emplace_back(std::make_unique<GeneralScheduleMeshPolicy>());
+  // policies.emplace_back(std::make_unique<GeneralScheduleMeshPolicy>());
+  policies.emplace_back(std::make_unique<NaiveScheduleMeshPolicy>());
   return policies;
 }
 
