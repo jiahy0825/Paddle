@@ -19,6 +19,6 @@
 
 namespace cinn::adt {
 
-std::vector<ir::LoweredFunc> MapExprToIr(const MapExpr& map_expr);
+ir::Expr MapExprToIr(const MapExpr& map_expr);
 
 }

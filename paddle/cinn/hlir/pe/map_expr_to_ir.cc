@@ -19,6 +19,7 @@
 
 #include "paddle/cinn/adt/m_expr.h"
 #include "paddle/cinn/adt/map_expr_gurad.h"
+#include "paddle/cinn/adt/print_map_expr.h"
 #include "paddle/cinn/common/target.h"
 #include "paddle/cinn/ir/ir.h"
 #include "paddle/cinn/ir/ir_base.h"
@@ -53,17 +54,19 @@ class MapExprToIrTranslator {
     InitNode2LoadAndStore();
   }
 
-  std::vector<ir::LoweredFunc> Translate() const {
-    VLOG(1) << "Begin Translate";
+  ir::Expr Translate() const {
+    VLOG(1) << "Begin Translate MapExpr: ";
+    PrintMapExpr(map_expr_, "");
     const auto& expr = Translate(map_expr_);
-    VLOG(1) << "After Translate: " << expr;
-    return std::vector{expr.as_lowered_func_ref()};
+    VLOG(1) << "After Translate: \n" << expr;
+    return ir::Block::Make({expr});
   }
 
  private:
   void InitNode2LoadAndStore() {
     CHECK(node2lowered_funcs_ != nullptr);
     for (const auto& [node, lowered_func] : *node2lowered_funcs_) {
+      VLOG(1) << "Origin Lowered_Func :\n" << lowered_func.at(0);
       CHECK_EQ(lowered_func.size(), 1);
       std::vector<ir::Expr> stores{};
       std::vector<ir::Expr> loads{};
@@ -140,15 +143,19 @@ class MapExprToIrTranslator {
   ir::Expr Translate(const MapStmt<Stmt>& map_stmt) const {
     const auto& [iterators, stmts] = map_stmt.tuple();
     ir::Expr ret = Translate(stmts);
+    CHECK_GT(iterators->size(), 0);
     for (int i = iterators->size() - 1; i >= 0; --i) {
       const auto& iterator = iterators->at(i);
       const auto& ld = LoopDescriptor4LoopIterator(iterator);
-      ir::Expr var{"i_" + std::to_string(iterator.value().unique_id())};
+      ir::Var var{"v_" + std::to_string(iterator.value().unique_id())};
+      ir::Expr min{std::int64_t(0)};
       ir::Expr extent = GetLoopSize(ld);
       ir::ForType for_type = GetForType(ld);
       ir::DeviceAPI device_api = GetDeviceApi();
-      ret = ir::For::Make(var, 0, extent, for_type, device_api, ret);
+      ret = ir::For::Make(var, min, extent, for_type, device_api, ret);
     }
+    ret = ir::ScheduleBlock::Make({}, {}, {}, "root", ret);
+    ret = ir::ScheduleBlockRealize::Make({}, ret);
     return ret;
   }
 
@@ -198,8 +205,10 @@ class MapExprToIrTranslator {
 
   ir::ForType GetForType(const LoopDescriptor& ld) const {
     const auto& [loop_type, _] = ld.tuple();
-    std::visit([&](const auto& impl) { return GetForTypeImpl(impl); },
-               loop_type.variant());
+    return ir::ForType::Serial;
+    // TODO(Hongyu Jia): Support different ForType here
+    // return std::visit([&](const auto& impl) { return GetForTypeImpl(impl); },
+    //            loop_type.variant());
   }
 
   ir::Expr TranslateImpl(const MapStmt<Stmt>& map_stmt) const {
@@ -292,6 +301,7 @@ class MapExprToIrTranslator {
     const hlir::framework::Node* op_node =
         op.Get<const hlir::framework::Node*>();
     CHECK_EQ(op_node->op()->name, "elementwise_add");
+
     const auto& input_exprs = Translate(
         inputs, node2loads_.at(const_cast<hlir::framework::Node*>(op_node)));
     const auto& output_exprs = Translate(
@@ -300,7 +310,16 @@ class MapExprToIrTranslator {
     ir::Expr output_expr = output_exprs.at(0);
     output_expr.As<ir::Store>()->value =
         ir::Add::Make(input_exprs.at(0), input_exprs.at(1));
-    return output_expr;
+    std::vector<ir::Var> iter_vars = {ir::Var("i_35"), ir::Var("i_36")};
+    ir::Expr ret = ir::ScheduleBlock::Make(
+        iter_vars,
+        {},
+        {},
+        output_expr.As<ir::Store>()->tensor.as_tensor()->name,
+        output_expr);
+    ret = ir::ScheduleBlockRealize::Make(output_expr.As<ir::Store>()->indices,
+                                         ret);
+    return ret;
   }
 
   ir::Expr TranslateImpl(const OpStmt& op_stmt) const {
@@ -330,12 +349,10 @@ class MapExprToIrTranslator {
 
 }  // namespace
 
-std::vector<ir::LoweredFunc> MapExprToIr(const MapExpr& map_expr) {
-  const auto& lowered_funcs = MapExprToIrTranslator(map_expr).Translate();
-  for (const auto& lowered_func : lowered_funcs) {
-    VLOG(1) << "MapExprToIr LoweredFunc " << lowered_func;
-  }
-  return lowered_funcs;
+ir::Expr MapExprToIr(const MapExpr& map_expr) {
+  const auto& expr = MapExprToIrTranslator(map_expr).Translate();
+  VLOG(1) << "Finish MapExprToIr\n" << expr;
+  return expr;
 }
 
 }  // namespace cinn::adt
