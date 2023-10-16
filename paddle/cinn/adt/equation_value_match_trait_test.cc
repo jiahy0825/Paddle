@@ -19,6 +19,30 @@
 
 namespace cinn::adt::test {
 
+TEST(Match, Union) {
+  using Pattern = Union<IndexUnDotValue<Value, Constant>, IndexDotValue<Value, Constant>>;
+  {
+    Value expr =
+        IndexUnDotValue<Value, Constant>{Value{Ok()}, Constant{std::int64_t(1)}};
+
+    bool ret = cinn::adt::Match<Pattern>(expr);
+    ASSERT_TRUE(ret);
+  }
+  {
+    Value expr =
+        IndexDotValue<Value, Constant>{Value{Ok()}, Constant{std::int64_t(1)}};
+
+    bool ret = cinn::adt::Match<Pattern>(expr);
+    ASSERT_TRUE(ret);
+  }
+  {
+    Value expr = List<Value>{Value{Ok()}, Value{Ok()}, Value{Ok()}};
+
+    bool ret = cinn::adt::Match<Pattern>(expr);
+    ASSERT_FALSE(ret);
+  }
+}
+
 TEST(Match, index_undot) {
   Value expr =
       IndexUnDotValue<Value, Constant>{Value{Ok()}, Constant{std::int64_t(1)}};
