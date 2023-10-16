@@ -20,8 +20,8 @@ from cinn.frontend import NetBuilder
 from op_test import OpTest
 
 inputs = {
-    "x": OpTest.random([8, 8], "float32", -1.0, 1.0),
-    "y": OpTest.random([8, 8], "float32", -1.0, 1.0),
+    "x": OpTest.random([1024, 1024], "float32", -1.0, 1.0),
+    "y": OpTest.random([1024, 1024], "float32", -1.0, 1.0),
 }
 
 builder = NetBuilder("MapExprTest")

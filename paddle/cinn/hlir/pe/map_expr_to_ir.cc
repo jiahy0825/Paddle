@@ -31,9 +31,9 @@ namespace {
 using Node2LoweredFuncs =
     std::unordered_map<hlir::framework::Node*, std::vector<ir::LoweredFunc>>;
 using Node2Store =
-    std::unordered_map<hlir::framework::Node*, std::vector<ir::Store>>;
+    std::unordered_map<hlir::framework::Node*, std::vector<ir::Expr>>;
 using Node2Loads =
-    std::unordered_map<hlir::framework::Node*, std::vector<ir::Load>>;
+    std::unordered_map<hlir::framework::Node*, std::vector<ir::Expr>>;
 
 using TensorIteratorExpr4TensorT =
     std::function<adt::List<adt::TensorIteratorExpr>(const adt::Tensor&)>;
@@ -54,7 +54,9 @@ class MapExprToIrTranslator {
   }
 
   std::vector<ir::LoweredFunc> Translate() const {
+    VLOG(1) << "Begin Translate";
     const auto& expr = Translate(map_expr_);
+    VLOG(1) << "After Translate: " << expr;
     return std::vector{expr.as_lowered_func_ref()};
   }
 
@@ -63,13 +65,13 @@ class MapExprToIrTranslator {
     CHECK(node2lowered_funcs_ != nullptr);
     for (const auto& [node, lowered_func] : *node2lowered_funcs_) {
       CHECK_EQ(lowered_func.size(), 1);
-      std::vector<ir::Store> stores{};
-      std::vector<ir::Load> loads{};
+      std::vector<ir::Expr> stores{};
+      std::vector<ir::Expr> loads{};
       VisitEachExprBody(lowered_func.at(0), [&](const ir::Expr& expr) {
         if (expr.node_type() == ir::IrNodeTy::Store) {
-          stores.emplace_back(expr.As<ir::Store>());
+          stores.emplace_back(expr);
         } else if (expr.node_type() == ir::IrNodeTy::Load) {
-          loads.emplace_back(expr.As<ir::Load>());
+          loads.emplace_back(expr);
         } else {
           // Do nothing
         }
@@ -84,29 +86,29 @@ class MapExprToIrTranslator {
     DoEach(expr);
     switch (expr.node_type()) {
       case ir::IrNodeTy::_LoweredFunc_:
-        VisitEachExprBody(expr.As<ir::LoweredFunc>()->body);
+        VisitEachExprBody(expr.as_lowered_func()->body, DoEach);
         break;
       case ir::IrNodeTy::Block:
-        const auto& stmts = expr.As<ir::Block>()->stmts;
-        for (const auto& stmt : stmts) {
-          VisitEachExprBody(stmt);
+        for (const auto& stmt : expr.As<ir::Block>()->stmts) {
+          VisitEachExprBody(stmt, DoEach);
         }
         break;
       case ir::IrNodeTy::ScheduleBlockRealize:
-        VisitEachExprBody(expr.As<ir::ScheduleBlockRealize>()->schedule_block);
+        VisitEachExprBody(expr.As<ir::ScheduleBlockRealize>()->schedule_block,
+                          DoEach);
         break;
       case ir::IrNodeTy::ScheduleBlock:
-        VisitEachExprBody(expr.As<ir::ScheduleBlock>()->body);
+        VisitEachExprBody(expr.As<ir::ScheduleBlock>()->body, DoEach);
         break;
       case ir::IrNodeTy::For:
-        VisitEachExprBody(expr.As<ir::For>()->body);
+        VisitEachExprBody(expr.As<ir::For>()->body, DoEach);
         break;
-      case ir::irNodeTy::Store:
-        VisitEachExprBody(expr.As<ir::Store>()->value);
+      case ir::IrNodeTy::Store:
+        VisitEachExprBody(expr.As<ir::Store>()->value, DoEach);
         break;
-      case ir::irNodeTy::Add:
-        VisitEachExprBody(expr.As<ir::Add>()->a);
-        VisitEachExprBody(expr.As<ir::Add>()->b);
+      case ir::IrNodeTy::Add:
+        VisitEachExprBody(expr.As<ir::Add>()->a(), DoEach);
+        VisitEachExprBody(expr.As<ir::Add>()->b(), DoEach);
         break;
       case ir::IrNodeTy::Load:
         // Do nothing
@@ -256,28 +258,29 @@ class MapExprToIrTranslator {
   }
 
   std::vector<ir::Expr> Translate(const tIn<List<Arg>>& inputs,
-                                  const std::vector<ir::Load>& loads) const {
+                                  const std::vector<ir::Expr>& loads) const {
     CHECK_EQ(inputs.value()->size(), loads.size());
     std::vector<ir::Expr> ret{};
     for (std::size_t i = 0; i < loads.size(); ++i) {
       const auto& input = inputs.value()->at(i);
       const auto& load = loads.at(i);
-      ret.emplace_back(ir::Load::Make(
-          load.tensor, Translate(TensorIteratorExpr4Tensor(input))));
+      ret.emplace_back(
+          ir::Load::Make(load.As<ir::Load>()->tensor,
+                         Translate(TensorIteratorExpr4Tensor(input))));
     }
     return ret;
   }
 
   std::vector<ir::Expr> Translate(const tOut<List<Arg>>& outputs,
-                                  const std::vector<ir::Store>& stores) const {
+                                  const std::vector<ir::Expr>& stores) const {
     CHECK_EQ(outputs.value()->size(), stores.size());
     std::vector<ir::Expr> ret{};
     for (std::size_t i = 0; i < stores.size(); ++i) {
       const auto& output = outputs.value()->at(i);
       const auto& store = stores.at(i);
       ret.emplace_back(
-          ir::Store::Make(store.tensor,
-                          store.value,
+          ir::Store::Make(store.As<ir::Store>()->tensor,
+                          store.As<ir::Store>()->value,
                           Translate(TensorIteratorExpr4Tensor(output))));
     }
     return ret;
@@ -328,7 +331,11 @@ class MapExprToIrTranslator {
 }  // namespace
 
 std::vector<ir::LoweredFunc> MapExprToIr(const MapExpr& map_expr) {
-  return MapExprToIrTranslator(map_expr).Translate();
+  const auto& lowered_funcs = MapExprToIrTranslator(map_expr).Translate();
+  for (const auto& lowered_func : lowered_funcs) {
+    VLOG(1) << "MapExprToIr LoweredFunc " << lowered_func;
+  }
+  return lowered_funcs;
 }
 
 }  // namespace cinn::adt
