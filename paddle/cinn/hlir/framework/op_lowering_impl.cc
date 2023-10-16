@@ -14,11 +14,13 @@
 
 #include "paddle/cinn/hlir/framework/op_lowering_impl.h"
 
+#include "paddle/cinn/adt/map_expr_gurad.h"
 #include "paddle/cinn/ast_gen_ius/tensor_group.h"
 #include "paddle/cinn/hlir/framework/compile_error.h"
 #include "paddle/cinn/hlir/framework/graph_compiler_util.h"
 #include "paddle/cinn/hlir/framework/op_lowering_util.h"
 #include "paddle/cinn/hlir/op/external_api_registry.h"
+#include "paddle/cinn/hlir/pe/map_expr_to_ir.h"
 #include "paddle/cinn/ir/schedule/ir_schedule.h"
 #include "paddle/cinn/optim/transform_gpu_forloop.h"
 
@@ -102,6 +104,7 @@ std::vector<ir::LoweredFunc> OpLowererImpl::LowerGroup(
     bool apply_group_schedule,
     bool apply_pass,
     ScheduleDetermineFunction schedule_determine_func) {
+  adt::MapExprGuard map_expr_guard{group->map_expr()};
   // 1.Do compute, lower and schedule for each op.
   VLOG(3) << "group->fused_sub_groups.size() is : "
           << group->fused_sub_groups.size();
@@ -117,6 +120,7 @@ std::vector<ir::LoweredFunc> OpLowererImpl::LowerGroup(
                                                schedule_determine_func,
                                                &group_func_arg_tensors,
                                                &tensor_map);
+  adt::MapExprToIr(adt::MapExprGuard::GetMapExpr());
 
   // 2.Do group schedule.
   ir::ModuleExpr mod_expr(func_bodies);
@@ -415,6 +419,7 @@ std::vector<ir::LoweredFunc> OpLowererImpl::DoOpLower(
   for (auto fun : funcs) {
     VLOG(4) << fun;
   }
+  cinn::adt::MapExprGuard::UpdateOpLoweredFuncKey(node, funcs);
 
   op_func_arg_tensors->clear();
   for (int idx = 0; idx < pack.size() - 1; ++idx) {

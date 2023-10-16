@@ -21,6 +21,7 @@
 #ifdef CINN_WITH_CUDA
 #include "paddle/cinn/runtime/cuda/cuda_util.h"
 #endif
+#include "paddle/cinn/adt/m_expr.h"
 #include "paddle/cinn/runtime/flags.h"
 #include "paddle/cinn/utils/string.h"
 
@@ -521,6 +522,14 @@ std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() const {
   }
 
   return group_outputs;
+}
+
+const std::shared_ptr<adt::MapExpr>& Graph::Group::map_expr() const {
+  return map_expr_;
+}
+
+void Graph::Group::set_map_expr(const std::shared_ptr<adt::MapExpr>& map_expr) {
+  map_expr_ = map_expr;
 }
 
 }  // namespace framework
