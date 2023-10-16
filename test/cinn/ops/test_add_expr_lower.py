@@ -22,19 +22,38 @@ from op_test import OpTest
 inputs = {
     "x": OpTest.random([1024, 1024], "float32", -1.0, 1.0),
     "y": OpTest.random([1024, 1024], "float32", -1.0, 1.0),
+    "z": OpTest.random([1024, 1024], "float32", -1.0, 1.0),
 }
 
 builder = NetBuilder("MapExprTest")
 x = builder.create_input(Float(32), inputs["x"].shape, "x")
 y = builder.create_input(Float(32), inputs["y"].shape, "y")
+z = builder.create_input(Float(32), inputs["z"].shape, "z")
 
-out = builder.elementwise_add(x, y)
+a = builder.elementwise_add(x, y)
+out = builder.elementwise_add(a, z)
+
 prog = builder.build()
 
 target = DefaultNVGPUTarget()
 
 result = prog.build_and_get_output(
-    target, [x, y], [inputs["x"], inputs["y"]], [out], passes=[], scope=None
+    target,
+    [x, y, z],
+    [inputs["x"], inputs["y"], inputs["z"]],
+    [out],
+    passes=[],
+    scope=None,
 )
+
+# np.testing.assert_allclose(
+#     result[0].numpy(target),
+#     inputs["x"] + inputs["y"] + inputs["z"],
+#     err_msg="test_add_expr_lower failed!"
+# )
+
+print(result[0].numpy(target))
+print("**************************")
+print(inputs["x"] + inputs["y"] + inputs["z"])
 
 print("Finish TestAddExpr")

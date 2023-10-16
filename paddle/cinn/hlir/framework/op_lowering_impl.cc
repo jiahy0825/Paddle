@@ -120,10 +120,10 @@ std::vector<ir::LoweredFunc> OpLowererImpl::LowerGroup(
                                                schedule_determine_func,
                                                &group_func_arg_tensors,
                                                &tensor_map);
-  adt::MapExprToIr(adt::MapExprGuard::GetMapExpr());
+  ir::Expr expr = adt::MapExprToIr(adt::MapExprGuard::GetMapExpr());
 
   // 2.Do group schedule.
-  ir::ModuleExpr mod_expr(func_bodies);
+  ir::ModuleExpr mod_expr({expr});
   ir::IRSchedule ir_sch(mod_expr);
   ir_sch.MergeExprs();
   VLOG(3) << "After lower, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);

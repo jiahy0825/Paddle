@@ -55,11 +55,9 @@ class MapExprToIrTranslator {
   }
 
   ir::Expr Translate() const {
-    VLOG(1) << "Begin Translate MapExpr: ";
+    VLOG(1) << "Translate MapExpr: ";
     PrintMapExpr(map_expr_, "");
-    const auto& expr = Translate(map_expr_);
-    VLOG(1) << "After Translate: \n" << expr;
-    return ir::Block::Make({expr});
+    return ir::Block::Make({Translate(map_expr_)});
   }
 
  private:
@@ -148,7 +146,7 @@ class MapExprToIrTranslator {
       const auto& iterator = iterators->at(i);
       const auto& ld = LoopDescriptor4LoopIterator(iterator);
       ir::Var var{"v_" + std::to_string(iterator.value().unique_id())};
-      ir::Expr min{std::int64_t(0)};
+      ir::Expr min{std::int32_t(0)};
       ir::Expr extent = GetLoopSize(ld);
       ir::ForType for_type = GetForType(ld);
       ir::DeviceAPI device_api = GetDeviceApi();
@@ -164,7 +162,7 @@ class MapExprToIrTranslator {
   ir::Expr GetLoopSize(const LoopDescriptor& ld) const {
     const auto& [_, loop_size] = ld.tuple();
     CHECK(loop_size.Has<std::int64_t>());
-    return ir::Expr{loop_size.Get<std::int64_t>()};
+    return ir::Expr{std::int32_t(loop_size.Get<std::int64_t>())};
   }
 
   ir::ForType GetForTypeImpl(const S0x& loop_type) const {
@@ -300,7 +298,6 @@ class MapExprToIrTranslator {
     CHECK(op.Has<const hlir::framework::Node*>());
     const hlir::framework::Node* op_node =
         op.Get<const hlir::framework::Node*>();
-    CHECK_EQ(op_node->op()->name, "elementwise_add");
 
     const auto& input_exprs = Translate(
         inputs, node2loads_.at(const_cast<hlir::framework::Node*>(op_node)));
@@ -310,15 +307,18 @@ class MapExprToIrTranslator {
     ir::Expr output_expr = output_exprs.at(0);
     output_expr.As<ir::Store>()->value =
         ir::Add::Make(input_exprs.at(0), input_exprs.at(1));
-    std::vector<ir::Var> iter_vars = {ir::Var("i_35"), ir::Var("i_36")};
+    // const auto& iter_values = output_expr.As<ir::Store>()->indices;
+    // std::vector<ir::Var> iter_vars = {ir::Var("i_35"), ir::Var("i_36")};
+    std::vector<ir::Expr> fake_values = {ir::Var("fake_v_0"),
+                                         ir::Var("fake_v_1")};
+    std::vector<ir::Var> fake_vars = {ir::Var("fake_i_0"), ir::Var("fake_i_1")};
     ir::Expr ret = ir::ScheduleBlock::Make(
-        iter_vars,
+        fake_vars,
         {},
         {},
         output_expr.As<ir::Store>()->tensor.as_tensor()->name,
         output_expr);
-    ret = ir::ScheduleBlockRealize::Make(output_expr.As<ir::Store>()->indices,
-                                         ret);
+    ret = ir::ScheduleBlockRealize::Make(fake_values, ret);
     return ret;
   }
 
