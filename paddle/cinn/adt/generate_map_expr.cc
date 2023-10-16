@@ -453,6 +453,7 @@ void TryGenerateMapExprFromGraph(
   for (const auto& fusion_group : graph->fusion_groups) {
     const auto& map_expr = GenerateMapExpr(fusion_group);
     PrintMapExpr(map_expr, fusion_group->group_id);
+    fusion_group->set_map_expr(std::make_shared<MapExpr>(map_expr));
   }
 }
 

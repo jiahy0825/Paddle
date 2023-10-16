@@ -26,6 +26,12 @@
 #include "paddle/cinn/hlir/framework/node.h"
 
 namespace cinn {
+
+namespace adt {
+class Kernel;
+using MapExpr = Kernel;
+}  // namespace adt
+
 namespace hlir {
 namespace framework {
 
@@ -182,6 +188,10 @@ class Graph : public cinn::common::Graph {
 
     hlir::framework::OpPatternKind kind() const { return op_pattern_kind; }
 
+    const std::shared_ptr<adt::MapExpr>& map_expr() const;
+
+    void set_map_expr(const std::shared_ptr<adt::MapExpr>& map_expr);
+
    private:
     // input groups
     std::unordered_set<std::shared_ptr<Group>,
@@ -193,6 +203,8 @@ class Graph : public cinn::common::Graph {
                        SharedGroupHasher,
                        SharedGroupComparator>
         consumer_groups_;
+    // TODO(Hongyu Jia): Use weak_ptr here
+    std::shared_ptr<adt::MapExpr> map_expr_;
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 
