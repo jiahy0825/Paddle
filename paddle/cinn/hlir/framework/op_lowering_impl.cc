@@ -25,6 +25,7 @@
 #include "paddle/cinn/optim/transform_gpu_forloop.h"
 
 PD_DECLARE_bool(cinn_use_cuda_vectorize);
+PD_DECLARE_bool(cinn_enable_map_expr);
 
 namespace cinn {
 namespace hlir {
@@ -98,6 +99,38 @@ bool OpLowererImpl::NonFusibleScheduleDetermineFunction(Node* node) {
   return true;
 }
 
+/* Most of below codes copies from `PostProcess` function */
+std::vector<ir::LoweredFunc> OpLowererImpl::LowerMapExpr(
+    const GroupPtr& group,
+    const std::unordered_map<std::string, ir::Tensor>& tensor_map,
+    bool do_op_schedule,
+    bool apply_group_schedule,
+    bool apply_pass,
+    std::vector<ir::Tensor>* group_func_arg_tensors) {
+  ir::Expr func_body = adt::MapExprToIr(adt::MapExprGuard::GetMapExpr());
+
+  // 2.Do group schedule.
+  ir::ModuleExpr mod_expr({func_body});
+  ir::IRSchedule ir_sch(mod_expr);
+  ir_sch.MergeExprs();
+  VLOG(3) << "After lower, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+  if (apply_group_schedule) {
+    DoGroupSchedule(ir_sch, group, tensor_map);
+    VLOG(3) << "After group schedule, ir is: \n"
+            << ir_sch.GetModule().GetExprs().at(0);
+  }
+
+  // 3.Do post-processing,
+  // including preparing function args and temporary variables,
+  // applying low-level optimization passes, etc.
+  return PostProcess(group,
+                     tensor_map,
+                     do_op_schedule,
+                     apply_pass,
+                     &ir_sch,
+                     group_func_arg_tensors);
+}
+
 std::vector<ir::LoweredFunc> OpLowererImpl::LowerGroup(
     const GroupPtr& group,
     bool apply_op_schedule,
@@ -120,10 +153,18 @@ std::vector<ir::LoweredFunc> OpLowererImpl::LowerGroup(
                                                schedule_determine_func,
                                                &group_func_arg_tensors,
                                                &tensor_map);
-  ir::Expr expr = adt::MapExprToIr(adt::MapExprGuard::GetMapExpr());
+
+  if (FLAGS_cinn_enable_map_expr) {
+    return LowerMapExpr(group,
+                        tensor_map,
+                        do_op_schedule,
+                        apply_group_schedule,
+                        apply_pass,
+                        &group_func_arg_tensors);
+  }
 
   // 2.Do group schedule.
-  ir::ModuleExpr mod_expr({expr});
+  ir::ModuleExpr mod_expr(func_bodies);
   ir::IRSchedule ir_sch(mod_expr);
   ir_sch.MergeExprs();
   VLOG(3) << "After lower, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);

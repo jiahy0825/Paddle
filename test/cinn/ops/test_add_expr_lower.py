@@ -28,10 +28,8 @@ inputs = {
 builder = NetBuilder("MapExprTest")
 x = builder.create_input(Float(32), inputs["x"].shape, "x")
 y = builder.create_input(Float(32), inputs["y"].shape, "y")
-z = builder.create_input(Float(32), inputs["z"].shape, "z")
 
-a = builder.elementwise_add(x, y)
-out = builder.elementwise_add(a, z)
+out = builder.elementwise_add(x, y)
 
 prog = builder.build()
 
@@ -39,21 +37,23 @@ target = DefaultNVGPUTarget()
 
 result = prog.build_and_get_output(
     target,
-    [x, y, z],
-    [inputs["x"], inputs["y"], inputs["z"]],
+    [x, y],
+    [inputs["x"], inputs["y"]],
     [out],
     passes=[],
     scope=None,
 )
 
-# np.testing.assert_allclose(
-#     result[0].numpy(target),
-#     inputs["x"] + inputs["y"] + inputs["z"],
-#     err_msg="test_add_expr_lower failed!"
-# )
+import numpy as np
+
+np.testing.assert_allclose(
+    result[0].numpy(target),
+    inputs["x"] + inputs["y"],
+    err_msg="test_add_expr_lower failed!",
+)
 
 print(result[0].numpy(target))
 print("**************************")
-print(inputs["x"] + inputs["y"] + inputs["z"])
+print(inputs["x"] + inputs["y"])
 
 print("Finish TestAddExpr")
