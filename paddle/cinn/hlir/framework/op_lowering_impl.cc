@@ -26,6 +26,7 @@
 
 PD_DECLARE_bool(cinn_use_cuda_vectorize);
 PD_DECLARE_bool(cinn_enable_map_expr);
+PD_DECLARE_bool(cinn_map_expr_enable_schedule_and_pass);
 
 namespace cinn {
 namespace hlir {
@@ -107,6 +108,17 @@ std::vector<ir::LoweredFunc> OpLowererImpl::LowerMapExpr(
     bool apply_group_schedule,
     bool apply_pass,
     std::vector<ir::Tensor>* group_func_arg_tensors) {
+  if (!FLAGS_cinn_map_expr_enable_schedule_and_pass) {
+    do_op_schedule = false;
+    apply_group_schedule = false;
+    apply_pass = false;
+  }
+  VLOG(1) << "FLAGS_cinn_map_expr_enable_schedule_and_pass = "
+          << FLAGS_cinn_map_expr_enable_schedule_and_pass;
+  VLOG(1) << "do_op_schedule = " << do_op_schedule;
+  VLOG(1) << "apply_group_schedule = " << apply_group_schedule;
+  VLOG(1) << "apply_pass = " << apply_pass;
+
   ir::Expr func_body = adt::MapExprToIr(adt::MapExprGuard::GetMapExpr());
 
   // 2.Do group schedule.
@@ -157,9 +169,9 @@ std::vector<ir::LoweredFunc> OpLowererImpl::LowerGroup(
   if (FLAGS_cinn_enable_map_expr) {
     return LowerMapExpr(group,
                         tensor_map,
-                        do_op_schedule,
-                        apply_group_schedule,
-                        apply_pass,
+                        /*do_op_schedule=*/do_op_schedule,
+                        /*apply_group_schedule=*/apply_group_schedule,
+                        /*apply_pass=*/apply_pass,
                         &group_func_arg_tensors);
   }
 
