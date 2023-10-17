@@ -79,6 +79,8 @@ class MapExprToIrTranslator {
       });
       CHECK(node2store_.emplace(node, stores).second);
       CHECK(node2loads_.emplace(node, loads).second);
+      VLOG(1) << "load.size() = " << loads.size();
+      VLOG(1) << "stores.size() = " << stores.size();
     }
   }
 
@@ -110,6 +112,16 @@ class MapExprToIrTranslator {
       case ir::IrNodeTy::Add:
         VisitEachExprBody(expr.As<ir::Add>()->a(), DoEach);
         VisitEachExprBody(expr.As<ir::Add>()->b(), DoEach);
+        break;
+      case ir::IrNodeTy::Call:
+        for (const auto& arg : expr.As<ir::Call>()->write_args) {
+          VLOG(1) << "Call write_arg = " << arg;
+          VisitEachExprBody(arg, DoEach);
+        }
+        for (const auto& arg : expr.As<ir::Call>()->read_args) {
+          VLOG(1) << "Call read_arg = " << arg;
+          VisitEachExprBody(arg, DoEach);
+        }
         break;
       case ir::IrNodeTy::Load:
         // Do nothing
@@ -293,6 +305,33 @@ class MapExprToIrTranslator {
     return ret;
   }
 
+  ir::Expr TranslateImpl(const hlir::framework::Node* op_node,
+                         const std::vector<ir::Expr>& inputs) const {
+    if (op_node->op()->name == "elementwise_add") {
+      return ir::Add::Make(inputs.at(0), inputs.at(1));
+    } else {
+      LOG(FATAL) << "Not supported yet";
+    }
+  }
+
+  ir::Expr TranslateImpl(
+      const tReduceInit<const hlir::framework::Node*>& op_node,
+      const std::vector<ir::Expr>& inputs) const {
+    ADT_TODO();
+  }
+
+  ir::Expr TranslateImpl(
+      const tReduceAcc<const hlir::framework::Node*>& op_node,
+      const std::vector<ir::Expr>& inputs) const {
+    ADT_TODO();
+  }
+
+  ir::Expr Translate(const Op& op, const std::vector<ir::Expr>& inputs) const {
+    return std::visit(
+        [&](const auto& impl) { return TranslateImpl(impl, inputs); },
+        op.variant());
+  }
+
   ir::Expr Translate(const OpStmt& op_stmt) const {
     const auto& [op, inputs, outputs] = op_stmt.tuple();
     CHECK(op.Has<const hlir::framework::Node*>());
@@ -305,8 +344,7 @@ class MapExprToIrTranslator {
         outputs, node2store_.at(const_cast<hlir::framework::Node*>(op_node)));
     CHECK_EQ(output_exprs.size(), 1);
     ir::Expr output_expr = output_exprs.at(0);
-    output_expr.As<ir::Store>()->value =
-        ir::Add::Make(input_exprs.at(0), input_exprs.at(1));
+    output_expr.As<ir::Store>()->value = Translate(op, input_exprs);
     // const auto& iter_values = output_expr.As<ir::Store>()->indices;
     // std::vector<ir::Var> iter_vars = {ir::Var("i_35"), ir::Var("i_36")};
     std::vector<ir::Expr> fake_values = {ir::Var("fake_v_0"),
