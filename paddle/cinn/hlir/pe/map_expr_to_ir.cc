@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "paddle/cinn/adt/inline_translator.h"
 #include "paddle/cinn/adt/m_expr.h"
 #include "paddle/cinn/adt/map_expr_ctx.h"
 #include "paddle/cinn/adt/print_map_expr.h"
@@ -24,7 +25,9 @@
 #include "paddle/cinn/ir/ir.h"
 #include "paddle/cinn/ir/ir_base.h"
 #include "paddle/cinn/ir/ir_printer.h"
+#include "paddle/cinn/runtime/flags.h"
 
+PD_DECLARE_bool(cinn_map_expr_enable_inline);
 namespace cinn::adt {
 
 namespace {
@@ -35,6 +38,8 @@ using Node2Store =
     std::unordered_map<hlir::framework::Node*, std::vector<ir::Expr>>;
 using Node2Loads =
     std::unordered_map<hlir::framework::Node*, std::vector<ir::Expr>>;
+using Tensor2Store = std::unordered_map<Tensor, ir::Expr>;
+using Tensor2Load = std::unordered_map<Tensor, ir::Expr>;
 
 using TensorIteratorExpr4TensorT =
     std::function<adt::List<adt::TensorIteratorExpr>(const adt::Tensor&)>;
@@ -52,15 +57,85 @@ class MapExprToIrTranslator {
     LoopDescriptor4LoopIterator =
         std::get<5>(anchored_map_stmts->at(0).tuple());
     InitNode2LoadAndStore();
+    InitTensor2LoadAndStore();
   }
 
   ir::Expr Translate() const {
     VLOG(1) << "Translate MapExpr: ";
     PrintMapExpr(map_expr_, "");
+    VLOG(1) << "Translated Internal MapExpr: ";
+
     return ir::Block::Make({Translate(map_expr_)});
   }
 
  private:
+  void InitTensor2LoadAndStore() { InitTensor2LoadAndStore(map_expr_); }
+
+  void InitTensor2LoadAndStore(const MapExpr& map_expr) {
+    const auto& [anchored_map_stmts, _0, _1] = map_expr.tuple();
+    CHECK_EQ(anchored_map_stmts->size(), 1);
+    InitTensor2LoadAndStore(anchored_map_stmts->at(0));
+  }
+
+  void InitTensor2LoadAndStore(const AnchoredMapStmt& anchored_map_stmts) {
+    MapStmt<Stmt> map_stmts = std::get<0>(anchored_map_stmts.tuple());
+    InitTensor2LoadAndStore(map_stmts);
+  }
+
+  void InitTensor2LoadAndStore(const MapStmt<Stmt>& map_stmt) {
+    const auto& [_, stmts] = map_stmt.tuple();
+    InitTensor2LoadAndStore(stmts);
+  }
+
+  void InitTensor2LoadAndStore(const List<Stmt>& stmts) {
+    for (const auto& stmt : *stmts) {
+      InitTensor2LoadAndStore(stmt);
+    }
+  }
+
+  void InitTensor2LoadAndStore(const Stmt& stmt) {
+    std::visit([&](const auto& impl) { InitTensor2LoadAndStoreImpl(impl); },
+               stmt.variant());
+  }
+
+  void InitTensor2LoadAndStoreImpl(const MapStmt<Stmt>& map_stmt) {
+    return InitTensor2LoadAndStore(map_stmt);
+  }
+
+  void InitTensor2LoadAndStoreImpl(const OpStmt& op_stmt) {
+    const auto& [op, inputs, outputs] = op_stmt.tuple();
+    CHECK_EQ(outputs.value()->size(), 1);
+    CHECK(op.Has<const hlir::framework::Node*>());
+    const hlir::framework::Node* op_node =
+        op.Get<const hlir::framework::Node*>();
+    CHECK(node2lowered_funcs_ != nullptr);
+    const auto& iter =
+        node2lowered_funcs_->find(const_cast<hlir::framework::Node*>(op_node));
+    CHECK(iter != node2lowered_funcs_->end());
+    const auto& lowered_func = iter->second;
+
+    VLOG(1) << "Origin Lowered_Func :\n" << lowered_func.at(0);
+    CHECK_EQ(lowered_func.size(), 1);
+    int i = 0;
+    const auto& output_values = outputs.value();
+    const auto& input_values = inputs.value();
+    VisitEachExprBody(lowered_func.at(0), [&](const ir::Expr& expr) {
+      if (expr.node_type() == ir::IrNodeTy::Store) {
+        if (tensor2store_.find(output_values->at(0)) == tensor2store_.end()) {
+          CHECK(tensor2store_.emplace(output_values->at(0), expr).second);
+        }
+      } else if (expr.node_type() == ir::IrNodeTy::Load) {
+        if (tensor2load_.find(input_values->at(i)) == tensor2load_.end()) {
+          CHECK(tensor2load_.emplace(input_values->at(i), expr).second);
+          ++i;
+        }
+      } else {
+        // Do nothing
+      }
+    });
+    VLOG(1) << "Finish InitTensor2LoadAndStore";
+  }
+
   void InitNode2LoadAndStore() {
     CHECK(node2lowered_funcs_ != nullptr);
     for (const auto& [node, lowered_func] : *node2lowered_funcs_) {
@@ -146,11 +221,111 @@ class MapExprToIrTranslator {
   }
 
   ir::Expr Translate(const AnchoredMapStmt& anchored_map_stmt) const {
+    VLOG(1) << "Translate AnchoredMapStmt";
     const MapStmt<Stmt>& map_stmt = std::get<0>(anchored_map_stmt.tuple());
     return Translate(map_stmt);
   }
 
-  ir::Expr Translate(const MapStmt<Stmt>& map_stmt) const {
+  using InternalLeafStmt = Store<Tensor, OpCall<Load<Tensor>>>;
+  using InternalStmt = Tree<MapStmt, InternalLeafStmt>;
+
+  InternalStmt ConvertToInternalStmtImpl(const OpStmt& op_stmt) const {
+    const auto& [op, inputs, outputs] = op_stmt.tuple();
+    CHECK_EQ(outputs.value()->size(), 1);
+    List<Load<Tensor>> loads{};
+    for (const auto& in : *inputs.value()) {
+      loads->emplace_back(Load<Tensor>{in});
+    }
+    OpCall<Load<Tensor>> op_call{op, loads};
+    return InternalLeafStmt{outputs.value()->at(0), op_call};
+  }
+
+  InternalStmt ConvertToInternalStmtImpl(const MapStmt<Stmt>& map_stmt) const {
+    const auto& [iterators, stmts] = map_stmt.tuple();
+    List<InternalStmt> children{};
+    for (const auto& stmt : *stmts) {
+      children->emplace_back(ConvertToInternalStmt(stmt));
+    }
+    return MapStmt<InternalStmt>{iterators, children};
+  }
+
+  InternalStmt ConvertToInternalStmt(const Stmt& stmt) const {
+    return std::visit(
+        [&](const auto& impl) { return ConvertToInternalStmtImpl(impl); },
+        stmt.variant());
+  }
+
+  InlineStmt ConvertToInlineStmt(const InternalStmt& internal_stmt) const {
+    return InlineTranslator<MapStmt, OpCall, Tensor>::Call(internal_stmt);
+  }
+
+  ir::Expr TranslateImpl(const OpCall<OpExpr>& op_call) const {
+    const auto& [op, op_exprs] = op_call.tuple();
+    CHECK(op.Has<const hlir::framework::Node*>());
+    const hlir::framework::Node* op_node =
+        op.Get<const hlir::framework::Node*>();
+    if (op_node->op()->name == "elementwise_add") {
+      CHECK_EQ(op_exprs->size(), 2);
+      return ir::Add::Make(Translate(op_exprs->at(0)),
+                           Translate(op_exprs->at(1)));
+    } else {
+      LOG(FATAL) << "Not supported yet";
+    }
+  }
+
+  ir::Expr TranslateImpl(const Load<Tensor>& load) const {
+    const auto& [tensor] = load.tuple();
+    return ir::Load::Make(tensor2load_.at(tensor).As<ir::Load>()->tensor,
+                          Translate(TensorIteratorExpr4Tensor(tensor)));
+  }
+
+  // using OpExpr = Tree<OpCall, Load<Tensor>>;
+  ir::Expr Translate(const OpExpr& op_expr) const {
+    return std::visit([&](const auto& impl) { return TranslateImpl(impl); },
+                      op_expr.variant());
+  }
+
+  ir::Expr Translate(const Tensor& output, const ir::Expr& store) const {
+    return ir::Store::Make(store.As<ir::Store>()->tensor,
+                           store.As<ir::Store>()->value,
+                           Translate(TensorIteratorExpr4Tensor(output)));
+  }
+
+  ir::Expr TranslateImpl(const OpExprStmt& op_expr_stmt) const {
+    return Translate(op_expr_stmt);
+  }
+
+  // using OpExprStmt = Store<Tensor, OpExpr>;
+  ir::Expr Translate(const OpExprStmt& op_expr_stmt) const {
+    const auto& [output, op_expr] = op_expr_stmt.tuple();
+
+    const auto& output_expr =
+        ir::Store::Make(tensor2store_.at(output).As<ir::Store>()->tensor,
+                        Translate(op_expr),
+                        Translate(TensorIteratorExpr4Tensor(output)));
+
+    std::vector<ir::Expr> fake_values = {ir::Var("fake_v_0"),
+                                         ir::Var("fake_v_1")};
+    std::vector<ir::Var> fake_vars = {ir::Var("fake_i_0"), ir::Var("fake_i_1")};
+    ir::Expr ret = ir::ScheduleBlock::Make(
+        fake_vars,
+        {},
+        {},
+        output_expr.As<ir::Store>()->tensor.as_tensor()->name,
+        output_expr);
+    ret = ir::ScheduleBlockRealize::Make(fake_values, ret);
+    return ret;
+  }
+
+  ir::Expr Translate(const List<InlineStmt>& stmts) const {
+    std::vector<ir::Expr> exprs;
+    for (const auto& stmt : *stmts) {
+      exprs.emplace_back(Translate(stmt));
+    }
+    return ir::Block::Make(exprs);
+  }
+
+  ir::Expr TranslateImpl(const MapStmt<InlineStmt>& map_stmt) const {
     const auto& [iterators, stmts] = map_stmt.tuple();
     ir::Expr ret = Translate(stmts);
     CHECK_GT(iterators->size(), 0);
@@ -167,6 +342,37 @@ class MapExprToIrTranslator {
     ret = ir::ScheduleBlock::Make({}, {}, {}, "root", ret);
     ret = ir::ScheduleBlockRealize::Make({}, ret);
     return ret;
+  }
+
+  ir::Expr Translate(const InlineStmt& inline_stmt) const {
+    return std::visit([&](const auto& impl) { return TranslateImpl(impl); },
+                      inline_stmt.variant());
+  }
+
+  ir::Expr Translate(const MapStmt<Stmt>& map_stmt) const {
+    if (FLAGS_cinn_map_expr_enable_inline) {
+      Stmt stmt = map_stmt;
+      InternalStmt internal_stmt = ConvertToInternalStmt(stmt);
+      InlineStmt inline_stmt = ConvertToInlineStmt(internal_stmt);
+      return Translate(inline_stmt);
+    } else {
+      const auto& [iterators, stmts] = map_stmt.tuple();
+      ir::Expr ret = Translate(stmts);
+      CHECK_GT(iterators->size(), 0);
+      for (int i = iterators->size() - 1; i >= 0; --i) {
+        const auto& iterator = iterators->at(i);
+        const auto& ld = LoopDescriptor4LoopIterator(iterator);
+        ir::Var var{"v_" + std::to_string(iterator.value().unique_id())};
+        ir::Expr min{std::int32_t(0)};
+        ir::Expr extent = GetLoopSize(ld);
+        ir::ForType for_type = GetForType(ld);
+        ir::DeviceAPI device_api = GetDeviceApi();
+        ret = ir::For::Make(var, min, extent, for_type, device_api, ret);
+      }
+      ret = ir::ScheduleBlock::Make({}, {}, {}, "root", ret);
+      ret = ir::ScheduleBlockRealize::Make({}, ret);
+      return ret;
+    }
   }
 
   ir::DeviceAPI GetDeviceApi() const { return ir::DeviceAPI::Host; }
@@ -383,6 +589,8 @@ class MapExprToIrTranslator {
   LoopDescriptor4LoopIteratorT LoopDescriptor4LoopIterator;
   Node2Loads node2loads_;
   Node2Store node2store_;
+  Tensor2Store tensor2store_;
+  Tensor2Load tensor2load_;
 };
 
 }  // namespace
