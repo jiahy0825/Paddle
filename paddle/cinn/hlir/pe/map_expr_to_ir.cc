@@ -34,6 +34,7 @@ namespace {
 
 using Node2LoweredFuncs =
     std::unordered_map<hlir::framework::Node*, std::vector<ir::LoweredFunc>>;
+using Node2IrExpr = std::unordered_map<hlir::framework::Node*, ir::Expr>;
 using Tensor2Store = std::unordered_map<Tensor, ir::Expr>;
 using Tensor2Load = std::unordered_map<Tensor, ir::Expr>;
 
@@ -117,6 +118,10 @@ class MapExprToIrTranslator {
         if (tensor2store_.find(output_values->at(0)) == tensor2store_.end()) {
           CHECK(tensor2store_.emplace(output_values->at(0), expr).second);
         }
+        CHECK(node2ir_expr_
+                  .emplace(const_cast<hlir::framework::Node*>(op_node),
+                           expr.As<ir::Store>()->value)
+                  .second);
       } else if (expr.node_type() == ir::IrNodeTy::Load) {
         if (tensor2load_.find(input_values->at(i)) == tensor2load_.end()) {
           CHECK(tensor2load_.emplace(input_values->at(i), expr).second);
@@ -233,13 +238,13 @@ class MapExprToIrTranslator {
     CHECK(op.Has<const hlir::framework::Node*>());
     const hlir::framework::Node* op_node =
         op.Get<const hlir::framework::Node*>();
-    if (op_node->op()->name == "elementwise_add") {
-      CHECK_EQ(op_exprs->size(), 2);
-      return ir::Add::Make(Translate(op_exprs->at(0)),
-                           Translate(op_exprs->at(1)));
-    } else {
-      LOG(FATAL) << "Not supported yet";
+    const auto& ir_expr =
+        node2ir_expr_.at(const_cast<hlir::framework::Node*>(op_node));
+    CHECK_EQ(ir_expr->operands.size(), op_exprs->size());
+    for (int i = 0; i < op_exprs->size(); ++i) {
+      ir_expr->operands.at(i) = Translate(op_exprs->at(i));
     }
+    return ir_expr;
   }
 
   ir::Expr TranslateImpl(const Load<Tensor>& load) const {
@@ -459,11 +464,13 @@ class MapExprToIrTranslator {
 
   ir::Expr TranslateImpl(const hlir::framework::Node* op_node,
                          const std::vector<ir::Expr>& inputs) const {
-    if (op_node->op()->name == "elementwise_add") {
-      return ir::Add::Make(inputs.at(0), inputs.at(1));
-    } else {
-      LOG(FATAL) << "Not supported yet";
+    const auto& op_expr =
+        node2ir_expr_.at(const_cast<hlir::framework::Node*>(op_node));
+    CHECK_EQ(op_expr->operands.size(), inputs.size());
+    for (int i = 0; i < inputs.size(); ++i) {
+      op_expr->operands.at(i) = inputs.at(i);
     }
+    return op_expr;
   }
 
   ir::Expr TranslateImpl(
@@ -529,6 +536,7 @@ class MapExprToIrTranslator {
   const Node2LoweredFuncs* node2lowered_funcs_;
   TensorIteratorExpr4TensorT TensorIteratorExpr4Tensor;
   LoopDescriptor4LoopIteratorT LoopDescriptor4LoopIterator;
+  Node2IrExpr node2ir_expr_;
   Tensor2Store tensor2store_;
   Tensor2Load tensor2load_;
 };
