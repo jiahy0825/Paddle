@@ -34,10 +34,6 @@ namespace {
 
 using Node2LoweredFuncs =
     std::unordered_map<hlir::framework::Node*, std::vector<ir::LoweredFunc>>;
-using Node2Store =
-    std::unordered_map<hlir::framework::Node*, std::vector<ir::Expr>>;
-using Node2Loads =
-    std::unordered_map<hlir::framework::Node*, std::vector<ir::Expr>>;
 using Tensor2Store = std::unordered_map<Tensor, ir::Expr>;
 using Tensor2Load = std::unordered_map<Tensor, ir::Expr>;
 
@@ -56,15 +52,12 @@ class MapExprToIrTranslator {
     TensorIteratorExpr4Tensor = std::get<4>(anchored_map_stmts->at(0).tuple());
     LoopDescriptor4LoopIterator =
         std::get<5>(anchored_map_stmts->at(0).tuple());
-    InitNode2LoadAndStore();
     InitTensor2LoadAndStore();
   }
 
   ir::Expr Translate() const {
     VLOG(1) << "Translate MapExpr: ";
     PrintMapExpr(map_expr_, "");
-    VLOG(1) << "Translated Internal MapExpr: ";
-
     return ir::Block::Make({Translate(map_expr_)});
   }
 
@@ -133,30 +126,6 @@ class MapExprToIrTranslator {
         // Do nothing
       }
     });
-    VLOG(1) << "Finish InitTensor2LoadAndStore";
-  }
-
-  void InitNode2LoadAndStore() {
-    CHECK(node2lowered_funcs_ != nullptr);
-    for (const auto& [node, lowered_func] : *node2lowered_funcs_) {
-      VLOG(1) << "Origin Lowered_Func :\n" << lowered_func.at(0);
-      CHECK_EQ(lowered_func.size(), 1);
-      std::vector<ir::Expr> stores{};
-      std::vector<ir::Expr> loads{};
-      VisitEachExprBody(lowered_func.at(0), [&](const ir::Expr& expr) {
-        if (expr.node_type() == ir::IrNodeTy::Store) {
-          stores.emplace_back(expr);
-        } else if (expr.node_type() == ir::IrNodeTy::Load) {
-          loads.emplace_back(expr);
-        } else {
-          // Do nothing
-        }
-      });
-      CHECK(node2store_.emplace(node, stores).second);
-      CHECK(node2loads_.emplace(node, loads).second);
-      VLOG(1) << "load.size() = " << loads.size();
-      VLOG(1) << "stores.size() = " << stores.size();
-    }
   }
 
   template <typename DoEachT>
@@ -283,12 +252,6 @@ class MapExprToIrTranslator {
   ir::Expr Translate(const OpExpr& op_expr) const {
     return std::visit([&](const auto& impl) { return TranslateImpl(impl); },
                       op_expr.variant());
-  }
-
-  ir::Expr Translate(const Tensor& output, const ir::Expr& store) const {
-    return ir::Store::Make(store.As<ir::Store>()->tensor,
-                           store.As<ir::Store>()->value,
-                           Translate(TensorIteratorExpr4Tensor(output)));
   }
 
   ir::Expr TranslateImpl(const OpExprStmt& op_expr_stmt) const {
@@ -482,31 +445,14 @@ class MapExprToIrTranslator {
     return ret;
   }
 
-  std::vector<ir::Expr> Translate(const tIn<List<Arg>>& inputs,
-                                  const std::vector<ir::Expr>& loads) const {
-    CHECK_EQ(inputs.value()->size(), loads.size());
+  std::vector<ir::Expr> Translate(const tIn<List<Arg>>& inputs) const {
     std::vector<ir::Expr> ret{};
-    for (std::size_t i = 0; i < loads.size(); ++i) {
+    for (std::size_t i = 0; i < inputs.value()->size(); ++i) {
       const auto& input = inputs.value()->at(i);
-      const auto& load = loads.at(i);
+      const auto& load = tensor2load_.at(input);
       ret.emplace_back(
           ir::Load::Make(load.As<ir::Load>()->tensor,
                          Translate(TensorIteratorExpr4Tensor(input))));
-    }
-    return ret;
-  }
-
-  std::vector<ir::Expr> Translate(const tOut<List<Arg>>& outputs,
-                                  const std::vector<ir::Expr>& stores) const {
-    CHECK_EQ(outputs.value()->size(), stores.size());
-    std::vector<ir::Expr> ret{};
-    for (std::size_t i = 0; i < stores.size(); ++i) {
-      const auto& output = outputs.value()->at(i);
-      const auto& store = stores.at(i);
-      ret.emplace_back(
-          ir::Store::Make(store.As<ir::Store>()->tensor,
-                          store.As<ir::Store>()->value,
-                          Translate(TensorIteratorExpr4Tensor(output))));
     }
     return ret;
   }
@@ -540,19 +486,15 @@ class MapExprToIrTranslator {
 
   ir::Expr Translate(const OpStmt& op_stmt) const {
     const auto& [op, inputs, outputs] = op_stmt.tuple();
-    CHECK(op.Has<const hlir::framework::Node*>());
-    const hlir::framework::Node* op_node =
-        op.Get<const hlir::framework::Node*>();
+    const auto& input_exprs = Translate(inputs);
+    CHECK_EQ(outputs.value()->size(), 1);
 
-    const auto& input_exprs = Translate(
-        inputs, node2loads_.at(const_cast<hlir::framework::Node*>(op_node)));
-    const auto& output_exprs = Translate(
-        outputs, node2store_.at(const_cast<hlir::framework::Node*>(op_node)));
-    CHECK_EQ(output_exprs.size(), 1);
-    ir::Expr output_expr = output_exprs.at(0);
-    output_expr.As<ir::Store>()->value = Translate(op, input_exprs);
-    // const auto& iter_values = output_expr.As<ir::Store>()->indices;
-    // std::vector<ir::Var> iter_vars = {ir::Var("i_35"), ir::Var("i_36")};
+    const auto& output = outputs.value()->at(0);
+    ir::Expr output_expr =
+        ir::Store::Make(tensor2store_.at(output).As<ir::Store>()->tensor,
+                        Translate(op, input_exprs),
+                        Translate(TensorIteratorExpr4Tensor(output)));
+
     std::vector<ir::Expr> fake_values = {ir::Var("fake_v_0"),
                                          ir::Var("fake_v_1")};
     std::vector<ir::Var> fake_vars = {ir::Var("fake_i_0"), ir::Var("fake_i_1")};
@@ -587,8 +529,6 @@ class MapExprToIrTranslator {
   const Node2LoweredFuncs* node2lowered_funcs_;
   TensorIteratorExpr4TensorT TensorIteratorExpr4Tensor;
   LoopDescriptor4LoopIteratorT LoopDescriptor4LoopIterator;
-  Node2Loads node2loads_;
-  Node2Store node2store_;
   Tensor2Store tensor2store_;
   Tensor2Load tensor2load_;
 };
