@@ -57,31 +57,33 @@ template <template <typename> class MapT,
           typename TensorT>
 struct InlineTranslator final {
   using SrcLeaf = Store<TensorT, OpCallT<Load<TensorT>>>;
-  using DstLeaf = Store<TensorT, Tree<OpCallT, Load<TensorT>>>;
+  using OpExpr = Tree<OpCallT, Load<TensorT>>;
+  using DstLeaf = Store<TensorT, OpExpr>;
   using SrcTree = Tree<MapT, SrcLeaf>;
   using DstTree = Tree<MapT, DstLeaf>;
 
   static DstTree Call(const SrcTree& src_tree) {
-    CHECK(src_tree.Has<MapT<SrcTree>>());
-    const MapT<DstTree> dst_tree = Call(src_tree.Get<MapT<SrcTree>>());
+    CHECK((src_tree.template Has<MapT<SrcTree>>()));
+    const MapT<DstTree> dst_tree =
+        CallMap(src_tree.template Get<MapT<SrcTree>>());
 
     return DstTree{dst_tree};
   }
 
  private:
-  static MapT<DstTree> Call(const MapT<SrcTree>& src_map) {
+  static MapT<DstTree> CallMap(const MapT<SrcTree>& src_map) {
     const List<SrcTree> src_children =
         InlineTranslatorTrait<MapT>::GetTreeInnerNodeChildren(src_map);
-    const List<DstTree> dst_children = Call(src_children);
+    const List<DstTree> dst_children = CallList(src_children);
     return InlineTranslatorTrait<MapT>::ConvertMap(src_map, dst_children);
   }
 
-  static List<DstTree> Call(const List<SrcTree>& src_children) {
+  static List<DstTree> CallList(const List<SrcTree>& src_children) {
     List<DstTree> ret{};
 
     VisitEachContiguousSegment(
         src_children, [&](int start, int end, bool is_leaf) {
-          if (is_leaf) {
+          if (!is_leaf) {
             for (int i = start; i < end; ++i) {
               ret->emplace_back(Call(src_children->at(i)));
             }
@@ -101,47 +103,81 @@ struct InlineTranslator final {
     int arg_index;
   };
 
-  // using DstLeaf = Store<TensorT, Tree<OpCallT, Load<TensorT>>>;
+  // using DstLeaf = Store<TensorT, OpExpr>;
   static DstLeaf UpdateConsumerArg(const DstLeaf& consumer,
                                    int arg_index,
                                    const DstLeaf& producer) {
     const auto& [consumer_tensor, consumer_tree] = consumer.tuple();
     CheckConsumerPosIsLoadTensor(consumer, arg_index);
-    const auto& op_call =
-        consumer_tree.Get<OpCallT<Tree<OpCallT, Load<TensorT>>>>();
+    const auto& op_call = consumer_tree.template Get<OpCallT<OpExpr>>();
     const auto& op_call_children =
         InlineTranslatorTrait<OpCallT>::GetTreeInnerNodeChildren(op_call);
     const auto& ret_op_call_children =
         UpdateConsumerArg(op_call_children, arg_index, producer);
     const auto& ret_op_call = InlineTranslatorTrait<OpCallT>::ConvertMap(
         op_call, ret_op_call_children);
-    Tree<OpCallT, Load<TensorT>> ret_op_call_tree = ret_op_call;
+    OpExpr ret_op_call_tree = ret_op_call;
     return DstLeaf{consumer_tensor, ret_op_call_tree};
   }
 
-  static List<DstTree> UpdateConsumerArg(const List<DstTree>& op_call_children,
-                                         int arg_index,
-                                         const DstLeaf& producer) {
+  static List<OpExpr> UpdateConsumerArg(const List<OpExpr>& op_call_children,
+                                        int arg_index,
+                                        const DstLeaf& producer) {
     const auto& [producer_tensor, producer_tree] = producer.tuple();
-    const auto& arg = op_call_children.at(arg_index);
-    const auto& arg_leaf = arg.Get<Load<TensorT>>();
+    const auto& arg = op_call_children->at(arg_index);
+    const auto& arg_leaf = arg.template Get<Load<TensorT>>();
     const auto& [arg_tensor] = arg_leaf.tuple();
     CHECK(producer_tensor == arg_tensor);
-    List<DstTree> ret{};
+    List<OpExpr> ret{};
     ret->assign(op_call_children->begin(), op_call_children->end());
     ret->at(arg_index) = producer_tree;
     return ret;
   }
 
+  // using DstLeaf = Store<TensorT, OpExpr>;
   static void CheckConsumerPosIsLoadTensor(const DstLeaf& consumer,
                                            int arg_index) {
-    ADT_TODO();
+    const auto& [tensor, consumer_tree] = consumer.tuple();
+    CHECK((consumer_tree.template Has<OpCallT<OpExpr>>()));
+    const auto& op_call = consumer_tree.template Get<OpCallT<OpExpr>>();
+    const auto& op_call_children =
+        InlineTranslatorTrait<OpCallT>::GetTreeInnerNodeChildren(op_call);
+    const auto& op_call_child = op_call_children->at(arg_index);
+    CHECK((op_call_child.template Has<Load<TensorT>>()));
   }
 
+  template <typename DoEachT>
+  static void VisitEachArg(const SrcTree& tree, const DoEachT& DoEach) {
+    const auto& [_, op_call] = tree.template Get<SrcLeaf>().tuple();
+    const auto& args =
+        InlineTranslatorTrait<OpCallT>::GetTreeInnerNodeChildren(op_call);
+    for (int i = 0; i < args->size(); ++i) {
+      const auto& [tensor] = args->at(i).tuple();
+      DoEach(tensor, i);
+    }
+  }
+
+  // using SrcLeaf = Store<TensorT, OpCallT<Load<TensorT>>>;
   template <typename SrcTreeIterT>
   static std::vector<std::vector<ConsumerPos>> MakeProducerIndex2ConsumerPos(
       SrcTreeIterT begin, SrcTreeIterT end) {
-    ADT_TODO();
+    std::vector<std::vector<ConsumerPos>> producer_index2consumer_positions(
+        end - begin);
+    for (SrcTreeIterT producer = begin; producer != end; ++producer) {
+      const auto& [producer_tensor, _] =
+          (*producer).template Get<SrcLeaf>().tuple();
+      for (SrcTreeIterT consumer = std::next(producer); consumer != end;
+           ++consumer) {
+        VisitEachArg(*consumer, [&](const TensorT arg_tensor, int arg_idx) {
+          if (arg_tensor == producer_tensor) {
+            auto* vec = &producer_index2consumer_positions.at(producer - begin);
+            vec->push_back(ConsumerPos{.leaf_index = consumer - begin,
+                                       .arg_index = arg_idx});
+          }
+        });
+      }
+    }
+    return producer_index2consumer_positions;
   }
 
   template <typename SrcTreeIterT>
@@ -187,18 +223,19 @@ struct InlineTranslator final {
   }
 
   // using SrcLeaf = Store<TensorT, OpCallT<Load<TensorT>>>;
-  // using DstLeaf = Store<TensorT, Tree<OpCallT, Load<TensorT>>>;
-  static DstLeaf NaiveTranslateLeaf(const SrcLeaf& src_leaf) {
-    const auto& [tensor, op_call] = src_leaf.tuple();
-    const List < Load < TensorT >>> & src_loads =
+  // using DstLeaf = Store<TensorT, OpExpr>;
+  static DstLeaf NaiveTranslateLeaf(const SrcTree& src_tree) {
+    CHECK(src_tree.template Has<SrcLeaf>());
+    const auto& [tensor, op_call] = src_tree.template Get<SrcLeaf>().tuple();
+    const List<Load<TensorT>>& src_loads =
         InlineTranslatorTrait<OpCallT>::GetTreeInnerNodeChildren(op_call);
-    List<Tree<OpCallT, Load<TensorT>>> dst_loads{};
+    List<OpExpr> dst_loads{};
     for (const auto& src_load : *src_loads) {
       dst_loads->emplace_back(src_load);
     }
-    OpCallT<Tree<OpCallT, Load<TensorT>>> dst_op_call =
+    OpCallT<OpExpr> dst_op_call =
         InlineTranslatorTrait<OpCallT>::ConvertMap(op_call, dst_loads);
-    Tree<OpCallT, Load<TensorT>> dst_op_call_tree = dst_op_call;
+    OpExpr dst_op_call_tree = dst_op_call;
     return DstLeaf{tensor, dst_op_call_tree};
   }
 
@@ -211,7 +248,7 @@ struct InlineTranslator final {
     }
     int start = 0;
     for (int i = 1; i < child_index2is_leaf.size(); ++i) {
-      if (child_index2is_leaf.at(i - 1) == child_index2is_leaf.at(i)) {
+      if (child_index2is_leaf.at(i - 1) != child_index2is_leaf.at(i)) {
         DoEach(start, i, child_index2is_leaf.at(i - 1));
         start = i;
       } else {
