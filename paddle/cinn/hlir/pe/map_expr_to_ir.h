@@ -19,6 +19,6 @@
 
 namespace cinn::adt {
 
-ir::Expr MapExprToIr(const MapExpr& map_expr);
+ir::Expr MapExprToIr(const MapExprCtx& map_expr_ctx);
 
 }

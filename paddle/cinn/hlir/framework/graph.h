@@ -28,8 +28,7 @@
 namespace cinn {
 
 namespace adt {
-class Kernel;
-using MapExpr = Kernel;
+class MapExprCtx;
 }  // namespace adt
 
 namespace hlir {
@@ -188,9 +187,16 @@ class Graph : public cinn::common::Graph {
 
     hlir::framework::OpPatternKind kind() const { return op_pattern_kind; }
 
-    const std::shared_ptr<adt::MapExpr>& map_expr() const;
+    adt::MapExprCtx* mut_map_expr_ctx() { return map_expr_ctx_.get(); }
 
-    void set_map_expr(const std::shared_ptr<adt::MapExpr>& map_expr);
+    const adt::MapExprCtx& map_expr_ctx() const {
+      return *CHECK_NOTNULL(map_expr_ctx_);
+    }
+
+    void set_map_expr_ctx(
+        const std::shared_ptr<adt::MapExprCtx>& map_expr_ctx) {
+      map_expr_ctx_ = map_expr_ctx;
+    }
 
    private:
     // input groups
@@ -203,8 +209,7 @@ class Graph : public cinn::common::Graph {
                        SharedGroupHasher,
                        SharedGroupComparator>
         consumer_groups_;
-    // TODO(Hongyu Jia): Use weak_ptr here
-    std::shared_ptr<adt::MapExpr> map_expr_;
+    std::shared_ptr<adt::MapExprCtx> map_expr_ctx_;
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 

@@ -14,7 +14,7 @@
 
 #include "paddle/cinn/hlir/framework/op_lowering_impl.h"
 
-#include "paddle/cinn/adt/map_expr_gurad.h"
+#include "paddle/cinn/adt/map_expr_ctx.h"
 #include "paddle/cinn/ast_gen_ius/tensor_group.h"
 #include "paddle/cinn/hlir/framework/compile_error.h"
 #include "paddle/cinn/hlir/framework/graph_compiler_util.h"
@@ -119,7 +119,7 @@ std::vector<ir::LoweredFunc> OpLowererImpl::LowerMapExpr(
   VLOG(1) << "apply_group_schedule = " << apply_group_schedule;
   VLOG(1) << "apply_pass = " << apply_pass;
 
-  ir::Expr func_body = adt::MapExprToIr(adt::MapExprGuard::GetMapExpr());
+  ir::Expr func_body = adt::MapExprToIr(group->map_expr_ctx());
 
   // 2.Do group schedule.
   ir::ModuleExpr mod_expr({func_body});
@@ -149,7 +149,6 @@ std::vector<ir::LoweredFunc> OpLowererImpl::LowerGroup(
     bool apply_group_schedule,
     bool apply_pass,
     ScheduleDetermineFunction schedule_determine_func) {
-  adt::MapExprGuard map_expr_guard{group->map_expr()};
   // 1.Do compute, lower and schedule for each op.
   VLOG(3) << "group->fused_sub_groups.size() is : "
           << group->fused_sub_groups.size();
@@ -160,7 +159,8 @@ std::vector<ir::LoweredFunc> OpLowererImpl::LowerGroup(
   std::vector<ir::Tensor> group_func_arg_tensors;
   std::unordered_map<std::string, ir::Tensor> tensor_map;
   bool do_op_schedule = apply_group_schedule || apply_op_schedule;
-  std::vector<ir::Expr> func_bodies = LowerOps(nodes,
+  std::vector<ir::Expr> func_bodies = LowerOps(group,
+                                               nodes,
                                                do_op_schedule,
                                                schedule_determine_func,
                                                &group_func_arg_tensors,
@@ -369,6 +369,7 @@ std::vector<ir::LoweredFunc> OpLowererImpl::PostProcess(
 }
 
 std::vector<ir::Expr> OpLowererImpl::LowerOps(
+    const GroupPtr& group,
     const std::vector<Node*>& nodes,
     bool apply_op_schedule,
     ScheduleDetermineFunction schedule_determine_func,
@@ -400,7 +401,7 @@ std::vector<ir::Expr> OpLowererImpl::LowerOps(
 
     // 2.Perform the lower process of Op
     std::vector<ir::LoweredFunc> funcs =
-        DoOpLower(op_impl, node, tensor_map, &op_func_arg_tensors);
+        DoOpLower(group, op_impl, node, tensor_map, &op_func_arg_tensors);
 
     if (apply_op_schedule && (this->*schedule_determine_func)(node)) {
       // 3.Perform the schedule of Op
@@ -416,6 +417,7 @@ std::vector<ir::Expr> OpLowererImpl::LowerOps(
 }
 
 std::vector<ir::LoweredFunc> OpLowererImpl::DoOpLower(
+    const GroupPtr& group,
     std::shared_ptr<hlir::framework::OpImpl> op_impl,
     Node* node,
     std::unordered_map<std::string, ir::Tensor>* tensor_map,
@@ -472,7 +474,7 @@ std::vector<ir::LoweredFunc> OpLowererImpl::DoOpLower(
   for (auto fun : funcs) {
     VLOG(4) << fun;
   }
-  cinn::adt::MapExprGuard::UpdateOpLoweredFuncKey(node, funcs);
+  group->mut_map_expr_ctx()->UpdateOpLoweredFuncKey(node, funcs);
 
   op_func_arg_tensors->clear();
   for (int idx = 0; idx < pack.size() - 1; ++idx) {

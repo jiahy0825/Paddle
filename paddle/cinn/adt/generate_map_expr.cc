@@ -19,6 +19,7 @@
 #include "paddle/cinn/adt/igroup.h"
 #include "paddle/cinn/adt/index_expr_infer_context.h"
 #include "paddle/cinn/adt/kgroup.h"
+#include "paddle/cinn/adt/map_expr_ctx.h"
 #include "paddle/cinn/adt/naive_bidirection_equation_generator.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
 #include "paddle/cinn/adt/partition_op_stmts.h"
@@ -453,7 +454,7 @@ void TryGenerateMapExprFromGraph(
   for (const auto& fusion_group : graph->fusion_groups) {
     const auto& map_expr = GenerateMapExpr(fusion_group);
     PrintMapExpr(map_expr, fusion_group->group_id);
-    fusion_group->set_map_expr(std::make_shared<MapExpr>(map_expr));
+    fusion_group->set_map_expr_ctx(std::make_shared<MapExprCtx>(map_expr));
   }
 }
 

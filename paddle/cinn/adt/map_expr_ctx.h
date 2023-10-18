@@ -17,63 +17,38 @@
 #include <memory>
 #include <unordered_map>
 
+#include "paddle/cinn/adt/m_expr.h"
 #include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/ir/lowered_func.h"
 #include "paddle/cinn/ir/utils/ir_copy.h"
 
 namespace cinn::adt {
 
-class Kernel;
-using MapExpr = Kernel;
-
-class MapExprGuard final {
+class MapExprCtx final {
  public:
   using Node2LoweredFuncs =
       std::unordered_map<hlir::framework::Node*, std::vector<ir::LoweredFunc>>;
 
-  MapExprGuard(const MapExprGuard&) = delete;
-  MapExprGuard(MapExprGuard&&) = delete;
+  MapExprCtx(const MapExprCtx&) = delete;
+  MapExprCtx(MapExprCtx&&) = delete;
 
-  explicit MapExprGuard(const std::shared_ptr<MapExpr>& map_expr)
-      : map_expr_(map_expr) {
-    CHECK(!HasMapExprGuard());
-    MutThreadLocalGuard() = this;
-  }
+  explicit MapExprCtx(const MapExpr& map_expr) : map_expr_(map_expr) {}
 
-  ~MapExprGuard() { MutThreadLocalGuard() = nullptr; }
+  const MapExpr& map_expr() const { return map_expr_; }
 
-  static bool HasMapExprGuard() {
-    if (MutThreadLocalGuard()) {
-      return true;
-    }
-    return false;
-  }
-
-  static const MapExpr& GetMapExpr() {
-    CHECK(HasMapExprGuard());
-    return *(MutThreadLocalGuard()->map_expr_);
-  }
-
-  static void UpdateOpLoweredFuncKey(
+  void UpdateOpLoweredFuncKey(
       hlir::framework::Node* node,
       const std::vector<ir::LoweredFunc>& lowered_funcs) {
-    CHECK(HasMapExprGuard());
-    Node2LoweredFuncs* map = &MutThreadLocalGuard()->node2lowered_funcs_;
+    Node2LoweredFuncs* map = &node2lowered_funcs_;
     CHECK(map->emplace(node, ir::ir_utils::IRCopy(lowered_funcs)).second);
   }
 
-  static const Node2LoweredFuncs& GetNode2LoweredFuncs() {
-    CHECK(HasMapExprGuard());
-    return MutThreadLocalGuard()->node2lowered_funcs_;
+  const Node2LoweredFuncs& node2lowered_funcs() const {
+    return node2lowered_funcs_;
   }
 
  private:
-  static MapExprGuard*& MutThreadLocalGuard() {
-    static thread_local MapExprGuard* map_expr_guard = nullptr;
-    return map_expr_guard;
-  }
-
-  std::shared_ptr<MapExpr> map_expr_;
+  const MapExpr map_expr_;
   Node2LoweredFuncs node2lowered_funcs_;
 };
 

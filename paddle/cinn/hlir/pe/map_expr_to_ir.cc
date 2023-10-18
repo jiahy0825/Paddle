@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "paddle/cinn/adt/m_expr.h"
-#include "paddle/cinn/adt/map_expr_gurad.h"
+#include "paddle/cinn/adt/map_expr_ctx.h"
 #include "paddle/cinn/adt/print_map_expr.h"
 #include "paddle/cinn/common/target.h"
 #include "paddle/cinn/ir/ir.h"
@@ -43,9 +43,9 @@ using LoopDescriptor4LoopIteratorT =
 
 class MapExprToIrTranslator {
  public:
-  explicit MapExprToIrTranslator(const MapExpr& map_expr)
-      : map_expr_(map_expr),
-        node2lowered_funcs_(&MapExprGuard::GetNode2LoweredFuncs()) {
+  explicit MapExprToIrTranslator(const MapExpr& map_expr,
+                                 const Node2LoweredFuncs& node2lowered_funcs)
+      : map_expr_(map_expr), node2lowered_funcs_(&node2lowered_funcs) {
     const auto& [anchored_map_stmts, _0, _1] = map_expr.tuple();
     CHECK_EQ(anchored_map_stmts->size(), 1);
     TensorIteratorExpr4Tensor = std::get<4>(anchored_map_stmts->at(0).tuple());
@@ -387,8 +387,10 @@ class MapExprToIrTranslator {
 
 }  // namespace
 
-ir::Expr MapExprToIr(const MapExpr& map_expr) {
-  const auto& expr = MapExprToIrTranslator(map_expr).Translate();
+ir::Expr MapExprToIr(const MapExprCtx& map_expr_ctx) {
+  const auto& expr = MapExprToIrTranslator(map_expr_ctx.map_expr(),
+                                           map_expr_ctx.node2lowered_funcs())
+                         .Translate();
   VLOG(1) << "Finish MapExprToIr\n" << expr;
   return expr;
 }

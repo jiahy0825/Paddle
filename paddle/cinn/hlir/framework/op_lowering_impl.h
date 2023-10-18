@@ -133,6 +133,7 @@ class OpLowererImpl : public OpLowererImplBase<GroupPtr> {
    * @return The lowered func bodies of Op set.
    */
   std::vector<ir::Expr> LowerOps(
+      const GroupPtr& group,
       const std::vector<Node*>& nodes,
       bool apply_op_schedule,
       ScheduleDetermineFunction schedule_determine_func,
@@ -149,6 +150,7 @@ class OpLowererImpl : public OpLowererImplBase<GroupPtr> {
    * @return The lowered func of the Op node.
    */
   std::vector<ir::LoweredFunc> DoOpLower(
+      const GroupPtr& group,
       std::shared_ptr<hlir::framework::OpImpl> op_impl,
       Node* node,
       std::unordered_map<std::string, ir::Tensor>* tensor_map,

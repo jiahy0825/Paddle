@@ -524,14 +524,6 @@ std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() const {
   return group_outputs;
 }
 
-const std::shared_ptr<adt::MapExpr>& Graph::Group::map_expr() const {
-  return map_expr_;
-}
-
-void Graph::Group::set_map_expr(const std::shared_ptr<adt::MapExpr>& map_expr) {
-  map_expr_ = map_expr;
-}
-
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
