@@ -166,9 +166,11 @@ class MapExprToIrTranslator {
   }
 
   ir::Expr Translate(const AnchoredMapStmt& anchored_map_stmt) const {
-    VLOG(1) << "Translate AnchoredMapStmt";
     const MapStmt<Stmt>& map_stmt = std::get<0>(anchored_map_stmt.tuple());
-    return Translate(map_stmt);
+    ir::Expr ret = Translate(map_stmt);
+    ret = ir::ScheduleBlock::Make({}, {}, {}, "root", ret);
+    ret = ir::ScheduleBlockRealize::Make({}, ret);
+    return ret;
   }
 
   using InternalLeafStmt = Store<Tensor, OpCall<Load<Tensor>>>;
@@ -204,7 +206,9 @@ class MapExprToIrTranslator {
     return InlineTranslator<MapStmt, OpCall, Tensor>::Call(internal_stmt);
   }
 
-  std::optional<ir::Expr> TranslateImpl(const Load<Tensor>& load) const {
+  std::optional<ir::Expr> TranslateImpl(
+      const Load<Tensor>& load,
+      const std::optional<Tensor>& opt_output_tensor) const {
     return std::nullopt;
   }
 
@@ -226,7 +230,10 @@ class MapExprToIrTranslator {
         op_expr.variant());
   }
 
-  std::optional<ir::Expr> TranslateImpl(const OpCall<OpExpr>& op_expr) const {
+  std::optional<ir::Expr> TranslateOpCallImpl(
+      const hlir::framework::Node* op,
+      const OpCall<OpExpr>& op_expr,
+      const std::optional<Tensor>& opt_output_tensor) const {
     const auto& [_, op_expr_children] = op_expr.tuple();
     std::optional<ir::Expr> store_expr = GetStoreExpr(op_expr);
     CHECK(store_expr.has_value());
@@ -234,7 +241,8 @@ class MapExprToIrTranslator {
 
     CHECK_EQ(store_rvalue->operands.size(), op_expr_children->size());
     for (int i = 0; i < op_expr_children->size(); ++i) {
-      const auto& opt_operant = Translate(op_expr_children->at(i));
+      const auto& opt_operant =
+          Translate(op_expr_children->at(i), std::nullopt);
       if (opt_operant.has_value()) {
         store_rvalue->operands.at(i) = opt_operant.value();
       } else {
@@ -245,10 +253,69 @@ class MapExprToIrTranslator {
     return store_rvalue;
   }
 
+  std::optional<ir::Expr> TranslateOpCallImpl(
+      const tReduceInit<const hlir::framework::Node*>& op,
+      const OpCall<OpExpr>& op_expr,
+      const std::optional<Tensor>& opt_output_tensor) const {
+    const auto& [_, op_expr_children] = op_expr.tuple();
+    std::optional<ir::Expr> store_expr = GetStoreExpr(op_expr);
+    CHECK(store_expr.has_value());
+    ir::Expr store_rvalue = store_expr.value().As<ir::Store>()->value;
+    VLOG(1) << "tReduceInit store_rvalue:\n" << store_rvalue;
+
+    CHECK_EQ(store_rvalue->operands.size(), 0);
+    CHECK_EQ(op_expr_children->size(), 0);
+    return store_rvalue;
+  }
+
+  std::optional<ir::Expr> TranslateOpCallImpl(
+      const tReduceAcc<const hlir::framework::Node*>& op,
+      const OpCall<OpExpr>& op_expr,
+      const std::optional<Tensor>& opt_output_tensor) const {
+    const auto& [_, op_expr_children] = op_expr.tuple();
+    std::optional<ir::Expr> store_expr = GetStoreExpr(op_expr);
+    CHECK(store_expr.has_value());
+    ir::Expr store_rvalue = store_expr.value().As<ir::Store>()->value;
+    VLOG(1) << "tReduceAcc store_rvalue:\n" << store_rvalue;
+
+    CHECK_EQ(store_rvalue->operands.size(), 2);
+    CHECK_EQ(op_expr_children->size(), 1);
+    CHECK(opt_output_tensor.has_value());
+    store_rvalue->operands.at(0).As<ir::Load>()->indices =
+        Translate(TensorIteratorExpr4Tensor(opt_output_tensor.value()));
+    {
+      const auto& opt_operant =
+          Translate(op_expr_children->at(0), std::nullopt);
+      if (opt_operant.has_value()) {
+        store_rvalue->operands.at(1) = opt_operant.value();
+      } else {
+        store_rvalue->operands.at(1).As<ir::Load>()->indices =
+            TranslateTensorIndex(op_expr_children->at(0));
+      }
+    }
+    return store_rvalue;
+  }
+
+  std::optional<ir::Expr> TranslateImpl(
+      const OpCall<OpExpr>& op_expr,
+      const std::optional<Tensor>& opt_output_tensor) const {
+    const auto& [op, op_expr_children] = op_expr.tuple();
+    return std::visit(
+        [&](const auto& impl) {
+          return TranslateOpCallImpl(impl, op_expr, opt_output_tensor);
+        },
+        op.variant());
+  }
+
   // using OpExpr = Tree<OpCall, Load<Tensor>>;
-  std::optional<ir::Expr> Translate(const OpExpr& op_expr) const {
-    return std::visit([&](const auto& impl) { return TranslateImpl(impl); },
-                      op_expr.variant());
+  std::optional<ir::Expr> Translate(
+      const OpExpr& op_expr,
+      const std::optional<Tensor>& opt_output_tensor) const {
+    return std::visit(
+        [&](const auto& impl) {
+          return TranslateImpl(impl, opt_output_tensor);
+        },
+        op_expr.variant());
   }
 
   ir::Expr TranslateImpl(const OpExprStmt& op_expr_stmt) const {
@@ -260,7 +327,8 @@ class MapExprToIrTranslator {
     const auto& [output_tensor, op_expr] = op_expr_stmt.tuple();
     std::optional<ir::Expr> store_expr = GetStoreExpr(op_expr);
     CHECK(store_expr.has_value());
-    const auto& opt_rvalue = Translate(op_expr);
+    std::optional<Tensor> opt_output_tensor = output_tensor;
+    const auto& opt_rvalue = Translate(op_expr, opt_output_tensor);
     CHECK(opt_rvalue.has_value());
 
     const auto& output_expr =
@@ -303,8 +371,6 @@ class MapExprToIrTranslator {
       ir::DeviceAPI device_api = GetDeviceApi();
       ret = ir::For::Make(var, min, extent, for_type, device_api, ret);
     }
-    ret = ir::ScheduleBlock::Make({}, {}, {}, "root", ret);
-    ret = ir::ScheduleBlockRealize::Make({}, ret);
     return ret;
   }
 
