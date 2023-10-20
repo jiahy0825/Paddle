@@ -436,9 +436,12 @@ class MapExprToIrTranslator {
 
   std::tuple<ir::ForType, ir::VectorizeInfo, ir::BindInfo>
   GetForTypeAndInfoImpl(const S0x& loop_type, const LoopDescriptor& ld) const {
-    ir::ForType for_type = ir::ForType::GPUBlock;
-    ir::BindInfo bind_info{for_type, 0, ir::DeviceAPI::GPU};
-    return std::make_tuple(for_type, ir::VectorizeInfo(), bind_info);
+    return std::make_tuple(
+        ir::ForType::Serial, ir::VectorizeInfo(), ir::BindInfo());
+    // TODO(Hongyu Jia) : Replace with the following codes after axis.bind
+    // supported ir::ForType for_type = ir::ForType::GPUBlock; ir::BindInfo
+    // bind_info{for_type, 0, ir::DeviceAPI::GPU}; return
+    // std::make_tuple(for_type, ir::VectorizeInfo(), bind_info);
   }
 
   std::tuple<ir::ForType, ir::VectorizeInfo, ir::BindInfo>
@@ -457,9 +460,12 @@ class MapExprToIrTranslator {
 
   std::tuple<ir::ForType, ir::VectorizeInfo, ir::BindInfo>
   GetForTypeAndInfoImpl(const S1x& loop_type, const LoopDescriptor& ld) const {
-    ir::ForType for_type = ir::ForType::GPUThread;
-    ir::BindInfo bind_info{for_type, 0, ir::DeviceAPI::GPU};
-    return std::make_tuple(for_type, ir::VectorizeInfo(), bind_info);
+    return std::make_tuple(
+        ir::ForType::Serial, ir::VectorizeInfo(), ir::BindInfo());
+    // TODO(Hongyu Jia) : Replace with the following codes after axis.bind
+    // supported ir::ForType for_type = ir::ForType::GPUThread; ir::BindInfo
+    // bind_info{for_type, 0, ir::DeviceAPI::GPU}; return
+    // std::make_tuple(for_type, ir::VectorizeInfo(), bind_info);
   }
 
   std::tuple<ir::ForType, ir::VectorizeInfo, ir::BindInfo>
