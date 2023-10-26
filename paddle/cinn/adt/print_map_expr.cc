@@ -19,6 +19,7 @@
 #include "paddle/cinn/adt/print_map_expr.h"
 #include "paddle/cinn/adt/print_schedule_descriptor.h"
 #include "paddle/cinn/adt/print_schedule_mesh.h"
+#include "paddle/cinn/adt/print_value.h"
 #include "paddle/cinn/adt/schedule_descriptor.h"
 
 namespace cinn::adt {
@@ -59,7 +60,8 @@ std::string ToTxtString(const Tensor& tensor) {
 
 std::string ToTxtString(const List<Arg>& out_args,
                         const List<Arg>& in_args,
-                        bool with_semicolon, const AnchoredMapStmt* anchored_map_stmt) {
+                        bool with_semicolon,
+                        const AnchoredMapStmt* anchored_map_stmt) {
   std::string ret;
   ret += "(";
   std::size_t count = 0;
@@ -103,17 +105,20 @@ std::string ToTxtString(const Op& op) {
                     op.variant());
 }
 
-std::string ToTxtStringImpl(const OpStmt& op_stmt, std::size_t indent_size, const AnchoredMapStmt* anchored_map_stmt) {
+std::string ToTxtStringImpl(const OpStmt& op_stmt,
+                            std::size_t indent_size,
+                            const AnchoredMapStmt* anchored_map_stmt) {
   std::string ret;
   const auto& [op, in_args, out_args] = op_stmt.tuple();
   ret += GetIndentString(indent_size * kIndentSpaceSize);
   ret += ToTxtString(op);
-  ret += ToTxtString(out_args.value(), in_args.value(), true, anchored_map_stmt);
+  ret +=
+      ToTxtString(out_args.value(), in_args.value(), true, anchored_map_stmt);
   return ret;
 }
 
 std::string ToTxtString(const OpStmt& op_stmt) {
-  return ToTxtStringImpl(op_stmt, 0);
+  return ToTxtStringImpl(op_stmt, 0, nullptr);
 }
 
 std::string ToTxtString(const LoopDescriptors& schedule_descriptor) {
@@ -129,18 +134,24 @@ std::string ToTxtString(const LoopDescriptors& schedule_descriptor) {
 }
 
 std::string ToTxtStringImpl(const MapStmt<Stmt>& map_stmt,
-                            std::size_t indent_size, const AnchoredMapStmt* anchored_map_stmt);
+                            std::size_t indent_size,
+                            const AnchoredMapStmt* anchored_map_stmt);
 
-std::string ToTxtString(const Stmt& stmt, std::size_t indent_size, const AnchoredMapStmt* anchored_map_stmt) {
+std::string ToTxtString(const Stmt& stmt,
+                        std::size_t indent_size,
+                        const AnchoredMapStmt* anchored_map_stmt) {
   std::string ret{""};
   ret += std::visit(
-      [&](const auto& impl) { return ToTxtStringImpl(impl, indent_size, anchored_map_stmt); },
+      [&](const auto& impl) {
+        return ToTxtStringImpl(impl, indent_size, anchored_map_stmt);
+      },
       stmt.variant());
   return ret;
 }
 
 std::string ToTxtStringImpl(const MapStmt<Stmt>& map_stmt,
-                            std::size_t indent_size, const AnchoredMapStmt* anchored_map_stmt) {
+                            std::size_t indent_size,
+                            const AnchoredMapStmt* anchored_map_stmt) {
   std::string ret;
   const auto& [loop_iterators, stmts] = map_stmt.tuple();
   ret += GetIndentString(indent_size * kIndentSpaceSize) + "MapStmt(";
@@ -170,7 +181,7 @@ std::string ToTxtString(const std::string& group_id, const MapExpr& map_expr) {
   std::string ret;
   const auto& [anchored_map_stmts, inputs, outputs] = map_expr.tuple();
   ret += "\n" + group_id;
-  ret += ToTxtString(outputs.value(), inputs.value(), false);
+  ret += ToTxtString(outputs.value(), inputs.value(), false, nullptr);
 
   ret += " {\n";
   for (const auto& anchored_map_stmt : *anchored_map_stmts) {
