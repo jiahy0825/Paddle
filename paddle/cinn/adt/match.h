@@ -15,10 +15,39 @@
 #pragma once
 
 #include <type_traits>
+#include "paddle/cinn/adt/adt.h"
 
 namespace cinn::adt {
 template <typename SumT, typename T>
 struct MatchTrait;
+
+template<typename... Args>
+struct MatchUnion;
+
+template<typename T>
+struct MatchUnion<T> final {
+  template <template <typename> class Matcher, typename impl_type>
+  static bool Call(const impl_type& u) {
+    return false;
+  }
+};
+
+template<typename T, typename Arg, typename ...Args>
+struct MatchUnion<T, Arg, Args...> final {
+  template <template <typename> class Matcher, typename impl_type>
+  static bool Call(const impl_type& u) {
+    return Matcher<T>::template Call<Arg>(u) || MatchUnion<T, Args...>::template Call<Matcher>(u);
+  }
+};
+
+template<typename T, typename ... Args>
+struct MatchTrait<T, Union<Args...>> final {
+  static constexpr bool is_template = true;
+  template <template <typename> class Matcher, typename impl_type>
+  static bool MatchChildren(const impl_type& u) {
+    return MatchUnion<T, Args...>::template Call<Matcher>(u);
+  }
+};
 
 namespace detail {
 
@@ -81,15 +110,8 @@ struct DoMatch</*is_leaf*/ false, ExprT> final {
   template <typename source_pattern_type>
   static bool Call(const ExprT& pattern_expr) {
     return pattern_expr.Visit([](auto&& impl) {
-      using pattern_type =
-          typename MatchTrait<ExprT, source_pattern_type>::base_type;
-      if constexpr (std::is_same<std::decay_t<decltype(impl)>,
-                                 pattern_type>::value) {
-        return MatchTrait<ExprT, source_pattern_type>::template MatchChildren<
-            Match>(impl);
-      } else {
-        return false;
-      }
+      return MatchTrait<ExprT, source_pattern_type>::template MatchChildren<
+          Match>(impl);
     });
   }
 };
