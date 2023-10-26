@@ -58,7 +58,7 @@ struct SimplifyBroadcastedIterator {
     if (dim.Get<std::int64_t>() == 1) {
       return Constant{std::int64_t(0)};
     } else {
-      return value;
+      return iterator;
     }
   }
 };
