@@ -66,9 +66,7 @@ std::pair<std::optional<OpStmt>, List<OpStmt>> FindVisitedOpStmts(
     if (visited_variables != nullptr) {
       visited_variables->insert(variable);
     }
-    VLOG(1) << "Visited Variable " << ToTxtString(variable);
     if (variable.Has<FakeOpPlaceHolder>()) {
-      VLOG(1) << "Visited Placeholder " << ToTxtString(variable);
       const auto& fake_op_placeholder = variable.Get<FakeOpPlaceHolder>();
       const auto& op_stmt = *OpStmt4OpPlaceHolder(fake_op_placeholder);
       visited_op_stmts->emplace_back(op_stmt);
@@ -79,11 +77,8 @@ std::pair<std::optional<OpStmt>, List<OpStmt>> FindVisitedOpStmts(
     if (visited_functions != nullptr) {
       visited_functions->insert(GetFunctionDataPtr(*function));
     }
-    // Do nothing
-    VLOG(1) << "Visited function " << function << " " << ToTxtString(*function);
   };
   std::array<AnchorIndex, 1> starts{anchor_index};
-  VLOG(1) << "Anchor Index " << ToTxtString(anchor_index);
 
   equation_graph(starts.begin(), starts.end(), DoEach, DoEachFunction);
   return std::pair{opt_anchor_op_stmt, visited_op_stmts};
@@ -325,12 +320,6 @@ std::unordered_map<AnchorIndex, AnchorGroup> PartitionOpStmtsIntoAnchorGroups(
     const List<OpStmt>& op_stmts,
     const std::shared_ptr<DirectionEquationGenerator>&
         direction_equation_generator) {
-  VLOG(1) << "PartitionOpStmtsIntoAnchorGroups All OpStmt:";
-  for (const auto& op_stmt : *op_stmts) {
-    VLOG(1) << ToTxtString(op_stmt);
-    EquationCtx4OpStmt(op_stmt)->Print();
-  }
-
   CHECK(!op_stmts->empty());
   std::unordered_map<AnchorIndex, AnchorGroup> anchor_index2igroup_spec{};
 
@@ -388,19 +377,6 @@ std::unordered_map<AnchorIndex, AnchorGroup> PartitionOpStmtsIntoAnchorGroups(
     EraseCandidateAnchorIndexes(igroup_spec, candidate_anchor_indexes);
   }
 
-  // if (all_visited_op_stmts.size() != op_stmts->size()) {
-  // VLOG(1) << "PartitionOpStmtsIntoAnchorGroups All OpStmt:";
-  // for (const auto& op_stmt : *op_stmts) {
-  //   VLOG(1) << ToTxtString(op_stmt);
-  //   // EquationCtx4OpStmt(op_stmt)->Print(visited_variables,
-  //   visited_functions);
-  // }
-  // VLOG(1) << "---------------------------------------------";
-  // VLOG(1) << "PartitionOpStmtsIntoAnchorGroups All visited OpStmt:";
-  // for (const auto& op_stmt : all_visited_op_stmts) {
-  //   VLOG(1) << ToTxtString(op_stmt);
-  // }
-  // }
   CHECK_EQ(all_visited_op_stmts.size(), op_stmts->size())
       << "Some fake_op_placeholders are not visited";
   return anchor_index2igroup_spec;

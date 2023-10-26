@@ -250,14 +250,6 @@ bool ParseLogicalExpr(const EquationStaticLogical& expr) {
       expr.variant());
 }
 
-void NaiveConditionalEqualHandler::Where(
-    const EquationStaticLogical& logical) const {
-  bool valid_logical = ParseLogicalExpr(logical);
-  if (valid_logical) {
-    ctx_->AddEquations(equations_);
-  }
-}
-
 std::optional<std::int64_t> GetArgDimSizeImpl(
     const tIn<ArgDimPosDescriptor>& in_arg_dim_pos,
     const GetArgStaticDimT& GetInDim,
