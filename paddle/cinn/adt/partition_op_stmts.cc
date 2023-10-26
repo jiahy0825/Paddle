@@ -341,25 +341,13 @@ std::unordered_map<AnchorIndex, AnchorGroup> PartitionOpStmtsIntoAnchorGroups(
     AnchorIndex anchor_index =
         PickThenEraseAnchorIndex(candidate_anchor_indexes);
 
-    std::unordered_set<Variable> visited_variables{};
-    std::unordered_set<const void*> visited_functions{};
-
     const auto& [opt_anchor_op_stmt, visited_op_stmts] =
         FindVisitedOpStmts(anchor_index,
                            equation_graph_view,
                            OpStmt4OpPlaceHolder,
                            EquationCtx4OpStmt,
-                           &visited_variables,
-                           &visited_functions);
-
-    VLOG(1) << "Anchor Index " << ToTxtString(anchor_index);
-    VLOG(1) << "visited_op_stmts->size() = " << visited_op_stmts->size();
-    VLOG(1) << "\n"
-            << ToDotString(graph_equations,
-                           Variable{anchor_index},
-                           visited_variables,
-                           visited_functions)
-            << "\n";
+                           /*visited_variables=*/nullptr,
+                           /*visited_functions=*/nullptr);
 
     if (visited_op_stmts->empty()) {
       continue;

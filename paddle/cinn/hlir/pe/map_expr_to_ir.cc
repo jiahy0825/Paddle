@@ -258,16 +258,20 @@ class MapExprToIrTranslator {
       store_rvalue.As<ir::Load>()->indices =
           TranslateTensorIndex(op_expr_children->at(0), IterExprs4Tensor);
     } else {
-      CHECK_EQ(store_rvalue->operands.size(), op_expr_children->size());
-      for (int i = 0; i < op_expr_children->size(); ++i) {
-        const auto& opt_operant = TranslateOpExpr(
-            op_expr_children->at(i), std::nullopt, IterExprs4Tensor);
-        if (opt_operant.has_value()) {
-          store_rvalue->operands.at(i) = opt_operant.value();
-        } else {
-          store_rvalue->operands.at(i).As<ir::Load>()->indices =
-              TranslateTensorIndex(op_expr_children->at(i), IterExprs4Tensor);
+      if (!op_expr_children->empty()) {
+        CHECK_EQ(store_rvalue->operands.size(), op_expr_children->size());
+        for (int i = 0; i < op_expr_children->size(); ++i) {
+          const auto& opt_operant = TranslateOpExpr(
+              op_expr_children->at(i), std::nullopt, IterExprs4Tensor);
+          if (opt_operant.has_value()) {
+            store_rvalue->operands.at(i) = opt_operant.value();
+          } else {
+            store_rvalue->operands.at(i).As<ir::Load>()->indices =
+                TranslateTensorIndex(op_expr_children->at(i), IterExprs4Tensor);
+          }
         }
+      } else {
+        // Do nothing
       }
     }
     return store_rvalue;
