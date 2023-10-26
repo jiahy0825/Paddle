@@ -15,39 +15,37 @@
 # limitations under the License.
 
 
-from cinn.common import DefaultNVGPUTarget, Float
+from cinn.common import DefaultHostTarget, Float
 from cinn.frontend import NetBuilder
 from op_test import OpTest
 
-inputs = {
-    "x": OpTest.random([1024, 1024], "float32", -1.0, 1.0),
-    "y": OpTest.random([1024, 1024], "float32", -1.0, 1.0),
-    "z": OpTest.random([1024, 1024], "float32", -1.0, 1.0),
-}
+inputs = {"x": OpTest.random([2, 1024, 1024], "float32", -1.0, 1.0)}
 
-builder = NetBuilder("ElementwiseAdd")
+builder = NetBuilder("ReduceMapExprTest")
 x = builder.create_input(Float(32), inputs["x"].shape, "x")
-y = builder.create_input(Float(32), inputs["y"].shape, "y")
-z = builder.create_input(Float(32), inputs["z"].shape, "z")
 
-a = builder.elementwise_add(x, y)
-out = builder.elementwise_add(a, z)
+out = builder.reduce_sum(x, [0], False)
 
 prog = builder.build()
-target = DefaultNVGPUTarget()
+
+# target = DefaultNVGPUTarget()
+target = DefaultHostTarget()
+
 result = prog.build_and_get_output(
-    target,
-    [x, y, z],
-    [inputs["x"], inputs["y"], inputs["z"]],
-    [out],
-    passes=[],
-    scope=None,
+    target, [x], [inputs["x"]], [out], passes=[], scope=None
 )
 
 import numpy as np
 
+import paddle
+
+pd_x = paddle.to_tensor(inputs["x"])
+pd_out = paddle.sum(pd_x, axis=0)
+
 np.testing.assert_allclose(
     result[0].numpy(target),
-    inputs["x"] + inputs["y"] + inputs["z"],
+    pd_out.numpy(),
     err_msg="PrecisionTest failed!",
 )
+
+print("Test Success")
