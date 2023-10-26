@@ -15,33 +15,28 @@
 #pragma once
 
 #include "paddle/cinn/adt/adt.h"
-#include "paddle/cinn/adt/tree.h"
 
 namespace cinn::adt {
 
-DEFINE_ADT_BINARY(EQ);
-DEFINE_ADT_BINARY(LT);
-DEFINE_ADT_BINARY(GT);
-DEFINE_ADT_BINARY(NE);
-DEFINE_ADT_BINARY(GE);
-DEFINE_ADT_BINARY(LE);
-DEFINE_ADT_BINARY(And);
-DEFINE_ADT_BINARY(Or);
-DEFINE_ADT_UNARY(Not);
+DEFINE_ADT_UNARY(Neg);
+DEFINE_ADT_BINARY(Add);
+DEFINE_ADT_BINARY(Sub);
+DEFINE_ADT_BINARY(Mul);
+DEFINE_ADT_BINARY(Div);
+DEFINE_ADT_BINARY(Mod);
 
+// Arithmetic T = Neg T
+//              | Add T T
+//              | Sub T T
+//              | Mul T T
+//              | Div T T
+//              | Mod T T
 template <typename ValueT>
-DEFINE_ADT_UNION(Compare,
-                 EQ<ValueT, ValueT>,
-                 LT<ValueT, ValueT>,
-                 GT<ValueT, ValueT>,
-                 NE<ValueT, ValueT>,
-                 GE<ValueT, ValueT>,
-                 LE<ValueT, ValueT>);
-
-template <typename T>
-DEFINE_ADT_UNION(LogicalOp, And<T, T>, Or<T, T>, Not<T>);
-
-template <typename ValueT>
-using Logical = Tree<LogicalOp, Compare<ValueT>>;
-
+DEFINE_ADT_UNION(Arithmetic,
+                 Neg<ValueT>,
+                 Add<ValueT, ValueT>,
+                 Sub<ValueT, ValueT>,
+                 Mul<ValueT, ValueT>,
+                 Div<ValueT, ValueT>,
+                 Mod<ValueT, ValueT>);
 }  // namespace cinn::adt

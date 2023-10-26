@@ -31,6 +31,7 @@
 #include "glog/logging.h"
 
 PD_DECLARE_bool(cinn_enable_map_expr);
+PD_DECLARE_bool(cinn_map_expr_enable_dynamic_shape);
 
 namespace cinn::adt {
 
@@ -99,7 +100,11 @@ List<Arg> MakeOpStmtInputList(const hlir::framework::Node* op,
   List<Arg> ret{};
 
   VisitEachInputTensor(op, [&](const auto* tensor) {
-    ret->emplace_back(adapter::Tensor{tensor, graph});
+    if (FLAGS_cinn_map_expr_enable_dynamic_shape) {
+      ret->emplace_back(adapter::DynamicTensor{tensor, graph});
+    } else {
+      ret->emplace_back(adapter::Tensor{tensor, graph});
+    }
   });
 
   return ret;
@@ -118,7 +123,11 @@ List<Arg> MakeOpStmtOutputList(const hlir::framework::Node* op,
   List<Arg> ret{};
 
   VisitEachOutputTensor(op, [&](const auto* tensor) {
-    ret->emplace_back(adapter::Tensor{tensor, graph});
+    if (FLAGS_cinn_map_expr_enable_dynamic_shape) {
+      ret->emplace_back(adapter::DynamicTensor{tensor, graph});
+    } else {
+      ret->emplace_back(adapter::Tensor{tensor, graph});
+    }
   });
 
   return ret;

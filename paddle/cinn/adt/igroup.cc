@@ -50,13 +50,32 @@ std::function<Value(const Iterator&)> MakeGetterValue4Iterator(
   return [ctx](const Iterator& iterator) { return ctx->GetValue(iterator); };
 }
 
-List<LoopSize> MakeAnchorLoopSize(const Tensor& tensor) {
+List<LoopSize> MakeAnchorLoopSizeImpl(const adapter::Tensor& tensor) {
   List<LoopSize> ret{};
-  CHECK(tensor.Has<adapter::Tensor>());
-  for (const auto& dim : tensor.Get<adapter::Tensor>().GetShape()) {
+  for (const auto& dim : tensor.GetShape()) {
     ret->emplace_back(dim);
   }
   return ret;
+}
+
+List<LoopSize> MakeAnchorLoopSizeImpl(const adapter::DynamicTensor& tensor) {
+  List<LoopSize> ret{};
+  for (const auto& dim : tensor.GetShape()) {
+    ret->emplace_back(dim);
+  }
+  return ret;
+}
+
+List<LoopSize> MakeAnchorLoopSizeImpl(const SSAShadowTensor& tensor) {
+  ADT_TODO();
+}
+
+List<LoopSize> MakeAnchorLoopSizeImpl(const TempStorage& tensor) { ADT_TODO(); }
+
+List<LoopSize> MakeAnchorLoopSize(const Tensor& tensor) {
+  return std::visit(
+      [&](const auto& impl) { return MakeAnchorLoopSizeImpl(impl); },
+      tensor.variant());
 }
 
 }  // namespace

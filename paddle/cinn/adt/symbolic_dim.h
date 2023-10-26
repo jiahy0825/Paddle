@@ -15,33 +15,14 @@
 #pragma once
 
 #include "paddle/cinn/adt/adt.h"
-#include "paddle/cinn/adt/tree.h"
+#include "paddle/cinn/adt/unique_id.h"
 
 namespace cinn::adt {
 
-DEFINE_ADT_BINARY(EQ);
-DEFINE_ADT_BINARY(LT);
-DEFINE_ADT_BINARY(GT);
-DEFINE_ADT_BINARY(NE);
-DEFINE_ADT_BINARY(GE);
-DEFINE_ADT_BINARY(LE);
-DEFINE_ADT_BINARY(And);
-DEFINE_ADT_BINARY(Or);
-DEFINE_ADT_UNARY(Not);
+DEFINE_ADT_TAG(tSymbolicDim);
 
-template <typename ValueT>
-DEFINE_ADT_UNION(Compare,
-                 EQ<ValueT, ValueT>,
-                 LT<ValueT, ValueT>,
-                 GT<ValueT, ValueT>,
-                 NE<ValueT, ValueT>,
-                 GE<ValueT, ValueT>,
-                 LE<ValueT, ValueT>);
+using SymbolicDim = tSymbolicDim<UniqueId>;
 
-template <typename T>
-DEFINE_ADT_UNION(LogicalOp, And<T, T>, Or<T, T>, Not<T>);
-
-template <typename ValueT>
-using Logical = Tree<LogicalOp, Compare<ValueT>>;
+DEFINE_ADT_UNION(GenericDim, SymbolicDim, std::int64_t);
 
 }  // namespace cinn::adt

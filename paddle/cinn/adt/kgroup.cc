@@ -27,28 +27,48 @@ using AnchorTensor = Variable;
 
 namespace {
 
-std::size_t GetTensorNumel(const Tensor& tensor) {
-  CHECK(tensor.Has<adapter::Tensor>());
-  return tensor.Get<adapter::Tensor>().GetNumel();
+List<LoopSize> GetDefaultScheduleSizesFromTensorImpl(
+    const adapter::Tensor& tensor) {
+  List<LoopSize> ret{};
+  for (int32_t dim : tensor.GetShape()) {
+    ret->emplace_back(LoopSize{dim});
+  }
+  return ret;
 }
 
-const std::vector<int32_t>& GetTensorShape(const Tensor& tensor) {
-  CHECK(tensor.Has<adapter::Tensor>());
-  return tensor.Get<adapter::Tensor>().GetShape();
+List<LoopSize> GetDefaultScheduleSizesFromTensorImpl(
+    const adapter::DynamicTensor& tensor) {
+  List<LoopSize> ret{};
+  for (const SymbolicDim& dim : tensor.GetShape()) {
+    ret->emplace_back(LoopSize{dim});
+  }
+  return ret;
+}
+
+List<LoopSize> GetDefaultScheduleSizesFromTensorImpl(
+    const SSAShadowTensor& tensor) {
+  ADT_TODO();
+}
+
+List<LoopSize> GetDefaultScheduleSizesFromTensorImpl(
+    const TempStorage& tensor) {
+  ADT_TODO();
+}
+
+List<LoopSize> GetDefaultScheduleSizesFromTensor(const Tensor& tensor) {
+  return std::visit(
+      [&](const auto& impl) {
+        return GetDefaultScheduleSizesFromTensorImpl(impl);
+      },
+      tensor.variant());
 }
 
 }  // namespace
 
 List<LoopSize> KGroup::GetDefaultScheduleSizes(
     const std::shared_ptr<IGroup>& igroup) const {
-  List<LoopSize> ret{};
-
   const Tensor& tensor = igroup->anchor_tensor();
-  const auto tensor_shape = GetTensorShape(tensor);
-  for (int32_t dim : tensor_shape) {
-    ret->emplace_back(LoopSize{dim});
-  }
-  return ret;
+  return GetDefaultScheduleSizesFromTensor(tensor);
 }
 
 }  // namespace cinn::adt

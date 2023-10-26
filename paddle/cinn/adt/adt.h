@@ -236,12 +236,6 @@ bool UnionEqual(const UnionT& lhs, const UnionT& rhs) {
     using Tuple<T0, T1>::Tuple;        \
   }
 
-DEFINE_ADT_UNARY(Neg);
-DEFINE_ADT_BINARY(Add);
-DEFINE_ADT_BINARY(Mul);
-DEFINE_ADT_BINARY(Div);
-DEFINE_ADT_BINARY(Mod);
-
 #define OVERLOAD_OPERATOR_EQ_NE(type, function)              \
   inline bool operator==(const type& lhs, const type& rhs) { \
     return function(lhs, rhs);                               \

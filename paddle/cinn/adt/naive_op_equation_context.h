@@ -42,7 +42,7 @@ class NaiveConditionalEqualHandler final : public ConditionalEqualHandler {
                                const Equations& equations)
       : ctx_(ctx), equations_(equations) {}
 
-  void Where(const EquationStaticLogical& logical) const override;
+  void Where(const EquationConstantsLogical& logical) const override;
 
  private:
   NaiveOpEquationContext* ctx_;
@@ -145,16 +145,16 @@ class NaiveOpEquationContext final : public OpEquationContext {
     return std::make_unique<NaiveConditionalEqualHandler>(this, equations);
   }
 
-  EquationStaticLogical EQ(const Dim& lhs, const Dim& rhs) const override {
-    return EquationStaticLogical{
-        cinn::adt::EQ<EquationStaticValue, EquationStaticValue>(
-            GetDimSize(lhs), GetDimSize(rhs))};
+  EquationConstantsLogical EQ(const Dim& lhs, const Dim& rhs) const override {
+    return EquationConstantsLogical{
+        cinn::adt::EQ<EquationConstant, EquationConstant>(GetDimSize(lhs),
+                                                          GetDimSize(rhs))};
   }
 
-  EquationStaticLogical NE(const Dim& lhs, const Dim& rhs) const override {
-    return EquationStaticLogical{
-        cinn::adt::NE<EquationStaticValue, EquationStaticValue>(
-            GetDimSize(lhs), GetDimSize(rhs))};
+  EquationConstantsLogical NE(const Dim& lhs, const Dim& rhs) const override {
+    return EquationConstantsLogical{
+        cinn::adt::NE<EquationConstant, EquationConstant>(GetDimSize(lhs),
+                                                          GetDimSize(rhs))};
   }
 
   const IteratorTuple& GetInIteratorTuple(

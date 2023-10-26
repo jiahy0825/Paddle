@@ -14,7 +14,7 @@
 
 #include <algorithm>
 
-#include "paddle/cinn/adt/adapter.h"
+#include "paddle/cinn/adt/adapter_tensor.h"
 #include "paddle/cinn/adt/m_expr.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
 #include "paddle/cinn/adt/op_arg_pos.h"
@@ -24,6 +24,27 @@
 
 namespace cinn::adt::config {
 
+namespace {
+
+std::uint64_t GetTensorRankImpl(const adapter::Tensor& tensor) {
+  return tensor.GetRank();
+}
+
+std::uint64_t GetTensorRankImpl(const adapter::DynamicTensor& tensor) {
+  return tensor.GetRank();
+}
+
+std::uint64_t GetTensorRankImpl(const SSAShadowTensor& tensor) { ADT_TODO(); }
+
+std::uint64_t GetTensorRankImpl(const TempStorage& tensor) { ADT_TODO(); }
+
+std::uint64_t GetTensorRank(const Tensor& tensor) {
+  return std::visit([&](const auto& impl) { return GetTensorRankImpl(impl); },
+                    tensor.variant());
+}
+
+}  // namespace
+
 void NaiveOpEquationContext::Print() {
   VLOG(1) << "Equations : \n" << ToTxtString(equations());
 }
@@ -31,8 +52,7 @@ void NaiveOpEquationContext::Print() {
 std::vector<std::uint64_t> MakeTensorRanks(const List<Arg>& arg_lists) {
   std::vector<std::uint64_t> ret;
   for (const auto& arg : *arg_lists) {
-    CHECK(arg.Has<adapter::Tensor>());
-    ret.push_back(arg.Get<adapter::Tensor>().GetRank());
+    ret.push_back(GetTensorRank(arg));
   }
   return ret;
 }
@@ -58,10 +78,12 @@ using GetArgStaticDimT = std::function<std::optional<std::int64_t>(
 GetArgStaticDimT MakeGetArgStaticDimT(const List<Tensor>& tensors) {
   return [=](std::size_t tensor_idx,
              std::size_t dim_idx) -> std::optional<std::int64_t> {
+    if (!tensors->at(tensor_idx).Has<adapter::Tensor>()) {
+      return std::nullopt;
+    }
     if (tensor_idx >= tensors->size()) {
       return std::nullopt;
     }
-    CHECK(tensors->at(tensor_idx).Has<adapter::Tensor>());
     const auto& tensor_shape =
         tensors->at(tensor_idx).Get<adapter::Tensor>().GetShape();
     if (dim_idx >= tensor_shape.size()) {
@@ -173,7 +195,7 @@ struct CompLogicalExpr<std::int64_t, std::int64_t> {
 
 template <typename CompareT>
 bool CalculateLogicalExprImpl(
-    const std::tuple<EquationStaticValue, EquationStaticValue>& tuple,
+    const std::tuple<EquationConstant, EquationConstant>& tuple,
     const CompareT& Compare) {
   const auto& [lhs, rhs] = tuple;
   return std::visit(
@@ -191,67 +213,61 @@ bool CalculateLogicalExprImpl(
 #define MAKE_COMPARE_LAMBDA(op) \
   [](const std::int64_t lhs, const std::int64_t rhs) { return lhs op rhs; }
 
-bool ParseLogicalExpr(const EquationStaticLogical& expr);
+bool ParseLogicalExpr(const EquationConstantsLogical& expr);
 
-bool ParseLogicalExprImpl(
-    const EQ<EquationStaticValue, EquationStaticValue>& expr) {
+bool ParseLogicalExprImpl(const EQ<EquationConstant, EquationConstant>& expr) {
   return CalculateLogicalExprImpl(expr.tuple(), MAKE_COMPARE_LAMBDA(==));
 }
 
-bool ParseLogicalExprImpl(
-    const LT<EquationStaticValue, EquationStaticValue>& expr) {
+bool ParseLogicalExprImpl(const LT<EquationConstant, EquationConstant>& expr) {
   return CalculateLogicalExprImpl(
       expr.tuple(),
       [](const std::int64_t lhs, const std::int64_t rhs) { return lhs < rhs; });
 }
 
-bool ParseLogicalExprImpl(
-    const GT<EquationStaticValue, EquationStaticValue>& expr) {
+bool ParseLogicalExprImpl(const GT<EquationConstant, EquationConstant>& expr) {
   return CalculateLogicalExprImpl(
       expr.tuple(),
       [](const std::int64_t lhs, const std::int64_t rhs) { return lhs > rhs; });
 }
 
-bool ParseLogicalExprImpl(
-    const NE<EquationStaticValue, EquationStaticValue>& expr) {
+bool ParseLogicalExprImpl(const NE<EquationConstant, EquationConstant>& expr) {
   return CalculateLogicalExprImpl(expr.tuple(), MAKE_COMPARE_LAMBDA(!=));
 }
 
-bool ParseLogicalExprImpl(
-    const GE<EquationStaticValue, EquationStaticValue>& expr) {
+bool ParseLogicalExprImpl(const GE<EquationConstant, EquationConstant>& expr) {
   return CalculateLogicalExprImpl(expr.tuple(), MAKE_COMPARE_LAMBDA(>=));
 }
 
-bool ParseLogicalExprImpl(
-    const LE<EquationStaticValue, EquationStaticValue>& expr) {
+bool ParseLogicalExprImpl(const LE<EquationConstant, EquationConstant>& expr) {
   return CalculateLogicalExprImpl(expr.tuple(), MAKE_COMPARE_LAMBDA(<=));
 }
 
-bool ParseLogicalExprImpl(const And<Logical<EquationStaticValue>,
-                                    Logical<EquationStaticValue>>& expr) {
+bool ParseLogicalExprImpl(
+    const And<Logical<EquationConstant>, Logical<EquationConstant>>& expr) {
   const auto& [lhs, rhs] = expr.tuple();
   return ParseLogicalExpr(rhs) && ParseLogicalExpr(rhs);
 }
 
-bool ParseLogicalExprImpl(const Or<Logical<EquationStaticValue>,
-                                   Logical<EquationStaticValue>>& expr) {
+bool ParseLogicalExprImpl(
+    const Or<Logical<EquationConstant>, Logical<EquationConstant>>& expr) {
   const auto& [lhs, rhs] = expr.tuple();
   return ParseLogicalExpr(rhs) || ParseLogicalExpr(rhs);
 }
 
-bool ParseLogicalExprImpl(const Not<Logical<EquationStaticValue>>& expr) {
+bool ParseLogicalExprImpl(const Not<Logical<EquationConstant>>& expr) {
   const auto& [unpacked_expr] = expr.tuple();
   return !ParseLogicalExpr(unpacked_expr);
 }
 
-bool ParseLogicalExpr(const EquationStaticLogical& expr) {
+bool ParseLogicalExpr(const EquationConstantsLogical& expr) {
   return std::visit(
       [&](const auto& impl) { return ParseLogicalExprImpl(impl); },
       expr.variant());
 }
 
 void NaiveConditionalEqualHandler::Where(
-    const EquationStaticLogical& logical) const {
+    const EquationConstantsLogical& logical) const {
   bool valid_logical = ParseLogicalExpr(logical);
   if (valid_logical) {
     ctx_->AddEquations(equations_);

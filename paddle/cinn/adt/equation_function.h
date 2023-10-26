@@ -101,6 +101,8 @@ struct ConstantFunction<tOut<Iterator>, tIn<Index>> final
 DEFINE_ADT_UNION(Equation,
                  Identity<tOut<Iterator>, tIn<Iterator>>,
                  Identity<tOut<Index>, tIn<Index>>,
+                //  ConditionalIdentity<tOut<Index>,
+                //  tIn<Index>, EquationConstantsLogical>,
                  IndexDot<List<Dim>, tOut<Index>, tIn<List<Iterator>>>,
                  IndexUnDot<List<Dim>, tOut<List<Iterator>>, tIn<Index>>,
                  InMsg2OutMsg<tOut<FakeOpPlaceHolder>,

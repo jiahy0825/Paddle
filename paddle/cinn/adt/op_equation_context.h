@@ -30,7 +30,7 @@ class ConditionalEqualHandler {
   ConditionalEqualHandler(ConditionalEqualHandler&&) = delete;
   virtual ~ConditionalEqualHandler() = default;
 
-  virtual void Where(const EquationStaticLogical&) const = 0;
+  virtual void Where(const EquationConstantsLogical&) const = 0;
 
  protected:
   ConditionalEqualHandler() = default;
@@ -65,9 +65,9 @@ class OpEquationContext {
                                                               const Index&
                                                                   rhs) = 0;
 
-  virtual EquationStaticLogical EQ(const Dim& lhs, const Dim& rhs) const = 0;
+  virtual EquationConstantsLogical EQ(const Dim& lhs, const Dim& rhs) const = 0;
 
-  virtual EquationStaticLogical NE(const Dim& lhs, const Dim& rhs) const = 0;
+  virtual EquationConstantsLogical NE(const Dim& lhs, const Dim& rhs) const = 0;
 
   virtual const IteratorTuple& GetInIteratorTuple(
       std::size_t input_idx) const = 0;

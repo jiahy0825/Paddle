@@ -16,9 +16,12 @@
 
 #include <functional>
 
-#include "paddle/cinn/adt/adapter.h"
+#include "paddle/cinn/adt/adapter_dynamic_tensor.h"
+#include "paddle/cinn/adt/adapter_tensor.h"
 #include "paddle/cinn/adt/adt.h"
+#include "paddle/cinn/adt/arithmetic.h"
 #include "paddle/cinn/adt/equation_value.h"
+#include "paddle/cinn/adt/logical.h"
 #include "paddle/cinn/adt/schedule_descriptor.h"
 #include "paddle/cinn/adt/schedule_mesh.h"
 #include "paddle/cinn/adt/tags.h"
@@ -98,7 +101,11 @@ inline std::size_t GetHashValueImpl(const SSAShadowTensor& shadow_tensor) {
 }
 
 // Tensor = adapter::Tensor | SSAShadowTensor | TempStorage
-DEFINE_ADT_UNION(Tensor, adapter::Tensor, SSAShadowTensor, TempStorage);
+DEFINE_ADT_UNION(Tensor,
+                 adapter::Tensor,
+                 adapter::DynamicTensor,
+                 SSAShadowTensor,
+                 TempStorage);
 OVERRIDE_UNION_GET_HASH_VALUE(Tensor);
 OVERLOAD_OPERATOR_EQ_NE(Tensor, UnionEqual);
 
@@ -187,13 +194,30 @@ class AnchoredMapStmt final : public Tuple<MapStmt<Stmt>,
               LoopDescriptor4LoopIteratorT>::Tuple;
 };
 
-// Kernel = ([AnchoredMapStmt], In [Tensor], Out [Tensor])
-class Kernel final : public Tuple<List<AnchoredMapStmt>,
-                                  tIn<List<Tensor>>,
-                                  tOut<List<Tensor>>> {
+using KernelCondition = Logical<Tree<Arithmetic, GenericDim>>;
+
+DEFINE_ADT_TAG(tTrue);
+DEFINE_ADT_TAG(tFalse);
+
+template <typename T>
+class ConditionalAnchoredMapStmt
+    : public Tuple<List<KernelCondition>, tTrue<T>, tFalse<T>> {
  public:
-  using Tuple<List<AnchoredMapStmt>, tIn<List<Tensor>>, tOut<List<Tensor>>>::
-      Tuple;
+  using Tuple<List<KernelCondition>, tTrue<T>, tFalse<T>>::Tuple;
+};
+
+using KernelBody = Tree<ConditionalAnchoredMapStmt, AnchoredMapStmt>;
+
+// Kernel = (KernelBody, In [Tensor], Out [Tensor], [Dim])
+class Kernel final : public Tuple<KernelBody,
+                                  tIn<List<Tensor>>,
+                                  tOut<List<Tensor>>,
+                                  List<Dim>> {
+ public:
+  using Tuple<List<AnchoredMapStmt>,
+              tIn<List<Tensor>>,
+              tOut<List<Tensor>>,
+              List<Dim>>::Tuple;
 };
 
 // MapExpr = Kernel;
