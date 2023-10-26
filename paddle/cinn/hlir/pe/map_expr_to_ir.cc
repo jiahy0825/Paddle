@@ -666,7 +666,7 @@ class MapExprToIrTranslator {
     } else if (Match<Iterator>(value)) {
       return TranslateIterator(value);
     } else {
-      LOG(FATAL) << "Not supported yet";
+      LOG(FATAL) << "Not supported yet! " << ToTxtString(value);
     }
   }
 

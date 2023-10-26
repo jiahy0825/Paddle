@@ -52,6 +52,9 @@ class OpEquationContext {
 
   virtual void Equal(const IteratorTuple& lhs, const IteratorTuple& rhs) = 0;
 
+  virtual Iterator GetBroadcastedInputIterator(const Iterator& out_iterator,
+                                               const Dim& dim) = 0;
+
   virtual std::
       unique_ptr<ConditionalEqualHandler> [[nodiscard]] ConditionalEqual(
           const Iterator& lhs, const Iterator& rhs) = 0;

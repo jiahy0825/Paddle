@@ -24,7 +24,7 @@
 
 namespace cinn::adt::config {
 
-void NaiveOpEquationContext::Print() {
+void NaiveOpEquationContext::Print() const {
   VLOG(1) << "Equations : \n" << ToTxtString(equations());
 }
 

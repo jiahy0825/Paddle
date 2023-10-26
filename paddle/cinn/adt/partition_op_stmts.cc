@@ -48,7 +48,9 @@ std::pair<std::optional<OpStmt>, List<OpStmt>> FindVisitedOpStmts(
     const GraphView& equation_graph,
     const std::function<const OpStmt*(const FakeOpPlaceHolder&)>&
         OpStmt4OpPlaceHolder,
-    const EquationCtx4OpStmtT& EquationCtx4OpStmt) {
+    const EquationCtx4OpStmtT& EquationCtx4OpStmt,
+    std::unordered_set<Variable>* visited_variables,
+    std::unordered_set<const void*>* visited_functions) {
   std::optional<OpStmt> opt_anchor_op_stmt{std::nullopt};
   List<OpStmt> visited_op_stmts{};
   const auto& TrySetAnchorOpStmt = [&](const auto& op_stmt) {
@@ -61,7 +63,12 @@ std::pair<std::optional<OpStmt>, List<OpStmt>> FindVisitedOpStmts(
     }
   };
   const auto& DoEach = [&](const Variable variable) {
+    if (visited_variables != nullptr) {
+      visited_variables->insert(variable);
+    }
+    VLOG(1) << "Visited Variable " << ToTxtString(variable);
     if (variable.Has<FakeOpPlaceHolder>()) {
+      VLOG(1) << "Visited Placeholder " << ToTxtString(variable);
       const auto& fake_op_placeholder = variable.Get<FakeOpPlaceHolder>();
       const auto& op_stmt = *OpStmt4OpPlaceHolder(fake_op_placeholder);
       visited_op_stmts->emplace_back(op_stmt);
@@ -69,9 +76,14 @@ std::pair<std::optional<OpStmt>, List<OpStmt>> FindVisitedOpStmts(
     }
   };
   const auto& DoEachFunction = [&](const Function* function) {
+    if (visited_functions != nullptr) {
+      visited_functions->insert(GetFunctionDataPtr(*function));
+    }
     // Do nothing
+    VLOG(1) << "Visited function " << function << " " << ToTxtString(*function);
   };
   std::array<AnchorIndex, 1> starts{anchor_index};
+  VLOG(1) << "Anchor Index " << ToTxtString(anchor_index);
 
   equation_graph(starts.begin(), starts.end(), DoEach, DoEachFunction);
   return std::pair{opt_anchor_op_stmt, visited_op_stmts};
@@ -313,6 +325,12 @@ std::unordered_map<AnchorIndex, AnchorGroup> PartitionOpStmtsIntoAnchorGroups(
     const List<OpStmt>& op_stmts,
     const std::shared_ptr<DirectionEquationGenerator>&
         direction_equation_generator) {
+  VLOG(1) << "PartitionOpStmtsIntoAnchorGroups All OpStmt:";
+  for (const auto& op_stmt : *op_stmts) {
+    VLOG(1) << ToTxtString(op_stmt);
+    EquationCtx4OpStmt(op_stmt)->Print();
+  }
+
   CHECK(!op_stmts->empty());
   std::unordered_map<AnchorIndex, AnchorGroup> anchor_index2igroup_spec{};
 
@@ -322,16 +340,38 @@ std::unordered_map<AnchorIndex, AnchorGroup> PartitionOpStmtsIntoAnchorGroups(
   const auto& equation_graph_view = MakeGlobalEquationGraphViewForPartition(
       EquationCtx4OpStmt, op_stmts, direction_equation_generator);
 
+  Equations graph_equations{};
+  {
+    Variable start = *candidate_anchor_indexes->begin();
+    equation_graph_view.BfsWalkFunction(
+        start, [&](const Function* f) { graph_equations->emplace_back(*f); });
+  }
+
   std::unordered_set<OpStmt> all_visited_op_stmts{};
   while (!candidate_anchor_indexes->empty()) {
-    AnchorIndex anchor_tensor =
+    AnchorIndex anchor_index =
         PickThenEraseAnchorIndex(candidate_anchor_indexes);
 
+    std::unordered_set<Variable> visited_variables{};
+    std::unordered_set<const void*> visited_functions{};
+
     const auto& [opt_anchor_op_stmt, visited_op_stmts] =
-        FindVisitedOpStmts(anchor_tensor,
+        FindVisitedOpStmts(anchor_index,
                            equation_graph_view,
                            OpStmt4OpPlaceHolder,
-                           EquationCtx4OpStmt);
+                           EquationCtx4OpStmt,
+                           &visited_variables,
+                           &visited_functions);
+
+    VLOG(1) << "Anchor Index " << ToTxtString(anchor_index);
+    VLOG(1) << "visited_op_stmts->size() = " << visited_op_stmts->size();
+    VLOG(1) << "\n"
+            << ToDotString(graph_equations,
+                           Variable{anchor_index},
+                           visited_variables,
+                           visited_functions)
+            << "\n";
+
     if (visited_op_stmts->empty()) {
       continue;
     }
@@ -339,7 +379,7 @@ std::unordered_map<AnchorIndex, AnchorGroup> PartitionOpStmtsIntoAnchorGroups(
     all_visited_op_stmts.insert(visited_op_stmts->begin(),
                                 visited_op_stmts->end());
 
-    AnchorGroup igroup_spec{anchor_tensor,
+    AnchorGroup igroup_spec{anchor_index,
                             opt_anchor_op_stmt.value(),
                             visited_op_stmts,
                             EquationCtx4OpStmt};
@@ -348,6 +388,19 @@ std::unordered_map<AnchorIndex, AnchorGroup> PartitionOpStmtsIntoAnchorGroups(
     EraseCandidateAnchorIndexes(igroup_spec, candidate_anchor_indexes);
   }
 
+  // if (all_visited_op_stmts.size() != op_stmts->size()) {
+  // VLOG(1) << "PartitionOpStmtsIntoAnchorGroups All OpStmt:";
+  // for (const auto& op_stmt : *op_stmts) {
+  //   VLOG(1) << ToTxtString(op_stmt);
+  //   // EquationCtx4OpStmt(op_stmt)->Print(visited_variables,
+  //   visited_functions);
+  // }
+  // VLOG(1) << "---------------------------------------------";
+  // VLOG(1) << "PartitionOpStmtsIntoAnchorGroups All visited OpStmt:";
+  // for (const auto& op_stmt : all_visited_op_stmts) {
+  //   VLOG(1) << ToTxtString(op_stmt);
+  // }
+  // }
   CHECK_EQ(all_visited_op_stmts.size(), op_stmts->size())
       << "Some fake_op_placeholders are not visited";
   return anchor_index2igroup_spec;
@@ -358,7 +411,7 @@ void AnchorGroup::PrintEquations() const {
   VLOG(1) << "anchor_index: ";
   VLOG(1) << ToTxtString(anchor_index);
   VLOG(1) << "AnchorGroup.equations: ";
-  ctx->Print();
+  // ctx->Print();
 }
 
 std::unordered_map<Variable, const Value> MakeAnchorIndex2Ok(

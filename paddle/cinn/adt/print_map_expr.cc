@@ -112,6 +112,10 @@ std::string ToTxtStringImpl(const OpStmt& op_stmt, std::size_t indent_size, cons
   return ret;
 }
 
+std::string ToTxtString(const OpStmt& op_stmt) {
+  return ToTxtStringImpl(op_stmt, 0);
+}
+
 std::string ToTxtString(const LoopDescriptors& schedule_descriptor) {
   std::string ret;
   std::size_t count = 0;

@@ -105,6 +105,15 @@ class NaiveOpEquationContext final : public OpEquationContext {
     }
   }
 
+  Iterator GetBroadcastedInputIterator(const Iterator& out_tensor_iterator,
+                                       const Dim& dim) override {
+    Iterator input_tensor_iterator{UniqueId::New()};
+    using Function = GetBroadcastedIterator<Dim, tOut<Iterator>, tIn<Iterator>>;
+    equations_->emplace_back(
+        Function{dim, input_tensor_iterator, out_tensor_iterator});
+    return input_tensor_iterator;
+  }
+
   std::unique_ptr<ConditionalEqualHandler> ConditionalEqual(
       const Iterator& lhs, const Iterator& rhs) override {
     Equations equations{};
@@ -286,7 +295,7 @@ class NaiveOpEquationContext final : public OpEquationContext {
     return Undefined{};
   }
 
-  void Print();
+  void Print() const;
 
  private:
   template <typename value_type, typename ContainerT>
