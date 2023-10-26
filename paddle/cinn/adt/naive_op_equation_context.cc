@@ -45,7 +45,7 @@ std::uint64_t GetTensorRank(const Tensor& tensor) {
 
 }  // namespace
 
-void NaiveOpEquationContext::Print() {
+void NaiveOpEquationContext::Print() const {
   VLOG(1) << "Equations : \n" << ToTxtString(equations());
 }
 
@@ -264,14 +264,6 @@ bool ParseLogicalExpr(const EquationConstantsLogical& expr) {
   return std::visit(
       [&](const auto& impl) { return ParseLogicalExprImpl(impl); },
       expr.variant());
-}
-
-void NaiveConditionalEqualHandler::Where(
-    const EquationConstantsLogical& logical) const {
-  bool valid_logical = ParseLogicalExpr(logical);
-  if (valid_logical) {
-    ctx_->AddEquations(equations_);
-  }
 }
 
 std::optional<std::int64_t> GetArgDimSizeImpl(
