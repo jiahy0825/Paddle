@@ -30,12 +30,6 @@ DEFINE_ADT_UNION(Constant, std::int64_t, Dim, List<Constant>);
 
 OVERLOAD_OPERATOR_EQ_NE(Constant, UnionEqual);
 
-// EquationConstant = Dim | std::int64_t
-DEFINE_ADT_UNION(EquationConstant, Dim, std::int64_t);
-OVERLOAD_OPERATOR_EQ_NE(EquationConstant, UnionEqual);
-
-using EquationConstantsLogical = Logical<EquationConstant>;
-
 inline std::size_t GetHashValue(const Constant& c);
 
 inline std::size_t GetHashValueImpl(const std::int64_t& c) { return c; }

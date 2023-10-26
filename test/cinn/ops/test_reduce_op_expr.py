@@ -15,7 +15,7 @@
 # limitations under the License.
 
 
-from cinn.common import DefaultHostTarget, Float
+from cinn.common import DefaultNVGPUTarget, Float
 from cinn.frontend import NetBuilder
 from op_test import OpTest
 
@@ -33,8 +33,7 @@ out = builder.reduce_sum(t, [0], False)
 
 prog = builder.build()
 
-# target = DefaultNVGPUTarget()
-target = DefaultHostTarget()
+target = DefaultNVGPUTarget()
 
 result = prog.build_and_get_output(
     target, [x, y], [inputs["x"], inputs["y"]], [out], passes=[], scope=None

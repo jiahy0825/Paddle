@@ -24,6 +24,8 @@
 
 namespace cinn::adt {
 
+namespace {
+
 template <typename T, typename ExprT>
 ExprT MatchAndRewrite(const ExprT& expr, const IndexExprInferContext& ctx) {
   if (cinn::adt::Match<typename T::source_pattern_type>(expr)) {
@@ -131,7 +133,7 @@ struct SimplifyDotUndot {
     for (std::size_t i = 0; i < list_get_items->size(); ++i) {
       const auto& [index_undot_value, constant_idx] =
           list_get_items.Get(i).Get<ListGetItem<Value, Constant>>().tuple();
-      if (!constant_idx.Get<std::int64_t>() == i) {
+      if (constant_idx.Get<std::int64_t>() != i) {
         return IndexDotValue<Value, Constant>{
             SimplifyValue(list_get_item_values, ctx), dot_dims};
       }
@@ -367,20 +369,142 @@ struct SimplifyDotDot {
   }
 };
 
+struct SymbolicDim_SimplifyDotUndot {
+  using source_pattern_type = IndexDotValue<
+      List<ListGetItem<IndexUnDotValue<Value, List<Union<std::int64_t, Dim>>>,
+                       std::int64_t>>,
+      List<Union<std::int64_t, Dim>>>;
+
+  Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
+    const auto& [list_get_item_values, dot_dims] =
+        value.Get<IndexDotValue<Value, Constant>>().tuple();
+    const auto& list_get_items = list_get_item_values.Get<List<Value>>();
+    std::optional<Value> pre_index_undot{std::nullopt};
+    for (std::size_t i = 0; i < list_get_items->size(); ++i) {
+      const auto& [index_undot_value, constant_idx] =
+          list_get_items.Get(i).Get<ListGetItem<Value, Constant>>().tuple();
+      if (constant_idx.Get<std::int64_t>() != i) {
+        return IndexDotValue<Value, Constant>{
+            SimplifyValue(list_get_item_values, ctx), dot_dims};
+      }
+      if (pre_index_undot.has_value()) {
+        if (!(pre_index_undot.value() == index_undot_value)) {
+          return IndexDotValue<Value, Constant>{
+              SimplifyValue(list_get_item_values, ctx), dot_dims};
+        } else {
+          // do nothing
+        }
+      } else {
+        pre_index_undot = index_undot_value;
+      }
+    }
+    CHECK(pre_index_undot.has_value());
+    const auto& [index_value, undot_dims] =
+        pre_index_undot.value().Get<IndexUnDotValue<Value, Constant>>().tuple();
+    CHECK(dot_dims.Has<List<Constant>>());
+    CHECK(undot_dims.Has<List<Constant>>());
+    const auto& dot_dim_values = dot_dims.Get<List<Constant>>();
+    const auto& undot_dim_values = undot_dims.Get<List<Constant>>();
+    if (ctx.DimsEqual(dot_dim_values, undot_dim_values)) {
+      return index_value;
+    } else {
+      return IndexDotValue<Value, Constant>{
+          SimplifyValue(list_get_item_values, ctx), dot_dims};
+    }
+    LOG(FATAL) << "Dead code";
+  }
+};
+
+struct SymbolicDim_SimplifyUndotDot {
+  using source_pattern_type =
+      ListGetItem<IndexUnDotValue<IndexDotValue<List<Value>,
+                                                List<Union<std::int64_t, Dim>>>,
+                                  List<Union<std::int64_t, Dim>>>,
+                  std::int64_t>;
+
+  Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
+    const auto& [index_undot_value, constant_idx] =
+        value.Get<ListGetItem<Value, Constant>>().tuple();
+    const auto& [index_value, undot_dims] =
+        index_undot_value.Get<IndexUnDotValue<Value, Constant>>().tuple();
+    const auto& [index_dot_values, dot_dims] =
+        index_value.Get<IndexDotValue<Value, Constant>>().tuple();
+    const auto& iter_values = index_dot_values.Get<List<Value>>();
+    CHECK(dot_dims.Has<List<Constant>>());
+    CHECK(undot_dims.Has<List<Constant>>());
+    if (ctx.DimsEqual(dot_dims.Get<List<Constant>>(),
+                      undot_dims.Get<List<Constant>>())) {
+      return iter_values.Get(constant_idx.Get<std::int64_t>());
+    } else {
+      return ListGetItem<Value, Constant>{SimplifyValue(index_undot_value, ctx),
+                                          constant_idx};
+    }
+  }
+};
+
+struct SymbolicDim_SimplifyDotDot {
+  using source_pattern_type =
+      IndexDotValue<List<Value>, List<Union<std::int64_t, Dim>>>;
+
+  Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
+    const auto& [index_dot_values, dot_dims] =
+        value.Get<IndexDotValue<Value, Constant>>().tuple();
+    CHECK_EQ(index_dot_values.Get<List<Value>>()->size(),
+             dot_dims.Get<List<Constant>>()->size());
+    List<Value> new_dot_values{};
+    List<Constant> new_dot_dims{};
+    for (std::size_t i = 0; i < index_dot_values.Get<List<Value>>()->size();
+         ++i) {
+      const auto& index_dot_value = index_dot_values.Get<List<Value>>()->at(i);
+      Constant dot_dim = dot_dims.Get<List<Constant>>()->at(i);
+      if (Match<source_pattern_type>(index_dot_value)) {
+        const auto& [sub_index_dot_values, sub_dot_dims] =
+            index_dot_value.Get<IndexDotValue<Value, Constant>>().tuple();
+        const auto& sub_dot_dim_values = sub_dot_dims.Get<List<Constant>>();
+        if (ctx.ProductEqual(sub_dot_dim_values, dot_dim)) {
+          for (std::size_t j = 0;
+               j < sub_index_dot_values.Get<List<Value>>()->size();
+               ++j) {
+            const auto& sub_index_dot_value =
+                sub_index_dot_values.Get<List<Value>>()->at(j);
+            const auto& sub_dot_dim = sub_dot_dim_values->at(j);
+            new_dot_values->emplace_back(sub_index_dot_value);
+            new_dot_dims->emplace_back(sub_dot_dim);
+          }
+        } else {
+          new_dot_values->emplace_back(index_dot_value);
+          new_dot_dims->emplace_back(dot_dim);
+        }
+      } else {
+        new_dot_values->emplace_back(index_dot_value);
+        new_dot_dims->emplace_back(dot_dim);
+      }
+    }
+    return IndexDotValue<Value, Constant>{new_dot_values, new_dot_dims};
+  }
+};
+
+}  // namespace
+
 // Only simplify top-layer of value
 Value SimplifyValue(Value value, const IndexExprInferContext& ctx) {
   value = MatchAndRewrite<SimplifyBroadcastedIteratorByReplacingToStaticDim>(
       value, ctx);
-  value = MatchAndRewrite<SimplifyBroadcastedIterator>(value, ctx);
   value = MatchAndRewrite<SimplifyDot>(value, ctx);
   value = MatchAndRewrite<SimplifyUnDot>(value, ctx);
   value = MatchAndRewrite<SimplifyList>(value, ctx);
   value = MatchAndRewrite<SimplifyListGetItem>(value, ctx);
+  value = MatchAndRewrite<SimplifyBroadcastedIterator>(value, ctx);
   value = MatchAndRewrite<SimplifyDotUndot>(value, ctx);
   value = MatchAndRewrite<SimplifyUndotDot>(value, ctx);
   value = MatchAndRewrite<SimplifyListGetItemList>(value, ctx);
   value = MatchAndRewrite<SimplifyGcdShape>(value, ctx);
   value = MatchAndRewrite<SimplifyDotDot>(value, ctx);
+  // For symbolic dim simplification
+  value = MatchAndRewrite<SymbolicDim_SimplifyDotUndot>(value, ctx);
+  value = MatchAndRewrite<SymbolicDim_SimplifyUndotDot>(value, ctx);
+  // value = MatchAndRewrite<SymbolicDim_SimplifyGcdShape>(value, ctx);
+  value = MatchAndRewrite<SymbolicDim_SimplifyDotDot>(value, ctx);
   return value;
 }
 

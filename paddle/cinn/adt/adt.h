@@ -180,18 +180,18 @@ class List final {
                                bool> = true>                                   \
     class_name(Arg&& arg) : variant_(std::forward<Arg>(arg)) {}                \
                                                                                \
-    template <typename T>                                                      \
-    const T& Get() const {                                                     \
-      return std::get<T>(variant_);                                            \
+    template <typename __T>                                                    \
+    const __T& Get() const {                                                   \
+      return std::get<__T>(variant_);                                          \
     }                                                                          \
                                                                                \
-    template <typename T>                                                      \
+    template <typename __T>                                                    \
     bool Has() const {                                                         \
-      return std::holds_alternative<T>(variant_);                              \
+      return std::holds_alternative<__T>(variant_);                            \
     }                                                                          \
                                                                                \
-    template <typename T>                                                      \
-    auto Visit(const T& visitor) const {                                       \
+    template <typename __T>                                                    \
+    auto Visit(const __T& visitor) const {                                     \
       return std::visit(visitor, variant_);                                    \
     }                                                                          \
                                                                                \

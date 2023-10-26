@@ -21,4 +21,9 @@ Constant IndexExprInferContext::GetDimSize(const Dim& dim) const {
   return constants_provider_->GetDimSize(dim);
 }
 
+bool IndexExprInferContext::DimsEqual(const List<Constant>& lhs,
+                                      const List<Constant>& rhs) const {
+  return lhs == rhs;
+}
+
 }  // namespace cinn::adt

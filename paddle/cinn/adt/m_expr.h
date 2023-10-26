@@ -215,15 +215,12 @@ class ConditionalAnchoredMapStmt
 using KernelBody = Tree<ConditionalAnchoredMapStmt, AnchoredMapStmt>;
 
 // Kernel = (KernelBody, In [Tensor], Out [Tensor], [Dim])
-class Kernel final : public Tuple<KernelBody,
+class Kernel final : public Tuple<List<AnchoredMapStmt>,
                                   tIn<List<Tensor>>,
-                                  tOut<List<Tensor>>,
-                                  List<Dim>> {
+                                  tOut<List<Tensor>>> {
  public:
-  using Tuple<List<AnchoredMapStmt>,
-              tIn<List<Tensor>>,
-              tOut<List<Tensor>>,
-              List<Dim>>::Tuple;
+  using Tuple<List<AnchoredMapStmt>, tIn<List<Tensor>>, tOut<List<Tensor>>>::
+      Tuple;
 };
 
 // MapExpr = Kernel;

@@ -50,6 +50,12 @@ class IndexExprInferContext final {
 
   Constant GetDimSize(const Dim& dim) const;
 
+  bool DimsEqual(const List<Constant>& lhs, const List<Constant>& rhs) const;
+
+  bool ProductEqual(const List<Constant>& lhs, const Constant& rhs) const {
+    ADT_TODO();
+  }
+
  private:
   std::unordered_map<Variable, const Value> variable2value_;
   std::shared_ptr<const EquationFunctionConstantsProvider> constants_provider_;
