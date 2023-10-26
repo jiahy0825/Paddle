@@ -42,7 +42,7 @@ struct MatchUnion<T, Arg, Args...> final {
 
 template<typename T, typename ... Args>
 struct MatchTrait<T, Union<Args...>> final {
-  static constexpr bool is_template = true;
+  static constexpr bool is_template = true; 
   template <template <typename> class Matcher, typename impl_type>
   static bool MatchChildren(const impl_type& u) {
     return MatchUnion<T, Args...>::template Call<Matcher>(u);
@@ -55,7 +55,7 @@ template <bool is_expr>
 struct ExprMatchTrait;
 
 template <>
-struct ExprMatchTrait<true> final {
+struct ExprMatchTrait</*is_same*/true> final {
   template <typename ExprT, typename T>
   struct match_trait_type {
     static_assert(std::is_same<ExprT, T>::value, "");
@@ -64,7 +64,7 @@ struct ExprMatchTrait<true> final {
 };
 
 template <>
-struct ExprMatchTrait<false> final {
+struct ExprMatchTrait</*is_same*/false> final {
   template <typename ExprT, typename T>
   using match_trait_type = MatchTrait<ExprT, T>;
 };
@@ -105,12 +105,53 @@ struct DoMatch</*is_leaf*/ true, ExprT> final {
   }
 };
 
+template<bool is_base_type, typename ExprT, typename source_pattern_type>
+struct NonUnionMatchTraitWrapper;
+
+template<typename ExprT, typename source_pattern_type>
+struct NonUnionMatchTraitWrapper<true, ExprT, source_pattern_type> final {
+  template <template <typename> class Matcher, typename impl_type>
+  static bool MatchChildren(const impl_type& u) {
+      return MatchTrait<ExprT, source_pattern_type>::template MatchChildren<
+          Match>(u);
+  }
+};
+
+template<typename ExprT, typename source_pattern_type>
+struct NonUnionMatchTraitWrapper<false, ExprT, source_pattern_type> final {
+  template <template <typename> class Matcher, typename impl_type>
+  static bool MatchChildren(const impl_type&) {
+    return false;
+  }
+};
+
+template<typename ExprT, typename source_pattern_type>
+struct MatchTraitWrapper final {
+  template <template <typename> class Matcher, typename impl_type>
+  static bool MatchChildren(const impl_type& impl) {
+      using base_type = typename MatchTrait<ExprT, source_pattern_type>::base_type;
+      static constexpr bool is_base_type = std::is_same_v<std::decay_t<decltype(impl)>, base_type>;
+      return NonUnionMatchTraitWrapper<is_base_type, ExprT, source_pattern_type>::template MatchChildren<
+          Match>(impl);
+  }
+};
+
+
+template<typename ExprT, typename ... Args>
+struct MatchTraitWrapper<ExprT, Union<Args...>> final {
+  template <template <typename> class Matcher, typename impl_type>
+  static bool MatchChildren(const impl_type& impl) {
+      return MatchTrait<ExprT, Union<Args...>>::template MatchChildren<
+          Match>(impl);
+  }
+};
+
 template <typename ExprT>
 struct DoMatch</*is_leaf*/ false, ExprT> final {
   template <typename source_pattern_type>
   static bool Call(const ExprT& pattern_expr) {
-    return pattern_expr.Visit([](auto&& impl) {
-      return MatchTrait<ExprT, source_pattern_type>::template MatchChildren<
+    return pattern_expr.Visit([](const auto& impl) {
+      return MatchTraitWrapper<ExprT, source_pattern_type>::template MatchChildren<
           Match>(impl);
     });
   }
