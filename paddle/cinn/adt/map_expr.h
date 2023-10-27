@@ -85,27 +85,8 @@ inline std::size_t GetHashValueImpl(const TempStorage& temp_storage) {
   return hash_value;
 }
 
-// SSAShadowTensor = (tSSAShadow Name, const Graph::NodeData*)
-class SSAShadowTensor final : public Tuple<tSSAShadow<Name>, adapter::Tensor> {
- public:
-  using Tuple<tSSAShadow<Name>, adapter::Tensor>::Tuple;
-};
-
-OVERLOAD_OPERATOR_EQ_NE(SSAShadowTensor, TupleEqual);
-
-OVERRIDE_TAG_GET_HASH_VALUE(tSSAShadow<Name>);
-
-inline std::size_t GetHashValueImpl(const SSAShadowTensor& shadow_tensor) {
-  const auto& [shadow_name, tensor] = shadow_tensor.tuple();
-  return hash_combine(GetHashValue(shadow_name), GetHashValueImpl(tensor));
-}
-
-// Tensor = adapter::Tensor | SSAShadowTensor | TempStorage
-DEFINE_ADT_UNION(Tensor,
-                 adapter::Tensor,
-                 adapter::DynamicTensor,
-                 SSAShadowTensor,
-                 TempStorage);
+// Tensor = adapter::Tensor | adapter::DynamicTensor | TempStorage
+DEFINE_ADT_UNION(Tensor, adapter::Tensor, adapter::DynamicTensor, TempStorage);
 OVERRIDE_UNION_GET_HASH_VALUE(Tensor);
 OVERLOAD_OPERATOR_EQ_NE(Tensor, UnionEqual);
 

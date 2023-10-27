@@ -18,7 +18,7 @@
 
 #include "paddle/cinn/adt/equation.h"
 #include "paddle/cinn/adt/equation_value.h"
-#include "paddle/cinn/adt/m_expr.h"
+#include "paddle/cinn/adt/map_expr.h"
 
 namespace cinn::adt {
 

@@ -87,8 +87,7 @@ struct ToTxtStringStruct {
       const BroadcastedIterator<Value, Constant>& broadcast) {
     std::string ret;
     const auto& [value, constant] = broadcast.tuple();
-    ret += "BroadcastedIterator(" + ToTxtString(value) + ", " +
-           ToTxtString(constant) + ")";
+    ret += "BI(" + ToTxtString(value) + ", " + ToTxtString(constant) + ")";
     return ret;
   }
 

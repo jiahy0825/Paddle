@@ -14,13 +14,16 @@
 
 #include <string>
 
-#include "paddle/cinn/adt/m_expr.h"
+#include "paddle/cinn/adt/map_expr.h"
 #include "paddle/cinn/adt/print_equations.h"
 #include "paddle/cinn/adt/print_map_expr.h"
 #include "paddle/cinn/adt/print_schedule_descriptor.h"
 #include "paddle/cinn/adt/print_schedule_mesh.h"
 #include "paddle/cinn/adt/print_value.h"
 #include "paddle/cinn/adt/schedule_descriptor.h"
+#include "paddle/cinn/runtime/flags.h"
+
+PD_DECLARE_bool(cinn_map_expr_enable_index_detail);
 
 namespace cinn::adt {
 
@@ -66,10 +69,6 @@ std::string ToTxtStringImpl(const adapter::DynamicTensor& tensor) {
   return ret;
 }
 
-std::string ToTxtStringImpl(const SSAShadowTensor& tensor) {
-  LOG(FATAL) << "Not supported yet";
-}
-
 std::string ToTxtStringImpl(const TempStorage& tensor) {
   LOG(FATAL) << "Not supported yet";
 }
@@ -81,10 +80,11 @@ std::string ToTxtString(const Tensor& tensor) {
                     tensor.variant());
 }
 
-std::string ToTxtString(const List<Arg>& out_args,
-                        const List<Arg>& in_args,
-                        bool with_semicolon,
-                        const AnchoredMapStmt* anchored_map_stmt) {
+std::string ArgsToTxtString(
+    const List<Arg>& out_args,
+    const List<Arg>& in_args,
+    const std::function<std::string(Arg)>& GetPrevArgStr,
+    const std::function<std::string(Arg)>& GetPostArgStr) {
   std::string ret;
   ret += "(";
   std::size_t count = 0;
@@ -92,21 +92,21 @@ std::string ToTxtString(const List<Arg>& out_args,
     if (count++ > 0) {
       ret += ", ";
     }
+    ret += GetPrevArgStr(arg);
     if (as_output.value()) {
       ret += "&";
     }
     ret += ToTxtString(arg);
-    ret += "[";
-    if (anchored_map_stmt != nullptr) {
-      ret += ToTxtString(anchored_map_stmt->GetTensorIndexExpr(arg));
-    }
-    ret += "]";
+    ret += GetPostArgStr(arg);
   });
   ret += ")";
-  if (with_semicolon) {
-    ret += ";\n";
-  }
   return ret;
+}
+
+std::string ArgsToTxtString(const List<Arg>& out_args,
+                            const List<Arg>& in_args) {
+  const auto& GetEmptyStr = [&](Arg) -> std::string { return ""; };
+  return ArgsToTxtString(out_args, in_args, GetEmptyStr, GetEmptyStr);
 }
 
 std::string ToTxtStringOpImpl(const hlir::framework::Node* op) {
@@ -135,8 +135,32 @@ std::string ToTxtStringImpl(const OpStmt& op_stmt,
   const auto& [op, in_args, out_args] = op_stmt.tuple();
   ret += GetIndentString(indent_size * kIndentSpaceSize);
   ret += ToTxtString(op);
-  ret +=
-      ToTxtString(out_args.value(), in_args.value(), true, anchored_map_stmt);
+
+  const auto& GetPrevArgStr = [&](Arg) -> std::string {
+    if (FLAGS_cinn_map_expr_enable_index_detail) {
+      if (anchored_map_stmt != nullptr) {
+        return std::string("\n") +
+               GetIndentString((indent_size + 2) * kIndentSpaceSize);
+      }
+    }
+    return "";
+  };
+
+  const auto& GetPostArgStr = [&](Arg arg) -> std::string {
+    std::string tmp;
+    if (FLAGS_cinn_map_expr_enable_index_detail) {
+      if (anchored_map_stmt != nullptr) {
+        tmp += "[";
+        tmp += ToTxtString(anchored_map_stmt->GetTensorIndexExpr(arg));
+        tmp += "]";
+      }
+    }
+    return tmp;
+  };
+
+  ret += ArgsToTxtString(
+      out_args.value(), in_args.value(), GetPrevArgStr, GetPostArgStr);
+  ret += ";\n";
   return ret;
 }
 
@@ -172,6 +196,10 @@ std::string ToTxtString(const Stmt& stmt,
   return ret;
 }
 
+std::string ToTxtString(const Stmt& stmt) {
+  return ToTxtString(stmt, 0, nullptr);
+}
+
 std::string ToTxtStringImpl(const MapStmt<Stmt>& map_stmt,
                             std::size_t indent_size,
                             const AnchoredMapStmt* anchored_map_stmt) {
@@ -204,7 +232,7 @@ std::string ToTxtString(const std::string& group_id, const MapExpr& map_expr) {
   std::string ret;
   const auto& [anchored_map_stmts, inputs, outputs] = map_expr.tuple();
   ret += "\n" + group_id;
-  ret += ToTxtString(outputs.value(), inputs.value(), false, nullptr);
+  ret += ArgsToTxtString(outputs.value(), inputs.value());
 
   ret += " {\n";
   for (const auto& anchored_map_stmt : *anchored_map_stmts) {

@@ -85,6 +85,10 @@ PD_DEFINE_bool(
     BoolFromEnv("FLAGS_cinn_map_expr_enable_dynamic_shape", false),
     "It controls whether to use dynamic shape when enables map_expr");
 
+PD_DEFINE_bool(cinn_map_expr_enable_index_detail,
+               BoolFromEnv("FLAGS_cinn_map_expr_enable_index_detail", false),
+               "It controls whether to display datail tensor index");
+
 PD_DEFINE_bool(
     cinn_use_custom_call,
     BoolFromEnv("FLAGS_cinn_use_custom_call", true),

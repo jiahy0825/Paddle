@@ -60,6 +60,24 @@ struct SimplifyBroadcastedIterator {
   }
 };
 
+struct SimplifyRedundantBroadcastedIterator {
+  using source_pattern_type =
+      BroadcastedIterator<BroadcastedIterator<Value, SymbolicDim>, SymbolicDim>;
+
+  Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
+    const auto& [outter_iterator, outter_dim] =
+        value.Get<BroadcastedIterator<Value, Constant>>().tuple();
+    const auto& [inner_iterator, inner_dim] =
+        outter_iterator.Get<BroadcastedIterator<Value, Constant>>().tuple();
+    if (outter_dim == inner_dim) {
+      return SimplifyValue(outter_iterator, ctx);
+    } else {
+      return value;
+    }
+    LOG(FATAL) << "Dead code";
+  }
+};
+
 struct SimplifyDot {
   using source_pattern_type = IndexDotValue<Value, List<EquationDim>>;
 
@@ -483,6 +501,7 @@ Value SimplifyValue(Value value, const IndexExprInferContext& ctx) {
   value = MatchAndRewrite<SimplifyList>(value, ctx);
   value = MatchAndRewrite<SimplifyListGetItem>(value, ctx);
   value = MatchAndRewrite<SimplifyBroadcastedIterator>(value, ctx);
+  value = MatchAndRewrite<SimplifyRedundantBroadcastedIterator>(value, ctx);
   value = MatchAndRewrite<SimplifyDotUndot>(value, ctx);
   value = MatchAndRewrite<SimplifyUndotDot>(value, ctx);
   value = MatchAndRewrite<SimplifyListGetItemList>(value, ctx);

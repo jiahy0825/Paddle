@@ -24,7 +24,7 @@
 #include "paddle/cinn/adt/adt.h"
 #include "paddle/cinn/adt/equation.h"
 #include "paddle/cinn/adt/logical.h"
-#include "paddle/cinn/adt/m_expr.h"
+#include "paddle/cinn/adt/map_expr.h"
 #include "paddle/cinn/adt/op_arg_pos.h"
 #include "paddle/cinn/adt/op_equation_context.h"
 #include "paddle/cinn/hlir/framework/node.h"

@@ -19,7 +19,7 @@
 
 #include "paddle/cinn/adt/equation_value_match_trait.h"
 #include "paddle/cinn/adt/inline_translator.h"
-#include "paddle/cinn/adt/m_expr.h"
+#include "paddle/cinn/adt/map_expr.h"
 #include "paddle/cinn/adt/map_expr_ctx.h"
 #include "paddle/cinn/adt/match.h"
 #include "paddle/cinn/adt/print.h"

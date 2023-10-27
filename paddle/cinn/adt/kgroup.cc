@@ -61,11 +61,6 @@ List<LoopSize> GetDefaultScheduleSizesFromTensorImpl(
 }
 
 List<LoopSize> GetDefaultScheduleSizesFromTensorImpl(
-    const SSAShadowTensor& tensor) {
-  ADT_TODO();
-}
-
-List<LoopSize> GetDefaultScheduleSizesFromTensorImpl(
     const TempStorage& tensor) {
   ADT_TODO();
 }

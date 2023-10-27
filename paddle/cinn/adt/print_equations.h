@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "paddle/cinn/adt/equation.h"
-#include "paddle/cinn/adt/m_expr.h"
+#include "paddle/cinn/adt/map_expr.h"
 #include "paddle/cinn/adt/partition_op_stmts.h"
 
 namespace cinn::adt {

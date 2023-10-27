@@ -81,10 +81,6 @@ List<LoopSize> MakeAnchorLoopSizeImpl(const adapter::DynamicTensor& tensor) {
   return ret;
 }
 
-List<LoopSize> MakeAnchorLoopSizeImpl(const SSAShadowTensor& tensor) {
-  ADT_TODO();
-}
-
 List<LoopSize> MakeAnchorLoopSizeImpl(const TempStorage& tensor) { ADT_TODO(); }
 
 List<LoopSize> MakeAnchorLoopSize(const Tensor& tensor) {

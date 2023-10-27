@@ -31,7 +31,7 @@ struct ToTxtStringStruct {
 
   std::string operator()(const SymbolicDim& constant) {
     std::size_t constant_unique_id = constant.value().unique_id();
-    return "symbolic_dim_" + std::to_string(constant_unique_id);
+    return "sym_" + std::to_string(constant_unique_id);
   }
 
   std::string operator()(const List<Constant>& constants) {

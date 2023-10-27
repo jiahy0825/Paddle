@@ -15,7 +15,7 @@
 #include <algorithm>
 
 #include "paddle/cinn/adt/adapter_tensor.h"
-#include "paddle/cinn/adt/m_expr.h"
+#include "paddle/cinn/adt/map_expr.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
 #include "paddle/cinn/adt/op_arg_pos.h"
 #include "paddle/cinn/adt/print.h"
@@ -33,8 +33,6 @@ std::uint64_t GetTensorRankImpl(const adapter::Tensor& tensor) {
 std::uint64_t GetTensorRankImpl(const adapter::DynamicTensor& tensor) {
   return tensor.GetRank();
 }
-
-std::uint64_t GetTensorRankImpl(const SSAShadowTensor& tensor) { ADT_TODO(); }
 
 std::uint64_t GetTensorRankImpl(const TempStorage& tensor) { ADT_TODO(); }
 
