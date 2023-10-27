@@ -54,14 +54,14 @@ namespace {
 
 std::string ToTxtStringImpl(const adapter::Tensor& tensor) {
   std::string ret;
-  ret += "tensor_";
+  ret += "t_";
   ret += tensor.node_data->id();
   return ret;
 }
 
 std::string ToTxtStringImpl(const adapter::DynamicTensor& tensor) {
   std::string ret;
-  ret += "dynamic_tensor_";
+  ret += "t_";
   ret += tensor.node_data->id();
   return ret;
 }
