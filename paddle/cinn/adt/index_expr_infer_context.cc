@@ -22,6 +22,15 @@ std::optional<std::int64_t> IndexExprInferContext::GetStaticDimSize(
   return constants_provider_->GetStaticDimSize(dim);
 }
 
+std::optional<SymbolicDim> IndexExprInferContext::GetSymbolicDimSize(
+    const EquationDim& dim) const {
+  return constants_provider_->GetSymbolicDimSize(dim);
+}
+
+Constant IndexExprInferContext::GetDimSize(const EquationDim& dim) const {
+  return constants_provider_->GetDimSize(dim);
+}
+
 bool IndexExprInferContext::DimsEqual(const List<Constant>& lhs,
                                       const List<Constant>& rhs) const {
   return lhs == rhs;

@@ -36,11 +36,26 @@ List<LoopSize> GetDefaultScheduleSizesFromTensorImpl(
   return ret;
 }
 
+namespace {
+
+LoopSize MakeLoopSizeImpl(const SymbolicDim& symbolic_dim) {
+  return LoopSize{symbolic_dim};
+}
+
+LoopSize MakeLoopSizeImpl(const std::int64_t dim) { return LoopSize{dim}; }
+
+LoopSize MakeLoopSize(const Union<SymbolicDim, std::int64_t>& dim) {
+  return std::visit([&](const auto& impl) { return MakeLoopSizeImpl(impl); },
+                    dim.variant());
+}
+
+}  // namespace
+
 List<LoopSize> GetDefaultScheduleSizesFromTensorImpl(
     const adapter::DynamicTensor& tensor) {
   List<LoopSize> ret{};
-  for (const SymbolicDim& dim : tensor.GetShape()) {
-    ret->emplace_back(LoopSize{dim});
+  for (const Union<SymbolicDim, std::int64_t>& dim : tensor.GetShape()) {
+    ret->emplace_back(MakeLoopSize(dim));
   }
   return ret;
 }

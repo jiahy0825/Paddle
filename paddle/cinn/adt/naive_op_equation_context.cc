@@ -72,14 +72,38 @@ void GenerateOpEquationsImpl(const hlir::framework::Node* op_node,
   generate_equations[op_node->op()](ctx);
 }
 
+std::optional<Union<SymbolicDim, std::int64_t>> GetArgGenericDim(
+    const List<Tensor>& tensors, std::size_t tensor_idx, std::size_t dim_idx) {
+  if (!tensors->at(tensor_idx).Has<adapter::DynamicTensor>()) {
+    return std::nullopt;
+  }
+  if (tensor_idx >= tensors->size()) {
+    return std::nullopt;
+  }
+  const auto& tensor_shape =
+      tensors->at(tensor_idx).Get<adapter::DynamicTensor>().GetShape();
+  if (dim_idx >= tensor_shape.size()) {
+    return std::nullopt;
+  }
+  return tensor_shape.at(dim_idx);
+}
+
 using GetArgStaticDimT = std::function<std::optional<std::int64_t>(
     std::size_t tensor_idx, std::size_t dim_idx)>;
 
-GetArgStaticDimT MakeGetArgStaticDimT(const List<Tensor>& tensors) {
+GetArgStaticDimT MakeGetterArgStaticDim(const List<Tensor>& tensors) {
   return [=](std::size_t tensor_idx,
              std::size_t dim_idx) -> std::optional<std::int64_t> {
     if (!tensors->at(tensor_idx).Has<adapter::Tensor>()) {
-      return std::nullopt;
+      const auto& opt_generic_dim =
+          GetArgGenericDim(tensors, tensor_idx, dim_idx);
+      if (!opt_generic_dim.has_value()) {
+        return std::nullopt;
+      }
+      if (!opt_generic_dim.value().Has<std::int64_t>()) {
+        return std::nullopt;
+      }
+      return opt_generic_dim.value().Get<std::int64_t>();
     }
     if (tensor_idx >= tensors->size()) {
       return std::nullopt;
@@ -90,6 +114,24 @@ GetArgStaticDimT MakeGetArgStaticDimT(const List<Tensor>& tensors) {
       return std::nullopt;
     }
     return tensor_shape.at(dim_idx);
+  };
+}
+
+using GetArgSymbolicDimT = std::function<std::optional<SymbolicDim>(
+    std::size_t tensor_idx, std::size_t dim_idx)>;
+
+GetArgSymbolicDimT MakeGetterArgSymbolicDim(const List<Tensor>& tensors) {
+  return [=](std::size_t tensor_idx,
+             std::size_t dim_idx) -> std::optional<SymbolicDim> {
+    const auto& opt_generic_dim =
+        GetArgGenericDim(tensors, tensor_idx, dim_idx);
+    if (!opt_generic_dim.has_value()) {
+      return std::nullopt;
+    }
+    if (!opt_generic_dim.value().Has<SymbolicDim>()) {
+      return std::nullopt;
+    }
+    return opt_generic_dim.value().Get<SymbolicDim>();
   };
 }
 
@@ -149,8 +191,10 @@ std::shared_ptr<config::NaiveOpEquationContext> MakeContextAndGenerateEquations(
   const auto& ctx = std::make_shared<config::NaiveOpEquationContext>(
       MakeTensorRanks(inputs.value()),
       MakeTensorRanks(outputs.value()),
-      MakeGetArgStaticDimT(inputs.value()),
-      MakeGetArgStaticDimT(outputs.value()),
+      MakeGetterArgStaticDim(inputs.value()),
+      MakeGetterArgStaticDim(outputs.value()),
+      MakeGetterArgSymbolicDim(inputs.value()),
+      MakeGetterArgSymbolicDim(outputs.value()),
       GetOpAttr(op_stmt));
 
   GenerateOpEquations(op_stmt, ctx.get());

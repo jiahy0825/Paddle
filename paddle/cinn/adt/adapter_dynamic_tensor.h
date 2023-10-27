@@ -26,25 +26,26 @@ struct DynamicTensor final {
   const hlir::framework::NodeData* node_data;
   const hlir::framework::Graph* graph;
 
-  static const std::vector<SymbolicDim>& TempElementwiseSymbolicDims(
+  using GenericDim = Union<SymbolicDim, std::int64_t>;
+  static const std::vector<GenericDim>& TempElementwiseSymbolicDims(
       std::size_t size) {
-    static std::vector<std::vector<SymbolicDim>> ret{
-        std::vector<SymbolicDim>{},
-        std::vector<SymbolicDim>{SymbolicDim{UniqueId::New()}},
-        std::vector<SymbolicDim>{SymbolicDim{UniqueId::New()},
-                                 SymbolicDim{UniqueId::New()}},
-        std::vector<SymbolicDim>{SymbolicDim{UniqueId::New()},
-                                 SymbolicDim{UniqueId::New()},
-                                 SymbolicDim{UniqueId::New()}},
-        std::vector<SymbolicDim>{SymbolicDim{UniqueId::New()},
-                                 SymbolicDim{UniqueId::New()},
-                                 SymbolicDim{UniqueId::New()},
-                                 SymbolicDim{UniqueId::New()}},
-        std::vector<SymbolicDim>{SymbolicDim{UniqueId::New()},
-                                 SymbolicDim{UniqueId::New()},
-                                 SymbolicDim{UniqueId::New()},
-                                 SymbolicDim{UniqueId::New()},
-                                 SymbolicDim{UniqueId::New()}}};
+    static std::vector<std::vector<GenericDim>> ret{
+        std::vector<GenericDim>{},
+        std::vector<GenericDim>{SymbolicDim{UniqueId::New()}},
+        std::vector<GenericDim>{SymbolicDim{UniqueId::New()},
+                                SymbolicDim{UniqueId::New()}},
+        std::vector<GenericDim>{SymbolicDim{UniqueId::New()},
+                                SymbolicDim{UniqueId::New()},
+                                SymbolicDim{UniqueId::New()}},
+        std::vector<GenericDim>{SymbolicDim{UniqueId::New()},
+                                SymbolicDim{UniqueId::New()},
+                                SymbolicDim{UniqueId::New()},
+                                SymbolicDim{UniqueId::New()}},
+        std::vector<GenericDim>{SymbolicDim{UniqueId::New()},
+                                SymbolicDim{UniqueId::New()},
+                                SymbolicDim{UniqueId::New()},
+                                SymbolicDim{UniqueId::New()},
+                                SymbolicDim{UniqueId::New()}}};
     CHECK_LT(size, ret.size());
     return ret.at(size);
   }
@@ -62,7 +63,7 @@ struct DynamicTensor final {
     return shape_dict.at(node_data->id()).size();
   }
 
-  const std::vector<SymbolicDim>& GetShape() const {
+  const std::vector<GenericDim>& GetShape() const {
     return TempElementwiseSymbolicDims(GetRank());
   }
 };

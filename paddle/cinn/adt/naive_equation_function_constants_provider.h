@@ -52,6 +52,25 @@ class NaiveEquationFunctionConstantsProvider final
     LOG(FATAL) << "Dead code";
   }
 
+  std::optional<SymbolicDim> GetSymbolicDimSize(
+      const EquationDim& dim) const override {
+    const auto& iter = dim2constant_.find(dim);
+    CHECK(iter != dim2constant_.end());
+    if (iter->second.Has<SymbolicDim>()) {
+      return iter->second.Get<SymbolicDim>();
+    } else {
+      return std::nullopt;
+    }
+    LOG(FATAL) << "Dead code";
+  }
+
+  Constant GetDimSize(const EquationDim& dim) const override {
+    const auto& iter = dim2constant_.find(dim);
+    CHECK(iter != dim2constant_.end());
+    CHECK(iter->second.Has<std::int64_t>() || iter->second.Has<SymbolicDim>());
+    return iter->second;
+  }
+
   bool AddDim(const EquationDim& dim, const Constant& dim_value) override {
     return dim2constant_.emplace(dim, dim_value).second;
   }
@@ -59,15 +78,31 @@ class NaiveEquationFunctionConstantsProvider final
  private:
   void Init(const List<OpStmt>& op_stmts,
             const EquationCtx4OpStmtT& EquationCtx4OpStmt) {
+    const auto& GetConstantValue = [&](const auto& ctx,
+                                       bool is_out,
+                                       std::size_t arg_idx,
+                                       std::size_t axis) -> Constant {
+      std::optional<std::int64_t> static_dim_size =
+          ctx->GetStaticDimSize(is_out, arg_idx, axis);
+      if (static_dim_size.has_value()) {
+        return static_dim_size.value();
+      }
+      std::optional<SymbolicDim> symbolic_dim_size =
+          ctx->GetSymbolicDimSize(is_out, arg_idx, axis);
+      if (symbolic_dim_size.has_value()) {
+        return symbolic_dim_size.value();
+      }
+      LOG(FATAL) << "Dead code, cannot get StaticDim or SymbolicDim";
+    };
+
     for (const auto& op_stmt : *op_stmts) {
       const auto& ctx = EquationCtx4OpStmt(op_stmt);
       ctx->VisitEachArgPos(
           [&](bool is_out, std::size_t arg_idx, std::size_t axis) {
             const EquationDim& dim = ctx->GetDim(is_out, arg_idx, axis);
-            std::optional<std::int64_t> static_dim_size =
-                ctx->GetStaticDimSize(is_out, arg_idx, axis);
-            CHECK(static_dim_size.has_value());
-            CHECK(dim2constant_.emplace(dim, static_dim_size.value()).second);
+            const Constant& constant =
+                GetConstantValue(ctx, is_out, arg_idx, axis);
+            CHECK(dim2constant_.emplace(dim, constant).second);
           });
     }
   }

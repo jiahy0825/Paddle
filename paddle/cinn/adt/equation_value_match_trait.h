@@ -25,7 +25,12 @@ struct MatchTrait<Constant, std::int64_t> final {
 };
 
 template <>
-struct MatchTrait<Constant, tEquationDim<UniqueId>> final {
+struct MatchTrait<Constant, EquationDim> final {
+  static constexpr int is_template = false;
+};
+
+template <>
+struct MatchTrait<Constant, SymbolicDim> final {
   static constexpr int is_template = false;
 };
 

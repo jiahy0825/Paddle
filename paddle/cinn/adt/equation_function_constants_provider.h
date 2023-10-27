@@ -27,6 +27,11 @@ class EquationFunctionConstantsProvider {
   virtual std::optional<std::int64_t> GetStaticDimSize(
       const EquationDim& dim) const = 0;
 
+  virtual std::optional<SymbolicDim> GetSymbolicDimSize(
+      const EquationDim& dim) const = 0;
+
+  virtual Constant GetDimSize(const EquationDim& dim) const = 0;
+
   virtual bool AddDim(const EquationDim& dim, const Constant& dim_value) = 0;
 
  protected:

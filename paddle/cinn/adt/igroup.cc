@@ -58,10 +58,25 @@ List<LoopSize> MakeAnchorLoopSizeImpl(const adapter::Tensor& tensor) {
   return ret;
 }
 
+namespace {
+
+LoopSize MakeLoopSizeImpl(const SymbolicDim& symbolic_dim) {
+  return LoopSize{symbolic_dim};
+}
+
+LoopSize MakeLoopSizeImpl(const std::int64_t dim) { return LoopSize{dim}; }
+
+LoopSize MakeLoopSize(const Union<SymbolicDim, std::int64_t>& dim) {
+  return std::visit([&](const auto& impl) { return MakeLoopSizeImpl(impl); },
+                    dim.variant());
+}
+
+}  // namespace
+
 List<LoopSize> MakeAnchorLoopSizeImpl(const adapter::DynamicTensor& tensor) {
   List<LoopSize> ret{};
   for (const auto& dim : tensor.GetShape()) {
-    ret->emplace_back(dim);
+    ret->emplace_back(MakeLoopSize(dim));
   }
   return ret;
 }

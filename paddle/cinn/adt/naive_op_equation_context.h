@@ -36,8 +36,9 @@ class NaiveOpEquationContext final : public OpEquationContext {
   NaiveOpEquationContext(const NaiveOpEquationContext&) = delete;
   NaiveOpEquationContext(NaiveOpEquationContext&&) = delete;
 
-  // TODO(Hongyu Jia): std::optional<std::int64_t> -> Constant
   using GetArgStaticDimT = std::function<std::optional<std::int64_t>(
+      std::size_t tensor_idx, std::size_t dim_idx)>;
+  using GetArgSymbolicDimT = std::function<std::optional<SymbolicDim>(
       std::size_t tensor_idx, std::size_t dim_idx)>;
 
   explicit NaiveOpEquationContext(
@@ -45,11 +46,15 @@ class NaiveOpEquationContext final : public OpEquationContext {
       const std::vector<std::uint64_t>& out_tensors_ranks,
       GetArgStaticDimT GetInDim,
       GetArgStaticDimT GetOutDim,
+      GetArgSymbolicDimT GetSymbolicInDim,
+      GetArgSymbolicDimT GetSymbolicOutDim,
       const hlir::framework::AttrMapType* attr_map_type)
       : in_tensors_ranks_(in_tensors_ranks),
         out_tensors_ranks_(out_tensors_ranks),
         GetInDim_(GetInDim),
         GetOutDim_(GetOutDim),
+        GetSymbolicInDim_(GetSymbolicInDim),
+        GetSymbolicOutDim_(GetSymbolicOutDim),
         equations_{},
         attr_map_type_(attr_map_type),
         fake_op_placeholder_{UniqueId::New()} {
@@ -223,6 +228,14 @@ class NaiveOpEquationContext final : public OpEquationContext {
     return opt_dim;
   }
 
+  std::optional<SymbolicDim> GetSymbolicDimSize(bool is_out,
+                                                std::size_t arg_idx,
+                                                std::size_t axis) const {
+    const auto* Get = (is_out ? &GetSymbolicOutDim_ : &GetSymbolicInDim_);
+    const auto& opt_dim = (*Get)(arg_idx, axis);
+    return opt_dim;
+  }
+
   OpArgDimPos GetArgDimPosDescriptor(const EquationDim& dim) const {
     const auto& input_pos = FindArgDimPos(in_dim_tuples_, dim);
     if (input_pos.has_value()) {
@@ -319,6 +332,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
   std::vector<std::uint64_t> out_tensors_ranks_;
   GetArgStaticDimT GetInDim_;
   GetArgStaticDimT GetOutDim_;
+  GetArgSymbolicDimT GetSymbolicInDim_;
+  GetArgSymbolicDimT GetSymbolicOutDim_;
   Equations equations_;
   const hlir::framework::AttrMapType* attr_map_type_;
   FakeOpPlaceHolder fake_op_placeholder_;
