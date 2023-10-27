@@ -208,14 +208,12 @@ std::optional<std::int64_t> GetArgDimSize(const OpArgDimPos& arg_dim_pos,
       arg_dim_pos.variant());
 }
 
-std::int64_t NaiveOpEquationContext::GetDimSize(const Dim& dim) const {
+std::optional<std::int64_t> NaiveOpEquationContext::GetStaticDimSize(
+    const Dim& dim) const {
   const auto& arg_dim_pos = GetArgDimPosDescriptor(dim);
   const auto& option_dim_size =
       GetArgDimSize(arg_dim_pos, GetInDim_, GetOutDim_);
-  if (!option_dim_size.has_value()) {
-    LOG(FATAL) << "Dim not found";
-  }
-  return option_dim_size.value();
+  return option_dim_size;
 }
 
 }  // namespace cinn::adt::config

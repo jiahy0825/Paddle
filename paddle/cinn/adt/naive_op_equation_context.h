@@ -204,7 +204,7 @@ class NaiveOpEquationContext final : public OpEquationContext {
     return Undefined{};
   }
 
-  std::int64_t GetDimSize(const Dim& dim) const;
+  std::optional<std::int64_t> GetStaticDimSize(const Dim& dim) const;
 
   Dim GetDim(bool is_out, std::size_t arg_idx, std::size_t axis) const {
     if (is_out) {
@@ -214,13 +214,12 @@ class NaiveOpEquationContext final : public OpEquationContext {
     }
   }
 
-  Constant GetDimSize(bool is_out,
-                      std::size_t arg_idx,
-                      std::size_t axis) const {
+  std::optional<std::int64_t> GetStaticDimSize(bool is_out,
+                                               std::size_t arg_idx,
+                                               std::size_t axis) const {
     const auto* Get = (is_out ? &GetOutDim_ : &GetInDim_);
     const auto& opt_dim = (*Get)(arg_idx, axis);
-    CHECK(opt_dim.has_value());
-    return opt_dim.value();
+    return opt_dim;
   }
 
   OpArgDimPos GetArgDimPosDescriptor(const Dim& dim) const {

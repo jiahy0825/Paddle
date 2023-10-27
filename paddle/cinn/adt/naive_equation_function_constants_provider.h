@@ -58,8 +58,10 @@ class NaiveEquationFunctionConstantsProvider final
       ctx->VisitEachArgPos(
           [&](bool is_out, std::size_t arg_idx, std::size_t axis) {
             const Dim& dim = ctx->GetDim(is_out, arg_idx, axis);
-            const Constant& constant = ctx->GetDimSize(is_out, arg_idx, axis);
-            CHECK(dim2constant_.emplace(dim, constant).second);
+            std::optional<std::int64_t> static_dim_size =
+                ctx->GetStaticDimSize(is_out, arg_idx, axis);
+            CHECK(static_dim_size.has_value());
+            CHECK(dim2constant_.emplace(dim, static_dim_size.value()).second);
           });
     }
   }
