@@ -47,21 +47,21 @@ struct Identity<tOut<Index>, tIn<Index>>
 template <typename DimT, typename OutT, typename InT>
 struct IndexDot;
 
-// IndexDot [Dim] (tOut Index) (tIn [Iterator])
+// IndexDot [EquationDim] (tOut Index) (tIn [Iterator])
 template <>
-struct IndexDot<List<Dim>, tOut<Index>, tIn<List<Iterator>>>
-    : public Tuple<List<Dim>, tOut<Index>, tIn<List<Iterator>>> {
-  using Tuple<List<Dim>, tOut<Index>, tIn<List<Iterator>>>::Tuple;
+struct IndexDot<List<EquationDim>, tOut<Index>, tIn<List<Iterator>>>
+    : public Tuple<List<EquationDim>, tOut<Index>, tIn<List<Iterator>>> {
+  using Tuple<List<EquationDim>, tOut<Index>, tIn<List<Iterator>>>::Tuple;
 };
 
 template <typename DimT, typename OutT, typename InT>
 struct IndexUnDot;
 
-// IndexUnDot [Dim] (tOut [Iterator]) (tIn Index)
+// IndexUnDot [EquationDim] (tOut [Iterator]) (tIn Index)
 template <>
-struct IndexUnDot<List<Dim>, tOut<List<Iterator>>, tIn<Index>>
-    : public Tuple<List<Dim>, tOut<List<Iterator>>, tIn<Index>> {
-  using Tuple<List<Dim>, tOut<List<Iterator>>, tIn<Index>>::Tuple;
+struct IndexUnDot<List<EquationDim>, tOut<List<Iterator>>, tIn<Index>>
+    : public Tuple<List<EquationDim>, tOut<List<Iterator>>, tIn<Index>> {
+  using Tuple<List<EquationDim>, tOut<List<Iterator>>, tIn<Index>>::Tuple;
 };
 
 // OpArgIndexes = (tIn [Index], tOut [Index])
@@ -101,18 +101,21 @@ template <typename DimT, typename OutT, typename InT>
 struct GetBroadcastedIterator;
 
 template <>
-struct GetBroadcastedIterator<Dim, tOut<Iterator>, tIn<Iterator>>
-    : public Tuple<Dim, tOut<Iterator>, tIn<Iterator>> {
-  using Tuple<Dim, tOut<Iterator>, tIn<Iterator>>::Tuple;
+struct GetBroadcastedIterator<EquationDim, tOut<Iterator>, tIn<Iterator>>
+    : public Tuple<EquationDim, tOut<Iterator>, tIn<Iterator>> {
+  using Tuple<EquationDim, tOut<Iterator>, tIn<Iterator>>::Tuple;
 };
 
 // clang-format off
 DEFINE_ADT_UNION(Equation,
                  Identity<tOut<Iterator>, tIn<Iterator>>,
                  Identity<tOut<Index>, tIn<Index>>,
-                 GetBroadcastedIterator<Dim, tOut<Iterator>, tIn<Iterator>>,
-                 IndexDot<List<Dim>, tOut<Index>, tIn<List<Iterator>>>,
-                 IndexUnDot<List<Dim>, tOut<List<Iterator>>, tIn<Index>>,
+                 GetBroadcastedIterator<EquationDim,
+                                        tOut<Iterator>, tIn<Iterator>>,
+                 IndexDot<List<EquationDim>, tOut<Index>,
+                          tIn<List<Iterator>>>,
+                 IndexUnDot<List<EquationDim>,
+                            tOut<List<Iterator>>, tIn<Index>>,
                  InMsg2OutMsg<tOut<FakeOpPlaceHolder>,
                                     tOut<OpArgIndexes<std::optional<Index>>>,
                                     tIn<OpArgIndexes<Index>>>,

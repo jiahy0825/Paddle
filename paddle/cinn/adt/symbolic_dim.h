@@ -23,6 +23,4 @@ DEFINE_ADT_TAG(tSymbolicDim);
 
 using SymbolicDim = tSymbolicDim<UniqueId>;
 
-DEFINE_ADT_UNION(GenericDim, SymbolicDim, std::int64_t);
-
 }  // namespace cinn::adt

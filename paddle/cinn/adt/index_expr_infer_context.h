@@ -48,7 +48,7 @@ class IndexExprInferContext final {
     return variable2value_.count(variable) > 0;
   }
 
-  Constant GetDimSize(const Dim& dim) const;
+  std::optional<std::int64_t> GetStaticDimSize(const EquationDim& dim) const;
 
   bool DimsEqual(const List<Constant>& lhs, const List<Constant>& rhs) const;
 

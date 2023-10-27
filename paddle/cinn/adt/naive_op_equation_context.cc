@@ -209,7 +209,7 @@ std::optional<std::int64_t> GetArgDimSize(const OpArgDimPos& arg_dim_pos,
 }
 
 std::optional<std::int64_t> NaiveOpEquationContext::GetStaticDimSize(
-    const Dim& dim) const {
+    const EquationDim& dim) const {
   const auto& arg_dim_pos = GetArgDimPosDescriptor(dim);
   const auto& option_dim_size =
       GetArgDimSize(arg_dim_pos, GetInDim_, GetOutDim_);

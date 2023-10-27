@@ -21,7 +21,7 @@ void GenerateScheduleMeshEquations(
     const List<Iterator>& tmp_anchor_iterators,
     const List<Iterator>& sd_iterators,
     Equations* equations,
-    std::unordered_map<Dim, const Constant>* dim2constant);
+    std::unordered_map<EquationDim, const Constant>* dim2constant);
 
 namespace {
 
@@ -30,7 +30,7 @@ void GenerateScheduleMeshEquationsImpl(
     const List<Iterator>& input_iterators,
     const List<Iterator>& output_iterators,
     Equations* equations,
-    std::unordered_map<Dim, const Constant>* dim2constant) {
+    std::unordered_map<EquationDim, const Constant>* dim2constant) {
   CHECK_EQ(input_iterators->size(), output_iterators->size());
   for (std::size_t i = 0; i < output_iterators->size(); ++i) {
     Equal(input_iterators->at(i), output_iterators->at(i), equations);
@@ -42,13 +42,13 @@ void GenerateScheduleMeshEquationsImpl(
     const List<Iterator>& input_iterators,
     const List<Iterator>& output_iterators,
     Equations* equations,
-    std::unordered_map<Dim, const Constant>* dim2constant) {
+    std::unordered_map<EquationDim, const Constant>* dim2constant) {
   const auto& [middle_sched_mesh, shape] = sched_reshape.tuple();
   List<Iterator> middle_iterators =
       MakeIterators(GetOutputRank(middle_sched_mesh));
-  List<Dim> middle_dims = MakeDims(GetOutputRank(middle_sched_mesh));
+  List<EquationDim> middle_dims = MakeDims(GetOutputRank(middle_sched_mesh));
   CHECK_EQ(shape.value()->size(), output_iterators->size());
-  List<Dim> output_dims = MakeDims(output_iterators->size());
+  List<EquationDim> output_dims = MakeDims(output_iterators->size());
   {
     List<Constant> middle_dim_values = GetOutputDimValues(middle_sched_mesh);
     for (std::size_t i = 0; i < middle_dim_values->size(); ++i) {
@@ -79,7 +79,7 @@ void GenerateScheduleMeshEquationsImpl(
     const List<Iterator>& input_iterators,
     const List<Iterator>& output_iterators,
     Equations* equations,
-    std::unordered_map<Dim, const Constant>* dim2constant) {
+    std::unordered_map<EquationDim, const Constant>* dim2constant) {
   const auto& [sched_mesh, perm] = sched_transpose.tuple();
   CHECK_EQ(GetOutputRank(sched_mesh), output_iterators->size());
   List<Iterator> middle_iterators = MakeIterators(output_iterators->size());
@@ -97,7 +97,7 @@ void GenerateScheduleMeshEquationsImpl(
     const List<Iterator>& input_iterators,
     const List<Iterator>& output_iterators,
     Equations* equations,
-    std::unordered_map<Dim, const Constant>* dim2constant) {
+    std::unordered_map<EquationDim, const Constant>* dim2constant) {
   const auto& [sched_mesh, _] = sched_padding.tuple();
   CHECK_EQ(GetOutputRank(sched_mesh), output_iterators->size());
   List<Iterator> middle_iterators = MakeIterators(output_iterators->size());
@@ -115,7 +115,7 @@ void GenerateScheduleMeshEquations(
     const List<Iterator>& tmp_anchor_iterators,
     const List<Iterator>& sd_iterators,
     Equations* equations,
-    std::unordered_map<Dim, const Constant>* dim2constant) {
+    std::unordered_map<EquationDim, const Constant>* dim2constant) {
   return std::visit(
       [&](const auto& impl) {
         return GenerateScheduleMeshEquationsImpl(
@@ -125,7 +125,7 @@ void GenerateScheduleMeshEquations(
 }
 
 void AnchorSdEquationContext::InitDim2Constant(const ScheduleMesh& sched_mesh) {
-  const auto& AddDimValue = [&](const List<Dim>& dims,
+  const auto& AddDimValue = [&](const List<EquationDim>& dims,
                                 const List<Constant>& dim_values) {
     CHECK_EQ(dims->size(), dim_values->size());
     for (std::size_t i = 0; i < dims->size(); ++i) {

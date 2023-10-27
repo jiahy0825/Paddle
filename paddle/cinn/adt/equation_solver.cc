@@ -56,7 +56,7 @@ bool HasReplicatedValues(const List<Value>& values) {
 }
 
 std::unordered_map<Variable, Value> InferValuesImpl(
-    const IndexDot<List<Dim>, tOut<Index>, tIn<List<Iterator>>>& dot,
+    const IndexDot<List<EquationDim>, tOut<Index>, tIn<List<Iterator>>>& dot,
     IndexExprInferContext* ctx) {
   const auto& [dims, out_index, in_iters] = dot.tuple();
   List<Value> in_values;
@@ -75,7 +75,8 @@ std::unordered_map<Variable, Value> InferValuesImpl(
 }
 
 std::unordered_map<Variable, Value> InferValuesImpl(
-    const GetBroadcastedIterator<Dim, tOut<Iterator>, tIn<Iterator>>& broadcast,
+    const GetBroadcastedIterator<EquationDim, tOut<Iterator>, tIn<Iterator>>&
+        broadcast,
     IndexExprInferContext* ctx) {
   const auto& [dim, out_iterator, in_iterator] = broadcast.tuple();
   BroadcastedIterator<Value, Constant> broadcast_iterator{
@@ -84,7 +85,8 @@ std::unordered_map<Variable, Value> InferValuesImpl(
 }
 
 std::unordered_map<Variable, Value> InferValuesImpl(
-    const IndexUnDot<List<Dim>, tOut<List<Iterator>>, tIn<Index>>& undot,
+    const IndexUnDot<List<EquationDim>, tOut<List<Iterator>>, tIn<Index>>&
+        undot,
     IndexExprInferContext* ctx) {
   const auto& [dims, out_iters, in_index] = undot.tuple();
 

@@ -40,13 +40,19 @@ class NaiveEquationFunctionConstantsProvider final
   NaiveEquationFunctionConstantsProvider(
       NaiveEquationFunctionConstantsProvider&&) = delete;
 
-  Constant GetDimSize(const Dim& dim) const override {
+  std::optional<std::int64_t> GetStaticDimSize(
+      const EquationDim& dim) const override {
     const auto& iter = dim2constant_.find(dim);
     CHECK(iter != dim2constant_.end());
-    return iter->second;
+    if (iter->second.Has<std::int64_t>()) {
+      return iter->second.Get<std::int64_t>();
+    } else {
+      return std::nullopt;
+    }
+    LOG(FATAL) << "Dead code";
   }
 
-  bool AddDim(const Dim& dim, const Constant& dim_value) override {
+  bool AddDim(const EquationDim& dim, const Constant& dim_value) override {
     return dim2constant_.emplace(dim, dim_value).second;
   }
 
@@ -57,7 +63,7 @@ class NaiveEquationFunctionConstantsProvider final
       const auto& ctx = EquationCtx4OpStmt(op_stmt);
       ctx->VisitEachArgPos(
           [&](bool is_out, std::size_t arg_idx, std::size_t axis) {
-            const Dim& dim = ctx->GetDim(is_out, arg_idx, axis);
+            const EquationDim& dim = ctx->GetDim(is_out, arg_idx, axis);
             std::optional<std::int64_t> static_dim_size =
                 ctx->GetStaticDimSize(is_out, arg_idx, axis);
             CHECK(static_dim_size.has_value());
@@ -66,7 +72,7 @@ class NaiveEquationFunctionConstantsProvider final
     }
   }
 
-  std::unordered_map<Dim, const Constant> dim2constant_;
+  std::unordered_map<EquationDim, const Constant> dim2constant_;
 };
 
 }  // namespace cinn::adt

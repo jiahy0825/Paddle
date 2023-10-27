@@ -36,15 +36,15 @@ ExprT MatchAndRewrite(const ExprT& expr, const IndexExprInferContext& ctx) {
 }
 
 struct SimplifyBroadcastedIteratorByReplacingToStaticDim {
-  using source_pattern_type = BroadcastedIterator<Value, Dim>;
+  using source_pattern_type = BroadcastedIterator<Value, EquationDim>;
 
   Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
     const auto& [iterator, dim] =
         value.Get<BroadcastedIterator<Value, Constant>>().tuple();
-    const Constant& int64_dim = ctx.GetDimSize(dim.Get<Dim>());
-    if (int64_dim.Has<std::int64_t>()) {
-      return BroadcastedIterator<Value, Constant>{
-          iterator, int64_dim.Get<std::int64_t>()};
+    std::optional<std::int64_t> int64_dim =
+        ctx.GetStaticDimSize(dim.Get<EquationDim>());
+    if (int64_dim.has_value()) {
+      return BroadcastedIterator<Value, Constant>{iterator, int64_dim.value()};
     } else {
       return value;
     }
@@ -66,16 +66,17 @@ struct SimplifyBroadcastedIterator {
 };
 
 struct SimplifyDot {
-  using source_pattern_type = IndexDotValue<Value, List<Dim>>;
+  using source_pattern_type = IndexDotValue<Value, List<EquationDim>>;
 
   Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
     const auto& [iterators, dims_constants] =
         value.Get<IndexDotValue<Value, Constant>>().tuple();
     List<Constant> int64_dims{};
     for (const auto& dim_constant : *dims_constants.Get<List<Constant>>()) {
-      const Constant& int64_dim = ctx.GetDimSize(dim_constant.Get<Dim>());
-      if (int64_dim.Has<std::int64_t>()) {
-        int64_dims->emplace_back(int64_dim);
+      std::optional<std::int64_t> int64_dim =
+          ctx.GetStaticDimSize(dim_constant.Get<EquationDim>());
+      if (int64_dim.has_value()) {
+        int64_dims->emplace_back(int64_dim.value());
       } else {
         return IndexDotValue<Value, Constant>{SimplifyValue(iterators, ctx),
                                               dims_constants};
@@ -87,16 +88,17 @@ struct SimplifyDot {
 };
 
 struct SimplifyUnDot {
-  using source_pattern_type = IndexUnDotValue<Value, List<Dim>>;
+  using source_pattern_type = IndexUnDotValue<Value, List<EquationDim>>;
 
   Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
     const auto& [index, dims_constants] =
         value.Get<IndexUnDotValue<Value, Constant>>().tuple();
     List<Constant> int64_dims{};
     for (const auto& dim_constant : *dims_constants.Get<List<Constant>>()) {
-      const Constant& int64_dim = ctx.GetDimSize(dim_constant.Get<Dim>());
-      if (int64_dim.Has<std::int64_t>()) {
-        int64_dims->emplace_back(int64_dim);
+      std::optional<std::int64_t> int64_dim =
+          ctx.GetStaticDimSize(dim_constant.Get<EquationDim>());
+      if (int64_dim.has_value()) {
+        int64_dims->emplace_back(int64_dim.value());
       } else {
         return IndexUnDotValue<Value, Constant>{SimplifyValue(index, ctx),
                                                 dims_constants};
@@ -369,11 +371,29 @@ struct SimplifyDotDot {
   }
 };
 
+struct SimplifyBroadcastedIteratorByReplacingToSymbolicDim {
+  using source_pattern_type = BroadcastedIterator<Value, EquationDim>;
+
+  Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
+    const auto& [iterator, dim] =
+        value.Get<BroadcastedIterator<Value, Constant>>().tuple();
+    ADT_TODO();
+    // const Constant& int64_dim = ctx.GetDimSize(dim.Get<EquationDim>());
+    // if (int64_dim.Has<std::int64_t>()) {
+    //   return BroadcastedIterator<Value, Constant>{
+    //       iterator, int64_dim.Get<std::int64_t>()};
+    // } else {
+    //   return value;
+    // }
+  }
+};
+
 struct SymbolicDim_SimplifyDotUndot {
   using source_pattern_type = IndexDotValue<
-      List<ListGetItem<IndexUnDotValue<Value, List<Union<std::int64_t, Dim>>>,
-                       std::int64_t>>,
-      List<Union<std::int64_t, Dim>>>;
+      List<ListGetItem<
+          IndexUnDotValue<Value, List<Union<std::int64_t, EquationDim>>>,
+          std::int64_t>>,
+      List<Union<std::int64_t, EquationDim>>>;
 
   Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
     const auto& [list_get_item_values, dot_dims] =
@@ -416,11 +436,11 @@ struct SymbolicDim_SimplifyDotUndot {
 };
 
 struct SymbolicDim_SimplifyUndotDot {
-  using source_pattern_type =
-      ListGetItem<IndexUnDotValue<IndexDotValue<List<Value>,
-                                                List<Union<std::int64_t, Dim>>>,
-                                  List<Union<std::int64_t, Dim>>>,
-                  std::int64_t>;
+  using source_pattern_type = ListGetItem<
+      IndexUnDotValue<
+          IndexDotValue<List<Value>, List<Union<std::int64_t, EquationDim>>>,
+          List<Union<std::int64_t, EquationDim>>>,
+      std::int64_t>;
 
   Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
     const auto& [index_undot_value, constant_idx] =
@@ -444,7 +464,7 @@ struct SymbolicDim_SimplifyUndotDot {
 
 struct SymbolicDim_SimplifyDotDot {
   using source_pattern_type =
-      IndexDotValue<List<Value>, List<Union<std::int64_t, Dim>>>;
+      IndexDotValue<List<Value>, List<Union<std::int64_t, EquationDim>>>;
 
   Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
     const auto& [index_dot_values, dot_dims] =
@@ -501,6 +521,8 @@ Value SimplifyValue(Value value, const IndexExprInferContext& ctx) {
   value = MatchAndRewrite<SimplifyGcdShape>(value, ctx);
   value = MatchAndRewrite<SimplifyDotDot>(value, ctx);
   // For symbolic dim simplification
+  value = MatchAndRewrite<SimplifyBroadcastedIteratorByReplacingToSymbolicDim>(
+      value, ctx);
   value = MatchAndRewrite<SymbolicDim_SimplifyDotUndot>(value, ctx);
   value = MatchAndRewrite<SymbolicDim_SimplifyUndotDot>(value, ctx);
   // value = MatchAndRewrite<SymbolicDim_SimplifyGcdShape>(value, ctx);

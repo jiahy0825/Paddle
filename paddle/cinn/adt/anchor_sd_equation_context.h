@@ -38,15 +38,15 @@ class AnchorSdEquationContext final {
     GenerateSdEquation(sched_mesh, anchor_index);
   }
 
-  const List<Dim>& sd_dims() const { return sd_dims_; }
+  const List<EquationDim>& sd_dims() const { return sd_dims_; }
 
-  const List<Dim>& anchor_dims() const { return anchor_dims_; }
+  const List<EquationDim>& anchor_dims() const { return anchor_dims_; }
 
   const List<Iterator>& sd_iterators() const { return sd_iterators_; }
 
   const Equations& equations() const { return equations_; }
 
-  const std::unordered_map<Dim, const Constant>& dim2constant() const {
+  const std::unordered_map<EquationDim, const Constant>& dim2constant() const {
     return dim2constant_;
   }
 
@@ -56,11 +56,11 @@ class AnchorSdEquationContext final {
   void GenerateSdEquation(const ScheduleMesh& sched_mesh,
                           const Index& tensor_index);
 
-  List<Dim> sd_dims_;
+  List<EquationDim> sd_dims_;
   List<Iterator> sd_iterators_;
-  List<Dim> anchor_dims_;
+  List<EquationDim> anchor_dims_;
   Equations equations_;
-  std::unordered_map<Dim, const Constant> dim2constant_;
+  std::unordered_map<EquationDim, const Constant> dim2constant_;
 };
 
 }  // namespace cinn::adt::config

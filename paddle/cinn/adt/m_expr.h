@@ -200,6 +200,7 @@ class AnchoredMapStmt final : public Tuple<MapStmt<Stmt>,
   }
 };
 
+DEFINE_ADT_UNION(GenericDim, SymbolicDim, std::int64_t);
 using KernelCondition = Logical<Tree<Arithmetic, GenericDim>>;
 
 DEFINE_ADT_TAG(tTrue);
@@ -214,7 +215,7 @@ class ConditionalAnchoredMapStmt
 
 using KernelBody = Tree<ConditionalAnchoredMapStmt, AnchoredMapStmt>;
 
-// Kernel = (KernelBody, In [Tensor], Out [Tensor], [Dim])
+// Kernel = (KernelBody, In [Tensor], Out [Tensor], [EquationDim])
 class Kernel final : public Tuple<List<AnchoredMapStmt>,
                                   tIn<List<Tensor>>,
                                   tOut<List<Tensor>>> {

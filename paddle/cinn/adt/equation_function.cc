@@ -33,22 +33,25 @@ CollectInputAndOutputVariables(const Function& function) {
             out_variables.emplace(Variable{out_index.value()});
             in_variables.emplace(Variable{in_index.value()});
           },
-          [&](const IndexDot<List<Dim>, tOut<Index>, tIn<List<Iterator>>>&
-                  dot) {
+          [&](const IndexDot<List<EquationDim>,
+                             tOut<Index>,
+                             tIn<List<Iterator>>>& dot) {
             const auto& [dims, out_index, in_iterators] = dot.tuple();
             out_variables.emplace(Variable{out_index.value()});
             for (const auto& iterator : *in_iterators.value()) {
               in_variables.emplace(Variable{iterator});
             }
           },
-          [&](const GetBroadcastedIterator<Dim, tOut<Iterator>, tIn<Iterator>>&
-                  broadcast) {
+          [&](const GetBroadcastedIterator<EquationDim,
+                                           tOut<Iterator>,
+                                           tIn<Iterator>>& broadcast) {
             const auto& [dim, out_iterator, in_iterator] = broadcast.tuple();
             out_variables.emplace(Variable{out_iterator.value()});
             in_variables.emplace(Variable{in_iterator.value()});
           },
-          [&](const IndexUnDot<List<Dim>, tOut<List<Iterator>>, tIn<Index>>&
-                  undot) {
+          [&](const IndexUnDot<List<EquationDim>,
+                               tOut<List<Iterator>>,
+                               tIn<Index>>& undot) {
             const auto& [dims, out_iterators, in_index] = undot.tuple();
             for (const auto& iterator : *out_iterators.value()) {
               out_variables.emplace(Variable{iterator});
@@ -100,15 +103,19 @@ std::string GetFunctionTypeName(const Function& function) {
              [&](const Identity<tOut<Index>, tIn<Index>>& identity) {
                return "Identity";
              },
-             [&](const IndexDot<List<Dim>, tOut<Index>, tIn<List<Iterator>>>&
-                     dot) { return "IndexDot"; },
-             [&](const GetBroadcastedIterator<Dim,
+             [&](const IndexDot<List<EquationDim>,
+                                tOut<Index>,
+                                tIn<List<Iterator>>>& dot) {
+               return "IndexDot";
+             },
+             [&](const GetBroadcastedIterator<EquationDim,
                                               tOut<Iterator>,
                                               tIn<Iterator>>& broadcast) {
                return "GetBroadcastedIterator";
              },
-             [&](const IndexUnDot<List<Dim>, tOut<List<Iterator>>, tIn<Index>>&
-                     undot) { return "IndexUnDot"; },
+             [&](const IndexUnDot<List<EquationDim>,
+                                  tOut<List<Iterator>>,
+                                  tIn<Index>>& undot) { return "IndexUnDot"; },
              [&](const InMsg2OutMsg<tOut<FakeOpPlaceHolder>,
                                     tOut<OpArgIndexes<std::optional<Index>>>,
                                     tIn<OpArgIndexes<Index>>>& in_msg2out_msg) {
@@ -126,14 +133,20 @@ const void* GetFunctionDataPtr(const Function& function) {
                  -> const void* { return &identity.tuple(); },
              [&](const Identity<tOut<Index>, tIn<Index>>& identity)
                  -> const void* { return &identity.tuple(); },
-             [&](const IndexDot<List<Dim>, tOut<Index>, tIn<List<Iterator>>>&
-                     dot) -> const void* { return &dot.tuple(); },
-             [&](const GetBroadcastedIterator<Dim,
+             [&](const IndexDot<List<EquationDim>,
+                                tOut<Index>,
+                                tIn<List<Iterator>>>& dot) -> const void* {
+               return &dot.tuple();
+             },
+             [&](const GetBroadcastedIterator<EquationDim,
                                               tOut<Iterator>,
                                               tIn<Iterator>>& broadcast)
                  -> const void* { return &broadcast.tuple(); },
-             [&](const IndexUnDot<List<Dim>, tOut<List<Iterator>>, tIn<Index>>&
-                     undot) -> const void* { return &undot.tuple(); },
+             [&](const IndexUnDot<List<EquationDim>,
+                                  tOut<List<Iterator>>,
+                                  tIn<Index>>& undot) -> const void* {
+               return &undot.tuple();
+             },
              [&](const InMsg2OutMsg<tOut<FakeOpPlaceHolder>,
                                     tOut<OpArgIndexes<std::optional<Index>>>,
                                     tIn<OpArgIndexes<Index>>>& in_msg2out_msg)

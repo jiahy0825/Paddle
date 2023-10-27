@@ -16,24 +16,29 @@
 
 #include "paddle/cinn/adt/adt.h"
 #include "paddle/cinn/adt/logical.h"
+#include "paddle/cinn/adt/symbolic_dim.h"
 #include "paddle/cinn/adt/tags.h"
 #include "paddle/cinn/adt/unique_id.h"
 
 namespace cinn::adt {
 
-// Dim = tDim UniqueId
-using Dim = tDim<UniqueId>;
-// DimTuple = [Dim]
-using DimTuple = List<Dim>;
+// EquationDim = tEquationDim UniqueId
+using EquationDim = tEquationDim<UniqueId>;
+// DimTuple = [EquationDim]
+using DimTuple = List<EquationDim>;
 
-DEFINE_ADT_UNION(Constant, std::int64_t, Dim, List<Constant>);
+DEFINE_ADT_UNION(
+    Constant, std::int64_t, EquationDim, SymbolicDim, List<Constant>);
 
 OVERLOAD_OPERATOR_EQ_NE(Constant, UnionEqual);
 
 inline std::size_t GetHashValue(const Constant& c);
 
 inline std::size_t GetHashValueImpl(const std::int64_t& c) { return c; }
-inline std::size_t GetHashValueImpl(const Dim& c) {
+inline std::size_t GetHashValueImpl(const EquationDim& c) {
+  return c.value().unique_id();
+}
+inline std::size_t GetHashValueImpl(const SymbolicDim& c) {
   return c.value().unique_id();
 }
 inline std::size_t GetHashValueImpl(const List<Constant>& c) {
@@ -51,8 +56,8 @@ OVERRIDE_UNION_GET_HASH_VALUE(Constant);
 namespace std {
 
 template <>
-struct hash<::cinn::adt::Dim> final {
-  std::size_t operator()(const ::cinn::adt::Dim& dim) const {
+struct hash<::cinn::adt::EquationDim> final {
+  std::size_t operator()(const ::cinn::adt::EquationDim& dim) const {
     return dim.value().unique_id();
   }
 };

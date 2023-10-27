@@ -23,7 +23,7 @@ namespace cinn::adt {
 
 namespace {
 
-std::string ToTxtString(const tDim<UniqueId>& constant) {
+std::string ToTxtString(const tEquationDim<UniqueId>& constant) {
   std::size_t constant_unique_id = constant.value().unique_id();
   return "dim_" + std::to_string(constant_unique_id);
 }
@@ -100,7 +100,7 @@ std::string ToTxtString(const List<Iterator>& iterators) {
   return ret;
 }
 
-std::string ToTxtString(const List<Dim>& dim_list) {
+std::string ToTxtString(const List<EquationDim>& dim_list) {
   std::string ret;
   ret += "[";
   for (std::size_t idx = 0; idx < dim_list->size(); ++idx) {
@@ -180,7 +180,8 @@ struct ToTxtStringStruct {
   }
 
   std::string operator()(
-      const IndexDot<List<Dim>, tOut<Index>, tIn<List<Iterator>>>& dot) const {
+      const IndexDot<List<EquationDim>, tOut<Index>, tIn<List<Iterator>>>& dot)
+      const {
     std::string ret;
     const auto& [dim_list, out_index_tag, in_iterator_list_tag] = dot.tuple();
     const Index& out_index = out_index_tag.value();
@@ -191,7 +192,7 @@ struct ToTxtStringStruct {
   }
 
   std::string operator()(
-      const GetBroadcastedIterator<Dim, tOut<Iterator>, tIn<Iterator>>&
+      const GetBroadcastedIterator<EquationDim, tOut<Iterator>, tIn<Iterator>>&
           broadcast) const {
     std::string ret;
     const auto& [dim, out_iterator, in_iterator] = broadcast.tuple();
@@ -201,8 +202,8 @@ struct ToTxtStringStruct {
   }
 
   std::string operator()(
-      const IndexUnDot<List<Dim>, tOut<List<Iterator>>, tIn<Index>>& undot)
-      const {
+      const IndexUnDot<List<EquationDim>, tOut<List<Iterator>>, tIn<Index>>&
+          undot) const {
     std::string ret;
     const auto& [dim_list, out_iterator_list_tag, in_index_tag] = undot.tuple();
     const List<Iterator>& out_iterator_list = out_iterator_list_tag.value();

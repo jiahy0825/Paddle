@@ -41,7 +41,7 @@ class OpEquationContext {
   virtual void Equal(const IteratorTuple& lhs, const IteratorTuple& rhs) = 0;
 
   virtual Iterator GetBroadcastedInputIterator(const Iterator& out_iterator,
-                                               const Dim& dim) = 0;
+                                               const EquationDim& dim) = 0;
 
   virtual const IteratorTuple& GetInIteratorTuple(
       std::size_t input_idx) const = 0;

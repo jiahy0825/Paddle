@@ -17,8 +17,9 @@
 
 namespace cinn::adt {
 
-Constant IndexExprInferContext::GetDimSize(const Dim& dim) const {
-  return constants_provider_->GetDimSize(dim);
+std::optional<std::int64_t> IndexExprInferContext::GetStaticDimSize(
+    const EquationDim& dim) const {
+  return constants_provider_->GetStaticDimSize(dim);
 }
 
 bool IndexExprInferContext::DimsEqual(const List<Constant>& lhs,
