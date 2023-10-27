@@ -36,4 +36,18 @@ std::string ToTxtString(const ScheduleDim& schedule_dim) {
       schedule_dim.variant());
 }
 
+std::string ToTxtString(const List<ScheduleDim>& schedule_dims) {
+  std::string ret;
+  ret += "[";
+  int count = 0;
+  for (const auto& schedule_dim : *schedule_dims) {
+    if (count++ != 0) {
+      ret += ", ";
+    }
+    ret += ToTxtString(schedule_dim);
+  }
+  ret += "]";
+  return ret;
+}
+
 }  // namespace cinn::adt

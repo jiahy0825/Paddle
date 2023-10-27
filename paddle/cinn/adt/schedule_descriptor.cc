@@ -28,9 +28,9 @@ LoopDescriptors CreateScheduleDescriptor(const ScheduleMesh& sched_mesh,
   LoopDescriptors ret{};
   for (std::size_t i = 0; i < sched_dims->size(); ++i) {
     const auto& sched_dim = sched_dims->at(i);
-    CHECK(sched_dim.Has<std::int64_t>());
-    ret->emplace_back(LoopDescriptor{loop_types->at(i),
-                                     LoopSize{sched_dim.Get<std::int64_t>()}});
+    const auto& opt_loop_size = ConstantToLoopSize(sched_dim);
+    CHECK(opt_loop_size.has_value());
+    ret->emplace_back(LoopDescriptor{loop_types->at(i), opt_loop_size.value()});
   }
   return ret;
 }
@@ -42,6 +42,42 @@ List<LoopSize> GenerateLoopSizeFromSd(const LoopDescriptors& sd) {
     sd_sizes->emplace_back(loop_size);
   }
   return sd_sizes;
+}
+
+std::optional<LoopSize> ConstantToLoopSizeImpl(const std::int64_t constant) {
+  return LoopSize{constant};
+}
+
+std::optional<LoopSize> ConstantToLoopSizeImpl(const EquationDim& constant) {
+  return std::nullopt;
+}
+
+std::optional<LoopSize> ConstantToLoopSizeImpl(const SymbolicDim& constant) {
+  return LoopSize{constant};
+}
+
+std::optional<LoopSize> ConstantToLoopSizeImpl(const List<Constant>& constant) {
+  return std::nullopt;
+}
+
+std::optional<LoopSize> ConstantToLoopSize(const Constant& constant) {
+  return std::visit(
+      [&](const auto& impl) { return ConstantToLoopSizeImpl(impl); },
+      constant.variant());
+}
+
+Constant LoopSize2ConstantImpl(const std::int64_t loop_size) {
+  return Constant{loop_size};
+}
+
+Constant LoopSize2ConstantImpl(const SymbolicDim& loop_size) {
+  return Constant{loop_size};
+}
+
+Constant LoopSize2Constant(const LoopSize& loop_size) {
+  return std::visit(
+      [&](const auto& impl) { return LoopSize2ConstantImpl(impl); },
+      loop_size.variant());
 }
 
 }  // namespace cinn::adt

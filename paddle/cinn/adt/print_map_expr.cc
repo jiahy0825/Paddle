@@ -50,12 +50,35 @@ void VisitEachArg(const List<Arg>& out_args,
   }
 }
 
-std::string ToTxtString(const Tensor& tensor) {
-  CHECK(tensor.Has<adapter::Tensor>());
+namespace {
+
+std::string ToTxtStringImpl(const adapter::Tensor& tensor) {
   std::string ret;
-  ret += "t_";
-  ret += tensor.Get<adapter::Tensor>().node_data->id();
+  ret += "tensor_";
+  ret += tensor.node_data->id();
   return ret;
+}
+
+std::string ToTxtStringImpl(const adapter::DynamicTensor& tensor) {
+  std::string ret;
+  ret += "dynamic_tensor_";
+  ret += tensor.node_data->id();
+  return ret;
+}
+
+std::string ToTxtStringImpl(const SSAShadowTensor& tensor) {
+  LOG(FATAL) << "Not supported yet";
+}
+
+std::string ToTxtStringImpl(const TempStorage& tensor) {
+  LOG(FATAL) << "Not supported yet";
+}
+
+}  // namespace
+
+std::string ToTxtString(const Tensor& tensor) {
+  return std::visit([&](const auto& impl) { return ToTxtStringImpl(impl); },
+                    tensor.variant());
 }
 
 std::string ToTxtString(const List<Arg>& out_args,

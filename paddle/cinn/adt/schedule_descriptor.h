@@ -15,6 +15,7 @@
 #pragma once
 
 #include "paddle/cinn/adt/adt.h"
+#include "paddle/cinn/adt/equation_constant.h"
 #include "paddle/cinn/adt/symbolic_dim.h"
 
 namespace cinn::adt {
@@ -120,5 +121,9 @@ class ScheduleMesh;
 
 LoopDescriptors CreateScheduleDescriptor(const ScheduleMesh& sched_mesh,
                                          const List<LoopType>& loop_types);
+
+std::optional<LoopSize> ConstantToLoopSize(const Constant& constant);
+
+Constant LoopSize2Constant(const LoopSize& loop_size);
 
 }  // namespace cinn::adt

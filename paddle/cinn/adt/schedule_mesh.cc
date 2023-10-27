@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "paddle/cinn/adt/schedule_mesh.h"
+#include "paddle/cinn/adt/print.h"
 
 namespace cinn::adt {
 
@@ -85,8 +86,7 @@ List<Constant> GetOutputDimValuesImpl(const List<ScheduleDim>& sched_dims) {
   List<Constant> ret{};
   for (const auto& sched_dim : *sched_dims) {
     const auto& loop_size = GetLoopSize(sched_dim);
-    CHECK(loop_size.Has<std::int64_t>());
-    ret->emplace_back(loop_size.Get<std::int64_t>());
+    ret->emplace_back(LoopSize2Constant(loop_size));
   }
   return ret;
 }
@@ -96,8 +96,7 @@ List<Constant> GetOutputDimValuesImpl(
   const auto& [_, shape] = sched_reshape.tuple();
   List<Constant> ret{};
   for (const auto& loop_size : *shape.value()) {
-    CHECK(loop_size.Has<std::int64_t>());
-    ret->emplace_back(loop_size.Get<std::int64_t>());
+    ret->emplace_back(LoopSize2Constant(loop_size));
   }
   return ret;
 }
@@ -118,8 +117,7 @@ List<Constant> GetOutputDimValuesImpl(
   const auto& [_, shape] = sched_padding.tuple();
   List<Constant> ret{};
   for (const auto& loop_size : *shape.value()) {
-    CHECK(loop_size.Has<std::int64_t>());
-    ret->emplace_back(loop_size.Get<std::int64_t>());
+    ret->emplace_back(LoopSize2Constant(loop_size));
   }
   return ret;
 }
@@ -188,14 +186,6 @@ class NaiveScheduleMeshPolicy final : public ScheduleMeshPolicy {
   NaiveScheduleMeshPolicy() = default;
 
   bool Match(const List<ScheduleDim>& loop_sizes) const override {
-    for (const auto& sched_dim : *loop_sizes) {
-      if (!sched_dim.Has<tInjective<LoopSize>>()) {
-        return false;
-      }
-      if (!GetLoopSize(sched_dim).Has<std::int64_t>()) {
-        return false;
-      }
-    }
     return true;
   }
 
