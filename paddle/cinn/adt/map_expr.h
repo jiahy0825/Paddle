@@ -184,9 +184,6 @@ class AnchoredMapStmt final : public Tuple<MapStmt<Stmt>,
 DEFINE_ADT_UNION(GenericDim, SymbolicDim, std::int64_t);
 using KernelCondition = Logical<Tree<Arithmetic, GenericDim>>;
 
-DEFINE_ADT_TAG(tTrue);
-DEFINE_ADT_TAG(tFalse);
-
 template <typename T>
 class ConditionalAnchoredMapStmt
     : public Tuple<List<KernelCondition>, tTrue<T>, tFalse<T>> {

@@ -54,6 +54,16 @@ class Union {
     return variant_ >> match;
   }
 
+  template <typename __T>
+  const __T& Get() const {
+    return std::get<__T>(variant_);
+  }
+
+  template <typename __T>
+  bool Has() const {
+    return std::holds_alternative<__T>(variant_);
+  }
+
   const std::variant<Ts...>& variant() const { return variant_; }
 
  private:

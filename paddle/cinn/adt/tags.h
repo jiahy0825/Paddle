@@ -20,6 +20,8 @@ namespace cinn::adt {
 
 DEFINE_ADT_TAG(tIn);
 DEFINE_ADT_TAG(tOut);
+DEFINE_ADT_TAG(tTrue);
+DEFINE_ADT_TAG(tFalse);
 
 DEFINE_ADT_TAG(tAnchor);
 
