@@ -84,6 +84,7 @@ class Tuple {
             std::make_shared<std::tuple<Ts...>>(std::forward<Args>(args)...)) {}
 
   const std::tuple<Ts...>& tuple() const { return *tuple_; }
+  std::tuple<Ts...>* mut_tuple() { return &*tuple_; }
 
   template <std::size_t I>
   const auto& Get() const {
@@ -193,6 +194,11 @@ class List final {
     template <typename __T>                                                    \
     const __T& Get() const {                                                   \
       return std::get<__T>(variant_);                                          \
+    }                                                                          \
+                                                                               \
+    template <typename __T>                                                    \
+    const __T* Mut() {                                                         \
+      return &std::get<__T>(variant_);                                         \
     }                                                                          \
                                                                                \
     template <typename __T>                                                    \
