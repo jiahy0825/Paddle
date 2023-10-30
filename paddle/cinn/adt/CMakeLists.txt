@@ -9,6 +9,7 @@ gather_srcs(
   equation_value.cc
   generate_map_expr.cc
   get_sub_reshape_dim_ranges.cc
+  graph_symbolic_dim_infer_ctx.cc
   igroup.cc
   index_expr_infer_context.cc
   kgroup.cc

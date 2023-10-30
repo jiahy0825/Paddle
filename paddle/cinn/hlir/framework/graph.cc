@@ -524,6 +524,25 @@ std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() const {
   return group_outputs;
 }
 
+void Graph::InferSymbolicDim() {
+  using InferSymbolicDimFunc =
+      std::function<void(adt::config::SymbolicDimInferCtx * ctx)>;
+
+  std::vector<GraphNode*> topo_nodes = std::get<0>(topological_order());
+  for (const hlir::framework::GraphNode* graph_node : topo_nodes) {
+    const Node* op_node = graph_node->safe_as<Node>();
+    CHECK(op_node != nullptr && op_node->op() != nullptr);
+
+    const auto& infer_symbolic_dim =
+        hlir::framework::Operator::GetAttrs<InferSymbolicDimFunc>(
+            "infer_symbolic_dim");
+    CHECK(infer_symbolic_dim.Find(op_node->op()));
+
+    adt::config::SymbolicDimInferCtx ctx{op_node, &graph_ctx_};
+    infer_symbolic_dim[op_node->op()](&ctx);
+  }
+}
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

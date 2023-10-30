@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "paddle/cinn/adt/graph_symbolic_dim_infer_ctx.h"
 #include "paddle/cinn/common/graph_utils.h"
 #include "paddle/cinn/frontend/syntax.h"
 #include "paddle/cinn/hlir/framework/node.h"
@@ -40,14 +41,18 @@ namespace framework {
  */
 class Graph : public cinn::common::Graph {
  public:
-  Graph(const frontend::Program& prog, const Target& target) {
+  Graph(const frontend::Program& prog, const Target& target)
+      : graph_ctx_(GraphSymbolicDimInferCtx{this}) {
     std::unordered_set<std::string> fetch_var_ids;
     Initialize(prog, fetch_var_ids, target);
+    InferSymbolicDim();
   }
   Graph(const frontend::Program& prog,
         const std::unordered_set<std::string>& fetch_var_ids,
-        const Target& target) {
+        const Target& target)
+      : graph_ctx_(GraphSymbolicDimInferCtx{this}) {
     Initialize(prog, fetch_var_ids, target);
+    InferSymbolicDim();
   }
 
   void Initialize(const frontend::Program& prog,
@@ -303,6 +308,8 @@ class Graph : public cinn::common::Graph {
       const std::unordered_set<std::string>& fetch_var_ids = {});
 
  private:
+  void InferSymbolicDim();
+
   std::string DebugGroupedGraph(
       const std::vector<std::vector<Node*>>& groups,
       const std::unordered_set<std::string>& fetch_var_ids = {});
@@ -316,6 +323,8 @@ class Graph : public cinn::common::Graph {
       const std::unordered_set<std::string>& fetch_var_ids = {});
 
   std::vector<std::vector<Node*>> FusionGroupsToGroups();
+
+  cinn::adt::config::GraphSymbolicDimInferCtx graph_ctx_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
 };
