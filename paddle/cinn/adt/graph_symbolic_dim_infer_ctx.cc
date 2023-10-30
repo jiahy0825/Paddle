@@ -63,13 +63,19 @@ void GraphSymbolicDimInferCtx::InitOp2TensorRanks() {
     const hlir::framework::Node* op_node = graph_node->safe_as<Node>();
     CHECK(op_node != nullptr && op_node->op() != nullptr);
 
-    CHECK(
-        op2input_ranks_.emplace_back(op_node, GetOpInputRanks(graph_, op_node))
-            .second);
+    const auto& input_ranks = GetOpInputRanks(graph_, op_node);
+    if (op2input_ranks_.find(op_node) == op2input_ranks_.end()) {
+      op2input_ranks_.emplace_back(op_node, input_ranks);
+    } else {
+      CHECK_EQ(input_ranks, op2input_ranks_.at(op_node));
+    }
 
-    CHECK(op2output_ranks_
-              .emplace_back(op_node, GetOpOutputRanks(graph_, op_node))
-              .second);
+    const auto& output_ranks = GetOpOutputRanks(graph_, op_node);
+    if (op2output_ranks_.find(op_node) == op2output_ranks_.end()) {
+      op2output_ranks_.emplace_back(op_node, output_ranks);
+    } else {
+      CHECK_EQ(output_ranks, op2output_ranks_.at(op_node));
+    }
   }
 }
 
