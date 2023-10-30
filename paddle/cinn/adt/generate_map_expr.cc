@@ -454,8 +454,6 @@ MapExpr GenerateMapExpr(
   return GenerateMapExpr(kgroup);
 }
 
-namespace {}  // namespace
-
 void TryGenerateMapExprFromGraph(
     const std::shared_ptr<cinn::hlir::framework::Graph>& graph) {
   if (!FLAGS_cinn_enable_map_expr) {

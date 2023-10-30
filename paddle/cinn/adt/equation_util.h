@@ -185,21 +185,4 @@ inline List<Iterator> MakeIterators(std::size_t num_iterators) {
   return ret;
 }
 
-template <typename DoEachT>
-List<Iterator> MakeUnDot(const Index& index,
-                         const List<EquationDim>& dims,
-                         const DoEachT& DoEach) {
-  List<Iterator> ret{};
-  GenerateDotEquation(ret, dims, index, DoEach);
-  return ret;
-}
-
-inline List<Iterator> MakeUnDot(const Index& index,
-                                const List<EquationDim>& dims,
-                                Equations* equations) {
-  return MakeUnDot(index, dims, [&](const auto& equation) {
-    (*equations)->emplace_back(equation);
-  });
-}
-
 }  // namespace cinn::adt
