@@ -96,6 +96,7 @@ DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(ListGetItem, Value, Constant);
 DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(BroadcastedIterator, Value, Constant);
 DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(IndexDotValue, Value, Constant);
 DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(IndexUnDotValue, Value, Constant);
+#undef DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2
 
 #define DEFINE_ADT_MATCH_TRAIT_EQUATION(name)                              \
   template <typename T>                                                    \
@@ -111,5 +112,6 @@ DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(IndexUnDotValue, Value, Constant);
   };
 
 DEFINE_ADT_MATCH_TRAIT_EQUATION(PtrGetItem);
+#undef DEFINE_ADT_MATCH_TRAIT_EQUATION
 
 }  // namespace cinn::adt
