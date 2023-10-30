@@ -19,36 +19,72 @@
 
 namespace cinn::adt::config {
 
-const std::vector<std::uint64_t>& GraphSymbolicDimInferCtx::GetInTensorsRanks(
-    const hlir::framework::Node* node) const {
-  const auto& iter = op2input_ranks_.find(node);
-  if (iter != op2input_ranks_.end()) {
-    return iter->second;
-  }
+namespace {
+
+std::size_t GraphSymbolicDimInferCtx::GetTensorRank(
+    const hlir::framework::Graph* graph,
+    const hlir::framework::NodeData* tensor) const {
+  const auto& shape_dict =
+      graph->GetAttrs<absl::flat_hash_map<std::string, utils::ShapeType>>(
+          "infershape");
+  CHECK(shape_dict.count(tensor->id()))
+      << "Can't find " << tensor->id() << " 's shape!";
+  return shape_dict.at(tensor->id()).size();
+}
+
+std::vector<std::uint64_t> GetOpInputRanks(const hlir::framework::Graph* graph,
+                                           const hlir::framework::Node* node) {
   std::vector<std::uint64_t> ret{};
   for (const auto& graph_edge : node->inlinks_in_order()) {
     const hlir::framework::NodeData* tensor =
         graph_edge->source()->safe_as<hlir::framework::NodeData>();
-    ret.emplace_back(GetTensorRank(tensor));
+    ret.emplace_back(GetTensorRank(graph, tensor));
   }
-  CHECK(op2input_ranks_.emplace_back(node, ret).second);
-  return op2input_ranks_.at(node);
+  return ret;
+}
+
+std::vector<std::uint64_t> GetOpOutputRanks(const hlir::framework::Graph* graph,
+                                            const hlir::framework::Node* node) {
+  std::vector<std::uint64_t> ret{};
+  for (const auto& graph_edge : node->outlinks_in_order()) {
+    const hlir::framework::NodeData* tensor =
+        graph_edge->sink()->safe_as<hlir::framework::NodeData>();
+    ret.emplace_back(GetTensorRank(graph, tensor));
+  }
+  return ret;
+}
+
+}  // namespace
+
+void GraphSymbolicDimInferCtx::InitOp2TensorRanks() {
+  std::vector<hlir::framework::GraphNode*> topo_nodes =
+      std::get<0>(graph_->topological_order());
+  for (const hlir::framework::GraphNode* graph_node : topo_nodes) {
+    const hlir::framework::Node* op_node = graph_node->safe_as<Node>();
+    CHECK(op_node != nullptr && op_node->op() != nullptr);
+
+    CHECK(
+        op2input_ranks_.emplace_back(op_node, GetOpInputRanks(graph_, op_node))
+            .second);
+
+    CHECK(op2output_ranks_
+              .emplace_back(op_node, GetOpOutputRanks(graph_, op_node))
+              .second);
+  }
+}
+
+const std::vector<std::uint64_t>& GraphSymbolicDimInferCtx::GetInTensorsRanks(
+    const hlir::framework::Node* node) const {
+  const auto& iter = op2input_ranks_.find(node);
+  CHECK(iter != op2input_ranks_.end());
+  return iter->second;
 }
 
 const std::vector<std::uint64_t>& GraphSymbolicDimInferCtx::GetOutTensorsRanks(
     const hlir::framework::Node* node) const {
   const auto& iter = op2output_ranks_.find(node);
-  if (iter != op2output_ranks_.end()) {
-    return iter->second;
-  }
-  std::vector<std::uint64_t> ret{};
-  for (const auto& graph_edge : node->outlinks_in_order()) {
-    const hlir::framework::NodeData* tensor =
-        graph_edge->sink()->safe_as<hlir::framework::NodeData>();
-    ret.emplace_back(GetTensorRank(tensor));
-  }
-  CHECK(op2output_ranks_.emplace_back(node, ret).second);
-  return op2output_ranks_.at(node);
+  CHECK(iter != op2output_ranks_.end());
+  return iter->second;
 }
 
 const SymbolicDimExpr& GraphSymbolicDimInferCtx::GetInputDimExpr(
@@ -93,16 +129,6 @@ SymbolicDimExpr* GraphSymbolicDimInferCtx::MutOutputDimExpr(
 const framework::AttrMapType& GraphSymbolicDimInferCtx::GetAttributeMap(
     const hlir::framework::Node* node) const {
   return op_node->attrs.attr_store;
-}
-
-std::size_t GraphSymbolicDimInferCtx::GetTensorRank(
-    const hlir::framework::NodeData* tensor) const {
-  const auto& shape_dict =
-      graph_->GetAttrs<absl::flat_hash_map<std::string, utils::ShapeType>>(
-          "infershape");
-  CHECK(shape_dict.count(tensor->id()))
-      << "Can't find " << tensor->id() << " 's shape!";
-  return shape_dict.at(tensor->id()).size();
 }
 
 }  // namespace cinn::adt::config

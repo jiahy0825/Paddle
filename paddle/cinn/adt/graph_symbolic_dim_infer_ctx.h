@@ -33,7 +33,9 @@ class GraphSymbolicDimInferCtx {
   GraphSymbolicDimInferCtx(GraphSymbolicDimInferCtx&&) = delete;
 
   explicit GraphSymbolicDimInferCtx(const hlir::framework::Graph* graph)
-      : graph_(graph) {}
+      : graph_(graph) {
+    InitOp2TensorRanks();
+  }
 
   const std::vector<std::uint64_t>& GetInTensorsRanks(
       const hlir::framework::Node* node) const;
@@ -53,7 +55,7 @@ class GraphSymbolicDimInferCtx {
       const hlir::framework::Node* node) const;
 
  private:
-  std::size_t GetTensorRank(const hlir::framework::NodeData* tensor) const;
+  void InitOp2TensorRanks();
 
   const hlir::framework::Graph* graph_;
   std::unordered_map<const hlir::framework::NodeData*,
