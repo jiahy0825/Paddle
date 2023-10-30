@@ -52,4 +52,28 @@ DEFINE_ADT_UNION(SymbolicDimExpr,
                  BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>,
                  OneOf<SymbolicDimExpr>);
 
+inline SymbolicDimExpr operator+(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
+  return Add<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
+}
+
+inline SymbolicDimExpr operator-(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
+  return Sub<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
+}
+
+inline SymbolicDimExpr operator*(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
+  return Mul<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
+}
+
+inline SymbolicDimExpr operator/(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
+  return Div<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
+}
+
+inline SymbolicDimExpr MakeBroadcastedDim(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
+  return BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
+}
+
+inline SymbolicDimExpr MakeOneof(const List<SymbolicDimExpr>& list) {
+  return OneOf<SymbolicDimExpr>{list};
+}
+
 }  // namespace cinn::adt
