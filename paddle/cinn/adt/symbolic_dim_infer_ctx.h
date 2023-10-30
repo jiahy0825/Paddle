@@ -33,8 +33,8 @@ class SymbolicDimInferCtx {
     return graph_ctx_->GetInTensorsRanks(node_);
   }
 
-  const std::vector<std::uint64_t>& GetOutTensorsRanks() const {
-    return graph_ctx_->GetOutTensorsRanks(node_);
+  std::uint64_t GetNumOutTensors() const {
+    return graph_ctx_->GetNumOutTensors(node_);
   }
 
   const SymbolicDimExpr& GetInputDimExpr(std::size_t arg_idx,
@@ -42,8 +42,10 @@ class SymbolicDimInferCtx {
     return graph_ctx_->GetInputDimExpr(node_, arg_idx, dim_idx);
   }
 
-  SymbolicDimExpr* MutOutputDimExpr(std::size_t arg_idx, std::size_t dim_idx) {
-    return graph_ctx_->MutOutputDimExpr(node_, arg_idx, dim_idx);
+  void SetOutputDimExpr(std::size_t arg_idx,
+                        std::size_t dim_idx,
+                        const SymbolicDimExpr& value) {
+    return graph_ctx_->SetOutputDimExpr(node_, arg_idx, dim_idx, value);
   }
 
   const framework::AttrMapType& GetAttributeMap() const {

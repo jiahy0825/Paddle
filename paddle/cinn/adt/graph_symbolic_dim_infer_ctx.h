@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -40,16 +41,16 @@ class GraphSymbolicDimInferCtx {
   const std::vector<std::uint64_t>& GetInTensorsRanks(
       const hlir::framework::Node* node) const;
 
-  const std::vector<std::uint64_t>& GetOutTensorsRanks(
-      const hlir::framework::Node* node) const;
+  std::uint64_t GetNumOutTensors(const hlir::framework::Node* node) const;
 
   const SymbolicDimExpr& GetInputDimExpr(const hlir::framework::Node* node,
                                          std::size_t arg_idx,
                                          std::size_t dim_idx) const;
 
-  SymbolicDimExpr* MutOutputDimExpr(const hlir::framework::Node* node,
-                                    std::size_t arg_idx,
-                                    std::size_t dim_idx);
+  void SetOutputDimExpr(const hlir::framework::Node* node,
+                        std::size_t arg_idx,
+                        std::size_t dim_idx,
+                        const SymbolicDimExpr& value);
 
   const framework::AttrMapType& GetAttributeMap(
       const hlir::framework::Node* node) const;
@@ -59,12 +60,10 @@ class GraphSymbolicDimInferCtx {
 
   const hlir::framework::Graph* graph_;
   std::unordered_map<const hlir::framework::NodeData*,
-                     std::vector<SymbolicDimExpr>>
+                     std::vector<std::optional<SymbolicDimExpr>>>
       tensor2symbolic_dim_exprs_;
   std::unordered_map<const hlir::framework::Node*, std::vector<std::uint64_t>>
       op2input_ranks_;
-  std::unordered_map<const hlir::framework::Node*, std::vector<std::uint64_t>>
-      op2output_ranks_;
 };
 
 }  // namespace cinn::adt::config

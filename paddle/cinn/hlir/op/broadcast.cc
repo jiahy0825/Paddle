@@ -155,13 +155,11 @@ void InferSymbolicDimForBroadcast(cinn::adt::config::SymbolicDimInferCtx *ctx) {
   CHECK_EQ(ctx->GetInTensorsRanks().size(), 2)
       << "The inputs is " << ctx->GetInTensorsRanks().size()
       << "! Please check again.";
-  CHECK_EQ(ctx->GetOutTensorsRanks().size(), 1)
-      << "The output is " << ctx->GetOutTensorsRanks().size()
-      << "! Please check again.";
-
-  std::uint64_t out_tensor_ranks = ctx->GetOutTensorsRanks().at(0);
+  CHECK_EQ(ctx->GetNumOutTensors(), 1)
+      << "The output is " << ctx->GetNumOutTensors() << "! Please check again.";
   std::uint64_t in_tensor0_ranks = ctx->GetInTensorsRanks().at(0);
   std::uint64_t in_tensor1_ranks = ctx->GetInTensorsRanks().at(1);
+  std::uint64_t out_tensor_ranks = std::max(in_tensor0_ranks, in_tensor1_ranks);
   int offset0 = out_tensor_ranks - in_tensor0_ranks;
   int offset1 = out_tensor_ranks - in_tensor1_ranks;
   CHECK(offset0 == 0 || offset1 == 0);
@@ -170,12 +168,13 @@ void InferSymbolicDimForBroadcast(cinn::adt::config::SymbolicDimInferCtx *ctx) {
   int offset = max(offset0, offset1);
   int equal_tensor_index = offset0 > 0 ? 1 : 0;
   for (std::size_t i = 0; i < offset; ++i) {
-    *ctx->MutOutputDimExpr(0, i) = ctx->GetInputDimExpr(equal_tensor_index, i);
+    ctx->SetOutputDimExpr(0, i, ctx->GetInputDimExpr(equal_tensor_index, i));
   }
   for (std::size_t i = offset; i < out_tensor_ranks; ++i) {
-    *ctx->MutOutputDimExpr(0, i) =
+    const auto &broadcasted_dim =
         MakeBroadcastedDim(ctx->GetInputDimExpr(0, i - offset0),
                            ctx->GetInputDimExpr(1, i - offset1));
+    ctx->SetOutputDimExpr(0, i, broadcasted_dim);
   }
 }
 

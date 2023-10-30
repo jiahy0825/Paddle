@@ -119,11 +119,10 @@ void InferSymbolicDimForElementwise(
     cinn::adt::config::SymbolicDimInferCtx *ctx) {
   CHECK_EQ(ctx->GetInTensorsRanks().size(), 1)
       << "The inputs is not 1! Please check again.";
-  CHECK_EQ(ctx->GetOutTensorsRanks().size(), 1)
+  CHECK_EQ(ctx->GetNumOutTensors(), 1)
       << "The outputs is not 1! Please check again.";
-  CHECK_EQ(ctx->GetInTensorsRanks().at(0), ctx->GetOutTensorsRanks().at(0));
   for (std::size_t i = 0; i < ctx->GetInTensorsRanks().at(0); ++i) {
-    *ctx->MutOutputDimExpr(0, i) = ctx->GetInputDimExpr(0, i);
+    ctx->SetOutputDimExpr(0, i, ctx->GetInputDimExpr(0, i));
   }
 }
 
@@ -443,9 +442,8 @@ void InferSymbolicDimForFillConstant(
   const framework::AttrMapType &attrs = ctx->GetAttributeMap();
   CHECK(attrs.count("shape"));
   const auto &shape = absl::get<std::vector<int>>(attrs.at("shape"));
-  CHECK_EQ(ctx->GetOutTensorsRanks().at(0), shape.size());
   for (std::size_t i = 0; i < shape.size(); ++i) {
-    *ctx->MutOutputDimExpr(0, i) = SymbolicDimExpr{shape.at(i)};
+    ctx->SetOutputDimExpr(0, i, SymbolicDimExpr{shape.at(i)});
   }
 }
 

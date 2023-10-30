@@ -43,17 +43,6 @@ std::vector<std::uint64_t> GetOpInputRanks(const hlir::framework::Graph* graph,
   return ret;
 }
 
-std::vector<std::uint64_t> GetOpOutputRanks(const hlir::framework::Graph* graph,
-                                            const hlir::framework::Node* node) {
-  std::vector<std::uint64_t> ret{};
-  for (const auto& graph_edge : node->outlinks_in_order()) {
-    const hlir::framework::NodeData* tensor =
-        graph_edge->sink()->safe_as<hlir::framework::NodeData>();
-    ret.emplace_back(GetTensorRank(graph, tensor));
-  }
-  return ret;
-}
-
 }  // namespace
 
 void GraphSymbolicDimInferCtx::InitOp2TensorRanks() {
@@ -69,13 +58,6 @@ void GraphSymbolicDimInferCtx::InitOp2TensorRanks() {
     } else {
       CHECK_EQ(input_ranks, op2input_ranks_.at(op_node));
     }
-
-    const auto& output_ranks = GetOpOutputRanks(graph_, op_node);
-    if (op2output_ranks_.find(op_node) == op2output_ranks_.end()) {
-      op2output_ranks_.emplace_back(op_node, output_ranks);
-    } else {
-      CHECK_EQ(output_ranks, op2output_ranks_.at(op_node));
-    }
   }
 }
 
@@ -86,11 +68,9 @@ const std::vector<std::uint64_t>& GraphSymbolicDimInferCtx::GetInTensorsRanks(
   return iter->second;
 }
 
-const std::vector<std::uint64_t>& GraphSymbolicDimInferCtx::GetOutTensorsRanks(
+std::uint64_t GraphSymbolicDimInferCtx::GetNumOutTensors(
     const hlir::framework::Node* node) const {
-  const auto& iter = op2output_ranks_.find(node);
-  CHECK(iter != op2output_ranks_.end());
-  return iter->second;
+  return node->outlinks_in_order().size();
 }
 
 const SymbolicDimExpr& GraphSymbolicDimInferCtx::GetInputDimExpr(
@@ -104,32 +84,27 @@ const SymbolicDimExpr& GraphSymbolicDimInferCtx::GetInputDimExpr(
   const auto& iter = tensor2symbolic_dim_exprs_.find(tensor);
   CHECK(iter != tensor2symbolic_dim_exprs_.end());
   CHECK_LT(dim_idx, iter->second.size());
-  return iter->second.at(dim_idx);
+  const auto& opt_symbolic_dim_expr = iter->second.at(dim_idx);
+  CHECK(opt_symbolic_dim_expr.has_value());
+  return opt_symbolic_dim_expr.value();
 }
 
-SymbolicDimExpr* GraphSymbolicDimInferCtx::MutOutputDimExpr(
+void GraphSymbolicDimInferCtx::SetOutputDimExpr(
     const hlir::framework::Node* node,
     std::size_t arg_idx,
-    std::size_t dim_idx) {
+    std::size_t dim_idx,
+    const SymbolicDimExpr& value) {
   const auto& edges = node->outlinks_in_order();
   CHECK_LT(arg_idx, edges.size());
   const hlir::framework::NodeData* tensor =
       edges.at(arg_idx)->sink()->safe_as<hlir::framework::NodeData>();
   std::size_t rank = GetTensorRank(tensor);
   CHECK_LT(dim_idx, rank);
-  const auto& iter = tensor2symbolic_dim_exprs_.find(tensor);
-  CHECK(iter == tensor2symbolic_dim_exprs_.end() ||
-        iter->second.size() <= dim_idx);
-  if (iter == tensor2symbolic_dim_exprs_.end()) {
-    CHECK(tensor2symbolic_dim_exprs_
-              .emplace_back(tensor, std::vector<SymbolicDimExpr>{})
-              .second);
+  auto* opt_symbolic_dims = &tensor2symbolic_dim_exprs_[tensor];
+  if (dim_idx >= opt_symbolic_dims->size()) {
+    opt_symbolic_dims->resize(dim_idx + 1);
   }
-  const auto& symbolic_exprs_iter = tensor2symbolic_dim_exprs_.find(tensor);
-  while (symbolic_exprs_iter->second.size() < dim_idx) {
-    symbolic_exprs_iter->second.emplace_back(SymbolicDimExpr{});
-  }
-  return &symbolic_exprs_iter->second.at(dim_idx);
+  opt_symbolic_dims->at(dim_idx) = value;
 }
 
 const framework::AttrMapType& GraphSymbolicDimInferCtx::GetAttributeMap(
