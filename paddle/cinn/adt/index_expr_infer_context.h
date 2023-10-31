@@ -19,6 +19,7 @@
 #include "paddle/cinn/adt/equation.h"
 #include "paddle/cinn/adt/equation_value.h"
 #include "paddle/cinn/adt/map_expr.h"
+#include "paddle/cinn/adt/symbolic_dim_expr.h"
 
 namespace cinn::adt {
 
@@ -50,9 +51,7 @@ class IndexExprInferContext final {
 
   std::optional<std::int64_t> GetStaticDimSize(const EquationDim& dim) const;
 
-  std::optional<SymbolicDim> GetSymbolicDimSize(const EquationDim& dim) const;
-
-  Constant GetDimSize(const EquationDim& dim) const;
+  SimbolicDimExpr GetDimSize(const EquationDim& dim) const;
 
   bool DimsEqual(const List<Constant>& lhs, const List<Constant>& rhs) const;
 

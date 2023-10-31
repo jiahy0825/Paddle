@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "paddle/cinn/adt/graph_symbolic_dim_infer_ctx.h"
 #include "paddle/cinn/common/graph_utils.h"
 #include "paddle/cinn/frontend/syntax.h"
 #include "paddle/cinn/hlir/framework/node.h"
@@ -29,6 +30,11 @@ namespace cinn {
 
 namespace adt {
 class MapExprCtx;
+
+namespace config {
+class GraphSymbolicDimInferCtx;
+}
+
 }  // namespace adt
 
 namespace hlir {
@@ -60,6 +66,17 @@ class Graph : public cinn::common::Graph {
 
   /** \brief attributes of a graph */
   absl::flat_hash_map<std::string, std::shared_ptr<absl::any>> attrs;
+
+  void set_graph_ctx(
+      std::unique_ptr<cinn::adt::config::GraphSymbolicDimInferCtx>&&
+          graph_ctx) {
+    CHECK_EQ(this, graph_ctx.graph());
+    graph_ctx_ = std::move(graph_ctx);
+  }
+
+  const GraphSymbolicDimInferCtx* graph_ctx() const { return graph_ctx_.get(); }
+
+  GraphSymbolicDimInferCtx* mut_graph_ctx() { return graph_ctx_.get(); }
 
   std::vector<std::vector<Node*>> groups;
   struct Group {
@@ -316,6 +333,8 @@ class Graph : public cinn::common::Graph {
       const std::unordered_set<std::string>& fetch_var_ids = {});
 
   std::vector<std::vector<Node*>> FusionGroupsToGroups();
+
+  std::unique_ptr<cinn::adt::config::GraphSymbolicDimInferCtx> graph_ctx_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
 };

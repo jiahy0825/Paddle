@@ -27,8 +27,7 @@ using EquationDim = tEquationDim<UniqueId>;
 // DimTuple = [EquationDim]
 using DimTuple = List<EquationDim>;
 
-DEFINE_ADT_UNION(
-    Constant, std::int64_t, EquationDim, SymbolicDim, List<Constant>);
+DEFINE_ADT_UNION(Constant, std::int64_t, EquationDim, List<Constant>);
 
 OVERLOAD_OPERATOR_EQ_NE(Constant, UnionEqual);
 
@@ -36,9 +35,6 @@ inline std::size_t GetHashValue(const Constant& c);
 
 inline std::size_t GetHashValueImpl(const std::int64_t& c) { return c; }
 inline std::size_t GetHashValueImpl(const EquationDim& c) {
-  return c.value().unique_id();
-}
-inline std::size_t GetHashValueImpl(const SymbolicDim& c) {
   return c.value().unique_id();
 }
 inline std::size_t GetHashValueImpl(const List<Constant>& c) {
