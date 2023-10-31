@@ -18,6 +18,7 @@
 
 #include "absl/types/optional.h"
 #include "paddle/cinn/adt/op_equation_context.h"
+#include "paddle/cinn/adt/symbolic_dim_infer_ctx.h"
 #include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/op.h"
 #include "paddle/cinn/hlir/framework/op_strategy.h"
@@ -443,7 +444,7 @@ void InferSymbolicDimForFillConstant(
   CHECK(attrs.count("shape"));
   const auto &shape = absl::get<std::vector<int>>(attrs.at("shape"));
   for (std::size_t i = 0; i < shape.size(); ++i) {
-    ctx->SetOutputDimExpr(0, i, SymbolicDimExpr{shape.at(i)});
+    ctx->SetOutputDimExpr(0, i, cinn::adt::SymbolicDimExpr{shape.at(i)});
   }
 }
 

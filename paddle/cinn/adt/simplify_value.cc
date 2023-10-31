@@ -120,7 +120,7 @@ struct SimplifyUnDot {
     List<Constant> dim_sizes{};
     for (const auto& dim_constant : *dims_constants.Get<List<Constant>>()) {
       const std::optional<std::int64_t>& opt_dim_size =
-          ctx.GetDimSize(dim_constant.Get<EquationDim>());
+          ctx.GetStaticDimSize(dim_constant.Get<EquationDim>());
       if (opt_dim_size.has_value()) {
         dim_sizes->emplace_back(opt_dim_size.value());
       } else {

@@ -16,6 +16,7 @@
 #include "paddle/cinn/adt/anchor_sd_equation_context.h"
 #include "paddle/cinn/adt/equation.h"
 #include "paddle/cinn/adt/equation_solver.h"
+#include "paddle/cinn/adt/graph_symbolic_dim_infer_ctx.h"
 #include "paddle/cinn/adt/igroup.h"
 #include "paddle/cinn/adt/index_expr_infer_context.h"
 #include "paddle/cinn/adt/kgroup.h"
@@ -25,6 +26,7 @@
 #include "paddle/cinn/adt/partition_op_stmts.h"
 #include "paddle/cinn/adt/print.h"
 #include "paddle/cinn/adt/schedule_descriptor.h"
+#include "paddle/cinn/adt/symbolic_dim_infer_util.h"
 #include "paddle/cinn/adt/tree.h"
 #include "paddle/cinn/runtime/flags.h"
 
@@ -459,6 +461,7 @@ void TryGenerateMapExprFromGraph(
   if (!FLAGS_cinn_enable_map_expr) {
     return;
   }
+  graph->set_graph_ctx(adt::InferSymbolicDim(graph.get()));
   for (const auto& fusion_group : graph->fusion_groups) {
     const auto& map_expr = GenerateMapExpr(fusion_group);
     VLOG(1) << ToTxtString(map_expr, fusion_group->group_id);

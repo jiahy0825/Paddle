@@ -19,6 +19,11 @@ namespace cinn::adt {
 
 namespace {
 
+template <typename T0, typename T1>
+bool SymbolicDimExprEqualImpl(const T0&, const T1&) {
+  LOG(FATAL) << "Dead code";
+}
+
 bool SymbolicDimExprEqualImpl(std::int64_t lhs, std::int64_t rhs) {
   return lhs == rhs;
 }
@@ -27,8 +32,8 @@ bool SymbolicDimExprEqualImpl(const SymbolicDim& lhs, const SymbolicDim& rhs) {
   return lhs == rhs;
 }
 
-bool SymbolicDimExprEqualImpl(const Negtive<SymbolicDimExpr>& lhs,
-                              const Negtive<SymbolicDimExpr>& rhs) {
+bool SymbolicDimExprEqualImpl(const Negative<SymbolicDimExpr>& lhs,
+                              const Negative<SymbolicDimExpr>& rhs) {
   const auto& [lhs_arg0] = lhs.tuple();
   const auto& [rhs_arg0] = rhs.tuple();
   return lhs_arg0 == rhs_arg0;
@@ -41,15 +46,25 @@ bool SymbolicDimExprEqualImpl(const Reciprocal<SymbolicDimExpr>& lhs,
   return lhs_arg0 == rhs_arg0;
 }
 
-bool SymbolicDimExprEqualImpl(const Add<SymbolicDimExpr, SymbolicDimExpr>& lhs,
-                              const Add<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
+bool SymbolicDimExprEqualImpl(
+    const Add<SymbolicDimExpr, SymbolicDimExpr>& lhs,
+    const Add<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
   const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
   const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
   return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;
 }
 
-bool SymbolicDimExprEqualImpl(const Mul<SymbolicDimExpr, SymbolicDimExpr>& lhs,
-                              const Mul<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
+bool SymbolicDimExprEqualImpl(
+    const Mul<SymbolicDimExpr, SymbolicDimExpr>& lhs,
+    const Mul<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
+  const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
+  const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
+  return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;
+}
+
+bool SymbolicDimExprEqualImpl(
+    const BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>& lhs,
+    const BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
   const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
   const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
   return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;

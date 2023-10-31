@@ -197,11 +197,6 @@ class List final {
     }                                                                          \
                                                                                \
     template <typename __T>                                                    \
-    const __T* Mut() {                                                         \
-      return &std::get<__T>(variant_);                                         \
-    }                                                                          \
-                                                                               \
-    template <typename __T>                                                    \
     bool Has() const {                                                         \
       return std::holds_alternative<__T>(variant_);                            \
     }                                                                          \

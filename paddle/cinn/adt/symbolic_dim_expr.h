@@ -46,7 +46,8 @@ inline SymbolicDimExpr operator+(const SymbolicDimExpr& lhs,
 
 inline SymbolicDimExpr operator-(const SymbolicDimExpr& lhs,
                                  const SymbolicDimExpr& rhs) {
-  return Add<SymbolicDimExpr, SymbolicDimExpr>{lhs, Negtive<SymbolicDimExpr>{rhs}};
+  return Add<SymbolicDimExpr, SymbolicDimExpr>{lhs,
+                                               Negative<SymbolicDimExpr>{rhs}};
 }
 
 inline SymbolicDimExpr operator*(const SymbolicDimExpr& lhs,
@@ -56,7 +57,8 @@ inline SymbolicDimExpr operator*(const SymbolicDimExpr& lhs,
 
 inline SymbolicDimExpr operator/(const SymbolicDimExpr& lhs,
                                  const SymbolicDimExpr& rhs) {
-  return Mul<SymbolicDimExpr, SymbolicDimExpr>{lhs, Reciprocal<SymbolicDimExpr>{rhs}};
+  return Mul<SymbolicDimExpr, SymbolicDimExpr>{
+      lhs, Reciprocal<SymbolicDimExpr>{rhs}};
 }
 
 inline SymbolicDimExpr MakeBroadcastedDim(const SymbolicDimExpr& lhs,

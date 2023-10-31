@@ -228,9 +228,9 @@ class NaiveOpEquationContext final : public OpEquationContext {
     return opt_dim;
   }
 
-  std::optional<SymbolicDim> GetSymbolicDimSize(bool is_out,
-                                                std::size_t arg_idx,
-                                                std::size_t axis) const {
+  std::optional<SymbolicDimExpr> GetSymbolicDimSize(bool is_out,
+                                                    std::size_t arg_idx,
+                                                    std::size_t axis) const {
     const auto* Get = (is_out ? &GetSymbolicOutDim_ : &GetSymbolicInDim_);
     const auto& opt_dim = (*Get)(arg_idx, axis);
     return opt_dim;

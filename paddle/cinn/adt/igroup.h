@@ -103,7 +103,7 @@ class IGroup final {
     auto* mut_constants_provider =
         const_cast<EquationFunctionConstantsProvider*>(
             constants_provider_.get());
-    for (const auto& [dim, dim_value] : ctx.dim2constant()) {
+    for (const auto& [dim, dim_value] : ctx.dim2symbolic_dim_expr()) {
       CHECK(mut_constants_provider->AddDim(dim, dim_value));
     }
   }
@@ -122,6 +122,8 @@ class IGroup final {
   List<Iterator> GetAnchorIterators() const {
     return GetIndexIterators(anchor_index_);
   }
+
+  List<LoopSize> GetAnchorTensorLoopSize() const;
 
  private:
   void InitAnchorScheduleDims();

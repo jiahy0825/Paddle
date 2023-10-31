@@ -13,72 +13,14 @@
 // limitations under the License.
 
 #include "paddle/cinn/adt/kgroup.h"
-#include "paddle/cinn/adt/equation_solver.h"
+
 #include "paddle/cinn/adt/igroup.h"
-#include "paddle/cinn/adt/index_expr_infer_context.h"
-#include "paddle/cinn/adt/m_ir.h"
-#include "paddle/cinn/adt/schedule_descriptor.h"
-#include "paddle/cinn/adt/schedule_dim.h"
-#include "paddle/cinn/hlir/framework/graph.h"
 
 namespace cinn::adt {
 
-using AnchorTensor = Variable;
-
-namespace {
-
-List<LoopSize> GetDefaultScheduleSizesFromTensorImpl(
-    const adapter::Tensor& tensor) {
-  List<LoopSize> ret{};
-  for (int32_t dim : tensor.GetShape()) {
-    ret->emplace_back(LoopSize{dim});
-  }
-  return ret;
-}
-
-namespace {
-
-LoopSize MakeLoopSizeImpl(const SymbolicDim& symbolic_dim) {
-  return LoopSize{symbolic_dim};
-}
-
-LoopSize MakeLoopSizeImpl(const std::int64_t dim) { return LoopSize{dim}; }
-
-LoopSize MakeLoopSize(const Union<SymbolicDim, std::int64_t>& dim) {
-  return std::visit([&](const auto& impl) { return MakeLoopSizeImpl(impl); },
-                    dim.variant());
-}
-
-}  // namespace
-
-List<LoopSize> GetDefaultScheduleSizesFromTensorImpl(
-    const adapter::DynamicTensor& tensor) {
-  List<LoopSize> ret{};
-  for (const Union<SymbolicDim, std::int64_t>& dim : tensor.GetShape()) {
-    ret->emplace_back(MakeLoopSize(dim));
-  }
-  return ret;
-}
-
-List<LoopSize> GetDefaultScheduleSizesFromTensorImpl(
-    const TempStorage& tensor) {
-  ADT_TODO();
-}
-
-List<LoopSize> GetDefaultScheduleSizesFromTensor(const Tensor& tensor) {
-  return std::visit(
-      [&](const auto& impl) {
-        return GetDefaultScheduleSizesFromTensorImpl(impl);
-      },
-      tensor.variant());
-}
-
-}  // namespace
-
 List<LoopSize> KGroup::GetDefaultScheduleSizes(
     const std::shared_ptr<IGroup>& igroup) const {
-  const Tensor& tensor = igroup->anchor_tensor();
-  return GetDefaultScheduleSizesFromTensor(tensor);
+  return igroup->GetAnchorTensorLoopSize();
 }
 
 }  // namespace cinn::adt

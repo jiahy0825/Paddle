@@ -46,8 +46,9 @@ class AnchorSdEquationContext final {
 
   const Equations& equations() const { return equations_; }
 
-  const std::unordered_map<EquationDim, const Constant>& dim2constant() const {
-    return dim2constant_;
+  const std::unordered_map<EquationDim, const SymbolicDimExpr>&
+  dim2symbolic_dim_expr() const {
+    return dim2symbolic_dim_expr_;
   }
 
  private:
@@ -60,7 +61,7 @@ class AnchorSdEquationContext final {
   List<Iterator> sd_iterators_;
   List<EquationDim> anchor_dims_;
   Equations equations_;
-  std::unordered_map<EquationDim, const Constant> dim2constant_;
+  std::unordered_map<EquationDim, const SymbolicDimExpr> dim2symbolic_dim_expr_;
 };
 
 }  // namespace cinn::adt::config

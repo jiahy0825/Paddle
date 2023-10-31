@@ -82,49 +82,50 @@ std::size_t GetOutputRank(const ScheduleMesh& sched_mesh) {
 
 namespace {
 
-List<Constant> GetOutputDimValuesImpl(const List<ScheduleDim>& sched_dims) {
-  List<Constant> ret{};
+List<SymbolicDimExpr> GetOutputDimValuesImpl(
+    const List<ScheduleDim>& sched_dims) {
+  List<SymbolicDimExpr> ret{};
   for (const auto& sched_dim : *sched_dims) {
     const auto& loop_size = GetLoopSize(sched_dim);
-    ret->emplace_back(LoopSize2Constant(loop_size));
+    ret->emplace_back(loop_size);
   }
   return ret;
 }
 
-List<Constant> GetOutputDimValuesImpl(
+List<SymbolicDimExpr> GetOutputDimValuesImpl(
     const ScheduleMeshReshape<ScheduleMesh>& sched_reshape) {
   const auto& [_, shape] = sched_reshape.tuple();
-  List<Constant> ret{};
+  List<SymbolicDimExpr> ret{};
   for (const auto& loop_size : *shape.value()) {
-    ret->emplace_back(LoopSize2Constant(loop_size));
+    ret->emplace_back(loop_size);
   }
   return ret;
 }
 
-List<Constant> GetOutputDimValuesImpl(
+List<SymbolicDimExpr> GetOutputDimValuesImpl(
     const ScheduleMeshTranspose<ScheduleMesh>& sched_transpose) {
   const auto& [sched_mesh, perm] = sched_transpose.tuple();
   const auto& input_dims = GetOutputDimValues(sched_mesh);
-  List<Constant> ret{};
+  List<SymbolicDimExpr> ret{};
   for (const auto& idx : *perm.value()) {
     ret->emplace_back(input_dims->at(idx));
   }
   return ret;
 }
 
-List<Constant> GetOutputDimValuesImpl(
+List<SymbolicDimExpr> GetOutputDimValuesImpl(
     const ScheduleMeshPadding<ScheduleMesh>& sched_padding) {
   const auto& [_, shape] = sched_padding.tuple();
-  List<Constant> ret{};
+  List<SymbolicDimExpr> ret{};
   for (const auto& loop_size : *shape.value()) {
-    ret->emplace_back(LoopSize2Constant(loop_size));
+    ret->emplace_back(loop_size);
   }
   return ret;
 }
 
 }  // namespace
 
-List<Constant> GetOutputDimValues(const ScheduleMesh& sched_mesh) {
+List<SymbolicDimExpr> GetOutputDimValues(const ScheduleMesh& sched_mesh) {
   return std::visit(
       [&](const auto& impl) { return GetOutputDimValuesImpl(impl); },
       sched_mesh.variant());

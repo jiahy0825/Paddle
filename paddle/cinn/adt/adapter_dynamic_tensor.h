@@ -40,7 +40,7 @@ struct DynamicTensor final {
   }
 
   const std::vector<std::optional<SymbolicDimExpr>>& GetShape() const {
-    return graph.graph_ctx()->GetTensorSymbolicDimExprs(node_data);
+    return graph->graph_ctx()->GetTensorSymbolicDimExprs(node_data);
   }
 };
 

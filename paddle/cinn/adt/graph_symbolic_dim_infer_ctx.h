@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "paddle/cinn/adt/symbolic_dim_expr.h"
+#include "paddle/cinn/hlir/framework/node.h"
 
 namespace cinn::hlir::framework {
 class Graph;
@@ -36,6 +37,7 @@ class GraphSymbolicDimInferCtx {
   explicit GraphSymbolicDimInferCtx(const hlir::framework::Graph* graph)
       : graph_(graph) {
     InitOp2TensorRanks();
+    InitGraphInputSymbolicDimExpr();
   }
 
   const hlir::framework::Graph* graph() const { return graph_; }
@@ -61,11 +63,12 @@ class GraphSymbolicDimInferCtx {
                         std::size_t dim_idx,
                         const SymbolicDimExpr& value);
 
-  const framework::AttrMapType& GetAttributeMap(
+  const hlir::framework::AttrMapType& GetAttributeMap(
       const hlir::framework::Node* node) const;
 
  private:
   void InitOp2TensorRanks();
+  void InitGraphInputSymbolicDimExpr();
 
   const hlir::framework::Graph* graph_;
   std::unordered_map<const hlir::framework::NodeData*,

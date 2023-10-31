@@ -15,12 +15,11 @@
 #pragma once
 
 #include "paddle/cinn/adt/adt.h"
+#include "paddle/cinn/adt/symbolic_dim_expr.h"
 
 namespace cinn::adt {
 
-class LoopSize;
+std::string ToTxtString(const SymbolicDimExpr& loop_size);
 
-std::string ToTxtString(const LoopSize& loop_size);
-
-std::string ToTxtString(const List<LoopSize>& loop_sizes);
+std::string ToTxtString(const List<SymbolicDimExpr>& loop_sizes);
 }  // namespace cinn::adt

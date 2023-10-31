@@ -19,7 +19,8 @@
 namespace cinn::adt {
 
 DEFINE_ADT_UNARY(Negative);
-using Neg = Negative;
+template <typename T>
+using Neg = Negative<T>;
 DEFINE_ADT_UNARY(Reciprocal);
 DEFINE_ADT_BINARY(Add);
 DEFINE_ADT_BINARY(Sub);
