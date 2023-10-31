@@ -24,32 +24,12 @@ struct FoldConstantAdd {
   }
 };
 
-struct FoldConstantSub {
-  using source_pattern_type = Sub<std::int64_t, std::int64_t>;
-
-  SymbolicDimExpr MatchAndRewrite(SymbolicDimExpr&& expr) {
-    const auto&[lhs, rhs] = expr.Get<Sub<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
-    CHECK_GE(lhs.Get<std::int64_t>(), rhs.Get<std::int64_t>());
-    return lhs.Get<std::int64_t>() - rhs.Get<std::int64_t>();
-  }
-};
-
 struct FoldConstantMul {
   using source_pattern_type = Mul<std::int64_t, std::int64_t>;
 
   SymbolicDimExpr MatchAndRewrite(SymbolicDimExpr&& expr) {
     const auto&[lhs, rhs] = expr.Get<Mul<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
     return lhs.Get<std::int64_t>() * rhs.Get<std::int64_t>();
-  }
-};
-
-struct FoldConstantDiv {
-  using source_pattern_type = Div<std::int64_t, std::int64_t>;
-
-  SymbolicDimExpr MatchAndRewrite(SymbolicDimExpr&& expr) {
-    const auto&[lhs, rhs] = expr.Get<Div<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
-    CHECK_EQ(lhs.Get<std::int64_t>() % rhs.Get<std::int64_t>(), 0);
-    return lhs.Get<std::int64_t>() / rhs.Get<std::int64_t>();
   }
 };
 
@@ -97,174 +77,117 @@ struct FoldConstantUnit {
   }
 };
 
+using ConstIntegerPattern = Union<std::int64_t, Negtive<std::int64_t>>;
+
+std::int64_t GetInteger(const SymbolicDimExpr& expr) {
+  if (expr.Has<Negtive<SymbolicDimExpr>>()) {
+    const auto& [integer] = expr.Get<Negtive<SymbolicDimExpr>>();
+    CHECK(integer.Has<std::int64_t>());
+    return -integer.Get<std::int64_t>();
+  }
+  CHECK(expr.Has<std::int64_t>());
+  return expr.Get<std::int64_t>();
+}
+
 struct RemoveRedundantConstantLhs_Add_Add {
-  using source_pattern_type = Add<Add<SymbolicDimExpr, std::int64_t>, std::int64_t>;
+  using source_pattern_type = Add<Add<SymbolicDimExpr, ConstIntegerPattern>, ConstIntegerPattern>;
 
   SymbolicDimExpr MatchAndRewrite(SymbolicDimExpr&& expr) {
     auto& [outter_lhs, outter_rhs] = *expr.Mut<Add<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
     auto& [inner_lhs, inner_rhs] = *outter_lhs.Mut<Add<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
     inner_lhs = Simplify(std::Move(inner_lhs));
-    inner_rhs = SymbolicDimExpr(outter_rhs.Get<std::int64_t>() + inner_rhs.Get<std::int64_t>());
+    inner_rhs = SymbolicDimExpr(GetInteger(outter_rhs) + GetInteger(inner_rhs));
     return outter_lhs;
   }
 };
 
-struct RemoveRedundantConstantLhs_Add_Sub {
-  using source_pattern_type = Add<Sub<SymbolicDimExpr, std::int64_t>, std::int64_t>;
+using ConstRationalPattern = Union<std::int64_t,
+                                   Reciprocal<std::int64_t>,
+                                   Mul<std::int64_t, Reciprocal<std::int64_t>>>;
 
-  SymbolicDimExpr MatchAndRewrite(SymbolicDimExpr&& expr) {
-    auto& [outter_lhs, outter_rhs] = *expr.Mut<Add<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
-    auto& [inner_lhs, inner_rhs] = *outter_lhs.Mut<Sub<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
-    if (outter_rhs.Get<std::int64_t>() == inner_rhs.Get<std::int64_t>()) {
-      return Simplify(std::Move(inner_lhs));
-    } else if (outter_rhs.Get<std::int64_t>() > inner_rhs.Get<std::int64_t>()) {
-      std::int64_t ret_rhs = outter_rhs.Get<std::int64_t>() - inner_rhs.Get<std::int64_t>();
-      outter_lhs = Simplify(std::Move(inner_lhs));
-      outter_rhs = ret_rhs;
-      return expr;
-    } else if (outter_rhs.Get<std::int64_t>() < inner_rhs.Get<std::int64_t>()) {
-      std::int64_t ret_rhs = inner_rhs.Get<std::int64_t>() - outter_rhs.Get<std::int64_t>();
-      inner_lhs = Simplify(std::Move(inner_lhs));
-      inner_rhs = SimplicDimExpr{ret_rhs};
-      return outter_lhs;
-    }
-    LOG(FATAL) << "Dead code.";
-  }
-};
+using ConstRational = std::pair<std::int64_t, std::int64_t>;
 
-struct RemoveRedundantConstantLhs_Sub_Sub {
-  using source_pattern_type = Sub<Sub<SymbolicDimExpr, std::int64_t>, std::int64_t>;
+template<typename T>
+ConstRational GetConstRationalImpl(const T& expr) {
+  LOG(FATAL) << "not supported.";
+}
 
-  SymbolicDimExpr MatchAndRewrite(SymbolicDimExpr&& expr) {
-    auto& [outter_lhs, outter_rhs] = *expr.Mut<Sub<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
-    auto& [inner_lhs, inner_rhs] = *outter_lhs.Mut<Sub<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
-    inner_lhs = Simplify(std::Move(inner_lhs));
-    inner_rhs = SymbolicDimExpr(outter_rhs.Get<std::int64_t>() + inner_rhs.Get<std::int64_t>());
-    return outter_lhs;
-  }
-};
+ConstRational GetConstRationalImpl(std::int64_t value) {
+  return ConstRational{value, 1};
+}
 
-struct RemoveRedundantConstantLhs_Sub_Add {
-  using source_pattern_type = Sub<Add<SymbolicDimExpr, std::int64_t>, std::int64_t>;
+ConstRational GetConstRationalImpl(const Reciprocal<SymbolicDimExpr>& value) {
+  const auto& [denominator] = value.tuple();
+  return ConstRational{1, denominator.Get<std::int64_t>()};
+}
 
-  SymbolicDimExpr MatchAndRewrite(SymbolicDimExpr&& expr) {
-    auto& [outter_lhs, outter_rhs] = *expr.Mut<Sub<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
-    auto& [inner_lhs, inner_rhs] = *outter_lhs.Mut<Add<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
-    if (outter_rhs.Get<std::int64_t>() == inner_rhs.Get<std::int64_t>()) {
-      return Simplify(std::Move(inner_lhs));
-    } else if (outter_rhs.Get<std::int64_t>() > inner_rhs.Get<std::int64_t>()) {
-      std::int64_t ret_rhs = outter_rhs.Get<std::int64_t>() - inner_rhs.Get<std::int64_t>();
-      outter_lhs = Simplify(std::Move(inner_lhs));
-      outter_rhs = ret_rhs;
-      return expr;
-    } else if (outter_rhs.Get<std::int64_t>() < inner_rhs.Get<std::int64_t>()) {
-      std::int64_t ret_rhs = inner_rhs.Get<std::int64_t>() - outter_rhs.Get<std::int64_t>();
-      inner_lhs = Simplify(std::Move(inner_lhs));
-      inner_rhs = SimplicDimExpr{ret_rhs};
-      return outter_lhs;
-    }
-    LOG(FATAL) << "Dead code.";
-  }
-};
+ConstRational SimplifiedConstRational(int64_t num, int64_t dem) {
+  std::int64_t gcd = std::gcd(num, dem);
+  return ConstRational{num / gcd, dem / gdc};
+}
+
+ConstRational GetConstRationalImpl(const Mul<SymbolicDimExpr, SymbolicDimExpr>& value) {
+  const auto& [numerator, reciprocal] = value.tuple();
+  const auto& [denominator] = reciprocal.tuple();
+  return SimplifiedConstRational(numerator.Get<std::int64_t>(), denominator.Get<std::int64_t>());
+}
+
+ConstRational GetConstRational(const SymbolicDimExpr& expr) {
+  return std::visit([&](const auto& impl) {
+    return GetConstRationalImpl(impl);
+  }, expr.variant());
+}
+
+ConstRational MulConstRational(const ConstRational& lhs, const ConstRational& rhs) {
+ const auto [lhs_num, lhs_dem] = lhs;
+ const auto [rhs_num, rhs_dem] = rhs;
+ // Crossing is correct.
+ const auto [simplifed_lhs_num, simplifed_rhs_dem] = SimplifiedConstRational(lhs_num, rhs_dem);
+ const auto [simplifed_rhs_num, simplifed_lhs_dem] = SimplifiedConstRational(rhs_num, lhs_dem);
+ return ConstRational{simplifed_lhs_num * simplifed_rhs_num, simplifed_lhs_dem * simplifed_rhs_dem};
+}
 
 struct RemoveRedundantConstantLhs_Mul_Mul {
-  using source_pattern_type = Mul<Mul<SymbolicDimExpr, std::int64_t>, std::int64_t>;
+  using source_pattern_type = Mul<Mul<SymbolicDimExpr, ConstIntegerPattern>, ConstIntegerPattern>;
 
   SymbolicDimExpr MatchAndRewrite(SymbolicDimExpr&& expr) {
     auto& [outter_lhs, outter_rhs] = *expr.Mut<Mul<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
     auto& [inner_lhs, inner_rhs] = *outter_lhs.Mut<Mul<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
     inner_lhs = Simplify(std::Move(inner_lhs));
-    inner_rhs = SymbolicDimExpr(outter_rhs.Get<std::int64_t>() * inner_rhs.Get<std::int64_t>());
-    return outter_lhs;
-  }
-};
-
-struct RemoveRedundantConstantLhs_Mul_Div {
-  using source_pattern_type = Mul<Div<SymbolicDimExpr, std::int64_t>, std::int64_t>;
-
-  SymbolicDimExpr MatchAndRewrite(SymbolicDimExpr&& expr) {
-    auto& [outter_lhs, outter_rhs] = *expr.Mut<Mul<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
-    auto& [inner_lhs, inner_rhs] = *outter_lhs.Mut<Div<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
-    if (outter_rhs.Get<std::int64_t>() == inner_rhs.Get<std::int64_t>()) {
-      return Simplify(std::Move(inner_lhs));
-    } else if (outter_rhs.Get<std::int64_t>() % inner_rhs.Get<std::int64_t>() == 0) {
-      std::int64_t ret_rhs = outter_rhs.Get<std::int64_t>() / inner_rhs.Get<std::int64_t>();
-      outter_lhs = Simplify(std::Move(inner_lhs));
-      outter_rhs = ret_rhs;
-      return expr;
-    } else if (inner_rhs.Get<std::int64_t>() % outter_rhs.Get<std::int64_t>() == 0) {
-      std::int64_t ret_rhs = inner_rhs.Get<std::int64_t>() / outter_rhs.Get<std::int64_t>();
-      inner_lhs = Simplify(std::Move(inner_lhs));
-      inner_rhs = SimplicDimExpr{ret_rhs};
-      return outter_lhs;
+    const auto [num, dem] = MulConstRational(GetConstRational(outter_rhs), GetConstRational(inner_rhs));
+    if (num == 1) {
+      if (dem == 1) {
+        return inner_lhs;
+      } else {
+        inner_rhs = Reciprocal<SymbolicDimExpr>{SymbolicDimExpr{dem}};
+        return outter_lhs;
+      }
     } else {
-      return expr;
+      if (dem == 1) {
+        inner_rhs = SymbolicDimExpr{num};
+        return outter_lhs;
+      } else {
+        inner_rhs = SymbolicDimExpr{num} / SymbolicDimExpr{dem};
+        return outter_lhs;
+      }
     }
-    LOG(FATAL) << "Dead code.";
+    LOG(FATAL) << "Dead code";
   }
 };
 
-struct RemoveRedundantConstantLhs_Div_Div {
-  using source_pattern_type = Div<Div<SymbolicDimExpr, std::int64_t>, std::int64_t>;
-
-  SymbolicDimExpr MatchAndRewrite(SymbolicDimExpr&& expr) {
-    auto& [outter_lhs, outter_rhs] = *expr.Mut<Div<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
-    auto& [inner_lhs, inner_rhs] = *outter_lhs.Mut<Div<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
-    inner_lhs = Simplify(std::Move(inner_lhs));
-    inner_rhs = SymbolicDimExpr(outter_rhs.Get<std::int64_t>() * inner_rhs.Get<std::int64_t>());
-    return outter_lhs;
-  }
-};
-
-struct RemoveRedundantConstantLhs_Div_Mul {
-  using source_pattern_type = Div<Mul<SymbolicDimExpr, std::int64_t>, std::int64_t>;
-
-  SymbolicDimExpr MatchAndRewrite(SymbolicDimExpr&& expr) {
-    auto& [outter_lhs, outter_rhs] = *expr.Mut<Div<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
-    auto& [inner_lhs, inner_rhs] = *outter_lhs.Mut<Mul<SymbolicDimExpr, SymbolicDimExpr>>()->mut_tuple();
-    if (outter_rhs.Get<std::int64_t>() == inner_rhs.Get<std::int64_t>()) {
-      return Simplify(std::Move(inner_lhs));
-    } else if (outter_rhs.Get<std::int64_t>() % inner_rhs.Get<std::int64_t>() == 0) {
-      std::int64_t ret_rhs = outter_rhs.Get<std::int64_t>() / inner_rhs.Get<std::int64_t>();
-      outter_lhs = Simplify(std::Move(inner_lhs));
-      outter_rhs = ret_rhs;
-      return expr;
-    } else if (inner_rhs.Get<std::int64_t>() % outter_rhs.Get<std::int64_t>() == 0) {
-      std::int64_t ret_rhs = inner_rhs.Get<std::int64_t>() / outter_rhs.Get<std::int64_t>();
-      inner_lhs = Simplify(std::Move(inner_lhs));
-      inner_rhs = SimplicDimExpr{ret_rhs};
-      return outter_lhs;
-    } else {
-      return expr;
-    }
-    LOG(FATAL) << "Dead code.";
-  }
-};
 
 SymbolicDimExpr Simplify(SymbolicDimExpr&& expr) {
   expr = TrySimplifyPass<FoldConstantAdd>(std::move(expr));
-  expr = TrySimplifyPass<FoldConstantSub>(std::move(expr));
   expr = TrySimplifyPass<FoldConstantMul>(std::move(expr));
-  expr = TrySimplifyPass<FoldConstantDiv>(std::move(expr));
   expr = TrySimplifyPass<FoldConstantBroadcastedDim>(std::move(expr));
   expr = TrySimplifyPass<SwapConstantLhs<Add>>(std::move(expr));
-  expr = TrySimplifyPass<SwapConstantLhs<Sub>>(std::move(expr));
   expr = TrySimplifyPass<SwapConstantLhs<Mul>>(std::move(expr));
-  expr = TrySimplifyPass<SwapConstantLhs<Div>>(std::move(expr));
   expr = TrySimplifyPass<SwapConstantLhs<BroadcastedDim>>(std::move(expr));
   expr = TrySimplifyPass<FoldConstantUnit<Add, 0>>(std::move(expr));
-  expr = TrySimplifyPass<FoldConstantUnit<Sub, 0>>(std::move(expr));
   expr = TrySimplifyPass<FoldConstantUnit<Mul, 1>>(std::move(expr));
-  expr = TrySimplifyPass<FoldConstantUnit<Div, 1>>(std::move(expr));
   expr = TrySimplifyPass<FoldConstantUnit<BroadcastedDim, 1>>(std::move(expr));
   expr = TrySimplifyPass<RemoveRedundantConstantLhs_Add_Add>(std::move(expr));
-  expr = TrySimplifyPass<RemoveRedundantConstantLhs_Add_Sub>(std::move(expr));
-  expr = TrySimplifyPass<RemoveRedundantConstantLhs_Sub_Add>(std::move(expr));
-  expr = TrySimplifyPass<RemoveRedundantConstantLhs_Sub_Sub>(std::move(expr));
   expr = TrySimplifyPass<RemoveRedundantConstantLhs_Mul_Mul>(std::move(expr));
-  expr = TrySimplifyPass<RemoveRedundantConstantLhs_Mul_Div>(std::move(expr));
-  expr = TrySimplifyPass<RemoveRedundantConstantLhs_Div_Mul>(std::move(expr));
-  expr = TrySimplifyPass<RemoveRedundantConstantLhs_Div_Div>(std::move(expr));
   return expr;
 }
 

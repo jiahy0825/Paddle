@@ -23,17 +23,6 @@ namespace cinn::adt {
 
 DEFINE_ADT_BINARY(BroadcastedDim);
 
-template <typename T>
-class OneOf final {
- public:
-  explicit OneOf(const List<T>& list) : list_(list) {}
-
-  const List<T>& list() const { return list_; }
-
- private:
-  List<T> list_;
-};
-
 // SymbolicDimExpr = std::int64_t
 //                 | SymbolicDim
 //                 | Negative SymbolicDimExpr
@@ -41,7 +30,6 @@ class OneOf final {
 //                 | Add SymbolicDimExpr SymbolicDimExpr
 //                 | Mul SymbolicDimExpr SymbolicDimExpr
 //                 | BroadcastedDim SymbolicDimExpr SymbolicDimExpr
-//                 | OneOf SymbolicDimExpr
 DEFINE_ADT_UNION(SymbolicDimExpr,
                  std::int64_t,
                  SymbolicDim,
@@ -49,8 +37,7 @@ DEFINE_ADT_UNION(SymbolicDimExpr,
                  Reciprocal<SymbolicDimExpr>,
                  Add<SymbolicDimExpr, SymbolicDimExpr>,
                  Mul<SymbolicDimExpr, SymbolicDimExpr>,
-                 BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>,
-                 OneOf<SymbolicDimExpr>);
+                 BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>);
 
 inline SymbolicDimExpr operator+(const SymbolicDimExpr& lhs,
                                  const SymbolicDimExpr& rhs) {
@@ -59,7 +46,7 @@ inline SymbolicDimExpr operator+(const SymbolicDimExpr& lhs,
 
 inline SymbolicDimExpr operator-(const SymbolicDimExpr& lhs,
                                  const SymbolicDimExpr& rhs) {
-  return Sub<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
+  return Add<SymbolicDimExpr, SymbolicDimExpr>{lhs, Negtive<SymbolicDimExpr>{rhs}};
 }
 
 inline SymbolicDimExpr operator*(const SymbolicDimExpr& lhs,
@@ -69,16 +56,12 @@ inline SymbolicDimExpr operator*(const SymbolicDimExpr& lhs,
 
 inline SymbolicDimExpr operator/(const SymbolicDimExpr& lhs,
                                  const SymbolicDimExpr& rhs) {
-  return Div<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
+  return Mul<SymbolicDimExpr, SymbolicDimExpr>{lhs, Reciprocal<SymbolicDimExpr>{rhs}};
 }
 
 inline SymbolicDimExpr MakeBroadcastedDim(const SymbolicDimExpr& lhs,
                                           const SymbolicDimExpr& rhs) {
   return BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
-}
-
-inline SymbolicDimExpr MakeOneof(const List<SymbolicDimExpr>& list) {
-  return OneOf<SymbolicDimExpr>{list};
 }
 
 bool operator==(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs);
