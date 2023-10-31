@@ -27,30 +27,32 @@ bool SymbolicDimExprEqualImpl(const SymbolicDim& lhs, const SymbolicDim& rhs) {
   return lhs == rhs;
 }
 
-template <template <typename, typename> class Op>
-bool SymbolicDimExprEqual(const Op<SymbolicDimExpr, SymbolicDimExpr>& lhs,
-                          const Op<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
+bool SymbolicDimExprEqualImpl(const Negtive<SymbolicDimExpr>& lhs,
+                              const Negtive<SymbolicDimExpr>& rhs) {
+  const auto& [lhs_arg0] = lhs.tuple();
+  const auto& [rhs_arg0] = rhs.tuple();
+  return lhs_arg0 == rhs_arg0;
+}
+
+bool SymbolicDimExprEqualImpl(const Reciprocal<SymbolicDimExpr>& lhs,
+                              const Reciprocal<SymbolicDimExpr>& rhs) {
+  const auto& [lhs_arg0] = lhs.tuple();
+  const auto& [rhs_arg0] = rhs.tuple();
+  return lhs_arg0 == rhs_arg0;
+}
+
+bool SymbolicDimExprEqualImpl(const Add<SymbolicDimExpr, SymbolicDimExpr>& lhs,
+                              const Add<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
   const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
-  const auto& [rhs_arg0, rhs_arg1] = lhs.tuple();
+  const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
   return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;
 }
 
-#define SPECIALIZE_SYMBOLIC_DIM_EXPR(Op)                 \
-  bool SymbolicDimExprEqualImpl(                         \
-      const Op<SymbolicDimExpr, SymbolicDimExpr>& lhs,   \
-      const Op<SymbolicDimExpr, SymbolicDimExpr>& rhs) { \
-    return SymbolicDimExprEqual<Op>(lhs, rhs);           \
-  }
-SPECIALIZE_SYMBOLIC_DIM_EXPR(Add);
-SPECIALIZE_SYMBOLIC_DIM_EXPR(Sub);
-SPECIALIZE_SYMBOLIC_DIM_EXPR(Mul);
-SPECIALIZE_SYMBOLIC_DIM_EXPR(Div);
-SPECIALIZE_SYMBOLIC_DIM_EXPR(BroadcastedDim);
-#undef SPECIALIZE_SYMBOLIC_DIM_EXPR;
-
-bool SymbolicDimExprEqualImpl(const OneOf<SymbolicDimExpr>& lhs,
-                              const OneOf<SymbolicDimExpr>& rhs) {
-  return lhs.list() == rhs.list();
+bool SymbolicDimExprEqualImpl(const Mul<SymbolicDimExpr, SymbolicDimExpr>& lhs,
+                              const Mul<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
+  const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
+  const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
+  return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;
 }
 
 }  // namespace
