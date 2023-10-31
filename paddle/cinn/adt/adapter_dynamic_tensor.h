@@ -26,30 +26,6 @@ struct DynamicTensor final {
   const hlir::framework::NodeData* node_data;
   const hlir::framework::Graph* graph;
 
-  using GenericDim = Union<SymbolicDim, std::int64_t>;
-  static const std::vector<GenericDim>& TempElementwiseSymbolicDims(
-      std::size_t size) {
-    static std::vector<std::vector<GenericDim>> ret{
-        std::vector<GenericDim>{},
-        std::vector<GenericDim>{SymbolicDim{UniqueId::New()}},
-        std::vector<GenericDim>{SymbolicDim{UniqueId::New()},
-                                SymbolicDim{UniqueId::New()}},
-        std::vector<GenericDim>{SymbolicDim{UniqueId::New()},
-                                SymbolicDim{UniqueId::New()},
-                                SymbolicDim{UniqueId::New()}},
-        std::vector<GenericDim>{SymbolicDim{UniqueId::New()},
-                                SymbolicDim{UniqueId::New()},
-                                SymbolicDim{UniqueId::New()},
-                                SymbolicDim{UniqueId::New()}},
-        std::vector<GenericDim>{SymbolicDim{UniqueId::New()},
-                                SymbolicDim{UniqueId::New()},
-                                SymbolicDim{UniqueId::New()},
-                                SymbolicDim{UniqueId::New()},
-                                SymbolicDim{UniqueId::New()}}};
-    CHECK_LT(size, ret.size());
-    return ret.at(size);
-  }
-
   bool operator==(const DynamicTensor& other) const {
     return this->node_data == other.node_data && this->graph == other.graph;
   }
@@ -63,8 +39,8 @@ struct DynamicTensor final {
     return shape_dict.at(node_data->id()).size();
   }
 
-  const std::vector<GenericDim>& GetShape() const {
-    return TempElementwiseSymbolicDims(GetRank());
+  const std::vector<std::optional<SymbolicDimExpr>>& GetShape() const {
+    return graph.graph_ctx()->GetTensorSymbolicDimExprs(node_data);
   }
 };
 

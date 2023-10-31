@@ -22,18 +22,35 @@ std::optional<std::int64_t> IndexExprInferContext::GetStaticDimSize(
   return constants_provider_->GetStaticDimSize(dim);
 }
 
-std::optional<SymbolicDim> IndexExprInferContext::GetSymbolicDimSize(
+SymbolicDimExpr IndexExprInferContext::GetDimSize(
     const EquationDim& dim) const {
-  return constants_provider_->GetSymbolicDimSize(dim);
-}
-
-Constant IndexExprInferContext::GetDimSize(const EquationDim& dim) const {
   return constants_provider_->GetDimSize(dim);
 }
 
 bool IndexExprInferContext::DimsEqual(const List<Constant>& lhs,
                                       const List<Constant>& rhs) const {
-  return lhs == rhs;
+  const auto& GetSymbolicDimExpr =
+      [&](const Constant& constant) -> SymbolicDimExpr {
+    if (constant.Has<std::int64_t>()) {
+      return SymbolicDimExpr{constant.Get<std::int64_t>()};
+    } else if (constant.Has<EquationDim>()) {
+      return GetDimSize(constant.Get<EquationDim>());
+    } else {
+      LOG(FATAL) << "Not supported";
+    }
+  };
+  if (lhs == rhs) {
+    return true;
+  }
+  if (lhs->size() != rhs->size()) {
+    return false;
+  }
+  for (std::size_t i = 0; i < lhs->size(); ++i) {
+    if (GetSymbolicDimExpr(lhs->at(i)) != GetSymbolicDimExpr(rhs->at(i))) {
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace cinn::adt

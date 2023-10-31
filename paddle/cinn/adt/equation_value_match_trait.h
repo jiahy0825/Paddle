@@ -29,11 +29,6 @@ struct MatchTrait<Constant, EquationDim> final {
   static constexpr int is_template = false;
 };
 
-template <>
-struct MatchTrait<Constant, SymbolicDim> final {
-  static constexpr int is_template = false;
-};
-
 template <typename T>
 struct MatchTrait<Constant, List<T>> final {
   using base_type = List<Constant>;
