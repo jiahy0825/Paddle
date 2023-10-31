@@ -30,28 +30,28 @@ bool SymbolicDimExprEqualImpl(const SymbolicDim& lhs, const SymbolicDim& rhs) {
 bool SymbolicDimExprEqualImpl(const Negtive<SymbolicDimExpr>& lhs,
                               const Negtive<SymbolicDimExpr>& rhs) {
   const auto& [lhs_arg0] = lhs.tuple();
-  const auto& [rhs_arg0] = lhs.tuple();
+  const auto& [rhs_arg0] = rhs.tuple();
   return lhs_arg0 == rhs_arg0;
 }
 
 bool SymbolicDimExprEqualImpl(const Reciprocal<SymbolicDimExpr>& lhs,
                               const Reciprocal<SymbolicDimExpr>& rhs) {
   const auto& [lhs_arg0] = lhs.tuple();
-  const auto& [rhs_arg0] = lhs.tuple();
+  const auto& [rhs_arg0] = rhs.tuple();
   return lhs_arg0 == rhs_arg0;
 }
 
 bool SymbolicDimExprEqualImpl(const Add<SymbolicDimExpr, SymbolicDimExpr>& lhs,
                               const Add<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
   const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
-  const auto& [rhs_arg0, rhs_arg1] = lhs.tuple();
+  const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
   return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;
 }
 
 bool SymbolicDimExprEqualImpl(const Mul<SymbolicDimExpr, SymbolicDimExpr>& lhs,
                               const Mul<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
   const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
-  const auto& [rhs_arg0, rhs_arg1] = lhs.tuple();
+  const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
   return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;
 }
 
