@@ -30,6 +30,11 @@ namespace cinn {
 
 namespace adt {
 class MapExprCtx;
+
+namespace config {
+class GraphSymbolicDimInferCtx;
+}
+
 }  // namespace adt
 
 namespace hlir {
@@ -41,18 +46,14 @@ namespace framework {
  */
 class Graph : public cinn::common::Graph {
  public:
-  Graph(const frontend::Program& prog, const Target& target)
-      : graph_ctx_(GraphSymbolicDimInferCtx{this}) {
+  Graph(const frontend::Program& prog, const Target& target) {
     std::unordered_set<std::string> fetch_var_ids;
     Initialize(prog, fetch_var_ids, target);
-    InferSymbolicDim();
   }
   Graph(const frontend::Program& prog,
         const std::unordered_set<std::string>& fetch_var_ids,
-        const Target& target)
-      : graph_ctx_(GraphSymbolicDimInferCtx{this}) {
+        const Target& target) {
     Initialize(prog, fetch_var_ids, target);
-    InferSymbolicDim();
   }
 
   void Initialize(const frontend::Program& prog,
@@ -65,6 +66,17 @@ class Graph : public cinn::common::Graph {
 
   /** \brief attributes of a graph */
   absl::flat_hash_map<std::string, std::shared_ptr<absl::any>> attrs;
+
+  void set_graph_ctx(
+      std::unique_ptr<cinn::adt::config::GraphSymbolicDimInferCtx>&&
+          graph_ctx) {
+    CHECK_EQ(this, graph_ctx.graph());
+    graph_ctx_ = std::move(graph_ctx);
+  }
+
+  const GraphSymbolicDimInferCtx* graph_ctx() const { return graph_ctx_.get(); }
+
+  GraphSymbolicDimInferCtx* mut_graph_ctx() { return graph_ctx_.get(); }
 
   std::vector<std::vector<Node*>> groups;
   struct Group {
@@ -308,8 +320,6 @@ class Graph : public cinn::common::Graph {
       const std::unordered_set<std::string>& fetch_var_ids = {});
 
  private:
-  void InferSymbolicDim();
-
   std::string DebugGroupedGraph(
       const std::vector<std::vector<Node*>>& groups,
       const std::unordered_set<std::string>& fetch_var_ids = {});
@@ -324,7 +334,7 @@ class Graph : public cinn::common::Graph {
 
   std::vector<std::vector<Node*>> FusionGroupsToGroups();
 
-  cinn::adt::config::GraphSymbolicDimInferCtx graph_ctx_;
+  std::unique_ptr<cinn::adt::config::GraphSymbolicDimInferCtx> graph_ctx_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
 };

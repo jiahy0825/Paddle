@@ -38,7 +38,7 @@ class NaiveOpEquationContext final : public OpEquationContext {
 
   using GetArgStaticDimT = std::function<std::optional<std::int64_t>(
       std::size_t tensor_idx, std::size_t dim_idx)>;
-  using GetArgSymbolicDimT = std::function<std::optional<SymbolicDim>(
+  using GetArgSymbolicDimT = std::function<std::optional<SymbolicDimExpr>(
       std::size_t tensor_idx, std::size_t dim_idx)>;
 
   explicit NaiveOpEquationContext(

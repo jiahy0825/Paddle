@@ -36,44 +36,55 @@ class OneOf final {
 
 // SymbolicDimExpr = std::int64_t
 //                 | SymbolicDim
+//                 | Negative SymbolicDimExpr
+//                 | Reciprocal SymbolicDimExpr
 //                 | Add SymbolicDimExpr SymbolicDimExpr
-//                 | Sub SymbolicDimExpr SymbolicDimExpr
 //                 | Mul SymbolicDimExpr SymbolicDimExpr
-//                 | Div SymbolicDimExpr SymbolicDimExpr
 //                 | BroadcastedDim SymbolicDimExpr SymbolicDimExpr
 //                 | OneOf SymbolicDimExpr
 DEFINE_ADT_UNION(SymbolicDimExpr,
                  std::int64_t,
                  SymbolicDim,
+                 Negative<SymbolicDimExpr>,
+                 Reciprocal<SymbolicDimExpr>,
                  Add<SymbolicDimExpr, SymbolicDimExpr>,
-                 Sub<SymbolicDimExpr, SymbolicDimExpr>,
                  Mul<SymbolicDimExpr, SymbolicDimExpr>,
-                 Div<SymbolicDimExpr, SymbolicDimExpr>,
                  BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>,
                  OneOf<SymbolicDimExpr>);
 
-inline SymbolicDimExpr operator+(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
+inline SymbolicDimExpr operator+(const SymbolicDimExpr& lhs,
+                                 const SymbolicDimExpr& rhs) {
   return Add<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
 }
 
-inline SymbolicDimExpr operator-(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
+inline SymbolicDimExpr operator-(const SymbolicDimExpr& lhs,
+                                 const SymbolicDimExpr& rhs) {
   return Sub<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
 }
 
-inline SymbolicDimExpr operator*(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
+inline SymbolicDimExpr operator*(const SymbolicDimExpr& lhs,
+                                 const SymbolicDimExpr& rhs) {
   return Mul<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
 }
 
-inline SymbolicDimExpr operator/(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
+inline SymbolicDimExpr operator/(const SymbolicDimExpr& lhs,
+                                 const SymbolicDimExpr& rhs) {
   return Div<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
 }
 
-inline SymbolicDimExpr MakeBroadcastedDim(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
+inline SymbolicDimExpr MakeBroadcastedDim(const SymbolicDimExpr& lhs,
+                                          const SymbolicDimExpr& rhs) {
   return BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>{lhs, rhs};
 }
 
 inline SymbolicDimExpr MakeOneof(const List<SymbolicDimExpr>& list) {
   return OneOf<SymbolicDimExpr>{list};
+}
+
+bool operator==(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs);
+
+inline bool operator!=(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
+  return !(lhs == rhs);
 }
 
 }  // namespace cinn::adt

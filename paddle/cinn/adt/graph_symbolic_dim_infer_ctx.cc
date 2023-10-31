@@ -14,6 +14,7 @@
 
 #include "paddle/cinn/adt/graph_symbolic_dim_infer_ctx.h"
 
+#include "paddle/cinn/adt/symbolic_dim_expr_simplifier.h"
 #include "paddle/cinn/hlir/framework/graph.h"
 #include "paddle/cinn/hlir/framework/node.h"
 
@@ -104,7 +105,7 @@ void GraphSymbolicDimInferCtx::SetOutputDimExpr(
   if (dim_idx >= opt_symbolic_dims->size()) {
     opt_symbolic_dims->resize(dim_idx + 1);
   }
-  opt_symbolic_dims->at(dim_idx) = value;
+  opt_symbolic_dims->at(dim_idx) = SimplifySymbolicDimExpr(value);
 }
 
 const framework::AttrMapType& GraphSymbolicDimInferCtx::GetAttributeMap(

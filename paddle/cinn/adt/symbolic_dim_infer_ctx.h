@@ -26,7 +26,7 @@ class SymbolicDimInferCtx {
   SymbolicDimInferCtx(SymbolicDimInferCtx&&) = delete;
 
   SymbolicDimInferCtx(const hlir::framework::Node* node,
-                      const GraphSymbolicDimInferCtx* graph_ctx)
+                      GraphSymbolicDimInferCtx* graph_ctx)
       : node_(node), graph_ctx_(graph_ctx) {}
 
   const std::vector<std::uint64_t>& GetInTensorsRanks() const {
@@ -54,7 +54,7 @@ class SymbolicDimInferCtx {
 
  private:
   const hlir::framework::Node* node_;
-  const GraphSymbolicDimInferCtx* graph_ctx_;
+  GraphSymbolicDimInferCtx* graph_ctx_;
 };
 
 }  // namespace cinn::adt::config

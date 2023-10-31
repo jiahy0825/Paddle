@@ -14,26 +14,12 @@
 
 #pragma once
 
-#include <optional>
-
-#include "paddle/cinn/adt/equation_constant.h"
+namespace cinn::hlir::framework {
+class Graph;
+}
 
 namespace cinn::adt {
 
-class EquationFunctionConstantsProvider {
- public:
-  virtual ~EquationFunctionConstantsProvider() = default;
+void InferSymbolicDim(const hlir::framework::Graph* graph);
 
-  virtual std::optional<std::int64_t> GetStaticDimSize(
-      const EquationDim& dim) const = 0;
-
-  virtual SymbolicDimExpr GetDimSize(const EquationDim& dim) const = 0;
-
-  virtual bool AddDim(const EquationDim& dim,
-                      const SymbolicDimExpr& symbolic_dim_expr) = 0;
-
- protected:
-  EquationFunctionConstantsProvider() = default;
-};
-
-}  // namespace cinn::adt
+}

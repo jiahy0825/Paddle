@@ -38,6 +38,8 @@ class GraphSymbolicDimInferCtx {
     InitOp2TensorRanks();
   }
 
+  const hlir::framework::Graph* graph() const { return graph_; }
+
   const std::vector<std::uint64_t>& GetInTensorsRanks(
       const hlir::framework::Node* node) const;
 
@@ -46,6 +48,13 @@ class GraphSymbolicDimInferCtx {
   const SymbolicDimExpr& GetInputDimExpr(const hlir::framework::Node* node,
                                          std::size_t arg_idx,
                                          std::size_t dim_idx) const;
+
+  const std::vector<std::optional<SymbolicDimExpr>>& GetTensorSymbolicDimExprs(
+      const hlir::framework::NodeData* tensor) const {
+    const auto& iter = tensor2symbolic_dim_exprs_.find(tensor);
+    CHECK(iter != tensor2symbolic_dim_exprs_.end());
+    return iter->second;
+  }
 
   void SetOutputDimExpr(const hlir::framework::Node* node,
                         std::size_t arg_idx,

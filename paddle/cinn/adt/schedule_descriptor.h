@@ -16,14 +16,14 @@
 
 #include "paddle/cinn/adt/adt.h"
 #include "paddle/cinn/adt/equation_constant.h"
-#include "paddle/cinn/adt/symbolic_dim.h"
+#include "paddle/cinn/adt/symbolic_dim_expr.h"
 
 namespace cinn::adt {
 
 class AutoSize final {};
 
 // LoopSize = Int64
-DEFINE_ADT_UNION(LoopSize, std::int64_t, SymbolicDim);
+DEFINE_ADT_UNION(LoopSize, std::int64_t, SymbolicDimExpr);
 
 // S(Spatial): S0 = BlockIdx; S1 = ThreadIdx
 // LoopType = S0x | S0y | S0z | S1x | S1y | S1z | Temporal | Vectorize |
