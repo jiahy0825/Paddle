@@ -248,12 +248,4 @@ std::optional<std::int64_t> GetArgDimSize(const OpArgDimPos& arg_dim_pos,
       arg_dim_pos.variant());
 }
 
-std::optional<std::int64_t> NaiveOpEquationContext::GetStaticDimSize(
-    const EquationDim& dim) const {
-  const auto& arg_dim_pos = GetArgDimPosDescriptor(dim);
-  const auto& option_dim_size =
-      GetArgDimSize(arg_dim_pos, GetInDim_, GetOutDim_);
-  return option_dim_size;
-}
-
 }  // namespace cinn::adt::config

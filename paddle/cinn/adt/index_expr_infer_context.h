@@ -23,19 +23,14 @@
 
 namespace cinn::adt {
 
-class EquationFunctionConstantsProvider;
-
 class IndexExprInferContext final {
  public:
   IndexExprInferContext(const IndexExprInferContext&) = delete;
   IndexExprInferContext(IndexExprInferContext&&) = delete;
 
   explicit IndexExprInferContext(
-      const std::unordered_map<Variable, const Value>& init_variable2value,
-      const std::shared_ptr<const EquationFunctionConstantsProvider>&
-          constants_provider)
-      : variable2value_(init_variable2value),
-        constants_provider_(constants_provider) {}
+      const std::unordered_map<Variable, const Value>& init_variable2value)
+      : variable2value_(init_variable2value) {}
 
   const Value& GetValue(const Variable& variable) const {
     return variable2value_.at(variable);
@@ -49,19 +44,14 @@ class IndexExprInferContext final {
     return variable2value_.count(variable) > 0;
   }
 
-  std::optional<std::int64_t> GetStaticDimSize(const EquationDim& dim) const;
+  bool DimsEqual(const List<SymbolicDimExpr>& lhs, const List<SymbolicDimExpr>& rhs) const;
 
-  SymbolicDimExpr GetDimSize(const EquationDim& dim) const;
-
-  bool DimsEqual(const List<Constant>& lhs, const List<Constant>& rhs) const;
-
-  bool ProductEqual(const List<Constant>& lhs, const Constant& rhs) const {
+  bool ProductEqual(const List<SymbolicDimExpr>& lhs, const SymbolicDimExpr& rhs) const {
     ADT_TODO();
   }
 
  private:
   std::unordered_map<Variable, const Value> variable2value_;
-  std::shared_ptr<const EquationFunctionConstantsProvider> constants_provider_;
 };
 
 }  // namespace cinn::adt

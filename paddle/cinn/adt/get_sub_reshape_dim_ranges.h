@@ -21,11 +21,9 @@
 
 namespace cinn::adt {
 
-class Constant;
-
 std::optional<std::tuple<std::vector<std::pair<int, int>>,
                          std::vector<std::pair<int, int>>>>
-GetSubReshapeDimRanges(const List<Constant>& lhs_dims,
-                       const List<Constant>& rhs_dims);
+GetSubReshapeDimRanges(const List<SymbolicDimExpr>& lhs_dims,
+                       const List<SymbolicDimExpr>& rhs_dims);
 
 }  // namespace cinn::adt

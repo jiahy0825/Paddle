@@ -36,9 +36,9 @@ struct MatchTrait<SymbolicDimExpr, SymbolicDim> final {
                                                                             \
     static constexpr int is_template = true;                                \
                                                                             \
-    template <template <typename> class Matcher>                            \
+    template <template <typename, typename> class Matcher>                            \
     static bool MatchChildren(const base_type& value) {                     \
-      return Matcher<type0>::template Call<T0>(std::get<0>(value.tuple())); \
+      return Matcher<T0, type0>::Call(std::get<0>(value.tuple())); \
     }                                                                       \
   };
 DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1(Negative, SymbolicDimExpr);
@@ -52,10 +52,10 @@ DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1(Reciprocal, SymbolicDimExpr);
                                                                               \
     static constexpr int is_template = true;                                  \
                                                                               \
-    template <template <typename> class Matcher>                              \
+    template <template <typename, typename> class Matcher>                              \
     static bool MatchChildren(const base_type& value) {                       \
-      return Matcher<type0>::template Call<T0>(std::get<0>(value.tuple())) && \
-             Matcher<type1>::template Call<T1>(std::get<1>(value.tuple()));   \
+      return Matcher<T0, type0>::Call(std::get<0>(value.tuple())) && \
+             Matcher<T1, type1>::Call(std::get<1>(value.tuple()));   \
     }                                                                         \
   };
 

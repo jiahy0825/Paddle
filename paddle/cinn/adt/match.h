@@ -26,7 +26,7 @@ struct MatchUnion;
 
 template<typename T>
 struct MatchUnion<T> final {
-  template <template <typename> class Matcher, typename impl_type>
+  template <template <typename, typename> class Matcher, typename impl_type>
   static bool Call(const impl_type& u) {
     return false;
   }
@@ -34,16 +34,16 @@ struct MatchUnion<T> final {
 
 template<typename T, typename Arg, typename ...Args>
 struct MatchUnion<T, Arg, Args...> final {
-  template <template <typename> class Matcher, typename impl_type>
+  template <template <typename, typename> class Matcher, typename impl_type>
   static bool Call(const impl_type& u) {
-    return Matcher<T>::template Call<Arg>(u) || MatchUnion<T, Args...>::template Call<Matcher>(u);
+    return Matcher<Arg, T>::Call(u) || MatchUnion<T, Args...>::template Call<Matcher>(u);
   }
 };
 
 template<typename T, typename ... Args>
 struct MatchTrait<T, Union<Args...>> final {
   static constexpr bool is_template = true; 
-  template <template <typename> class Matcher, typename impl_type>
+  template <template <typename, typename> class Matcher, typename impl_type>
   static bool MatchChildren(const impl_type& u) {
     return MatchUnion<T, Args...>::template Call<Matcher>(u);
   }
@@ -72,9 +72,8 @@ struct ExprMatchTrait</*is_same*/false> final {
 template <bool is_leaf, typename ExprT>
 struct DoMatch;
 
-template <typename ExprT>
+template <typename source_pattern_type, typename ExprT>
 struct Match final {
-  template <typename source_pattern_type>
   static bool Call(const ExprT& pattern_expr) {
     static constexpr bool is_expr =
         std::is_same<ExprT, source_pattern_type>::value;
@@ -110,7 +109,7 @@ struct NonUnionMatchTraitWrapper;
 
 template<typename ExprT, typename source_pattern_type>
 struct NonUnionMatchTraitWrapper<true, ExprT, source_pattern_type> final {
-  template <template <typename> class Matcher, typename impl_type>
+  template <template <typename, typename> class Matcher, typename impl_type>
   static bool MatchChildren(const impl_type& u) {
       return MatchTrait<ExprT, source_pattern_type>::template MatchChildren<
           Match>(u);
@@ -119,7 +118,7 @@ struct NonUnionMatchTraitWrapper<true, ExprT, source_pattern_type> final {
 
 template<typename ExprT, typename source_pattern_type>
 struct NonUnionMatchTraitWrapper<false, ExprT, source_pattern_type> final {
-  template <template <typename> class Matcher, typename impl_type>
+  template <template <typename, typename> class Matcher, typename impl_type>
   static bool MatchChildren(const impl_type&) {
     return false;
   }
@@ -127,7 +126,7 @@ struct NonUnionMatchTraitWrapper<false, ExprT, source_pattern_type> final {
 
 template<typename ExprT, typename source_pattern_type>
 struct MatchTraitWrapper final {
-  template <template <typename> class Matcher, typename impl_type>
+  template <template <typename, typename> class Matcher, typename impl_type>
   static bool MatchChildren(const impl_type& impl) {
       using base_type = typename MatchTrait<ExprT, source_pattern_type>::base_type;
       static constexpr bool is_base_type = std::is_same_v<std::decay_t<decltype(impl)>, base_type>;
@@ -139,7 +138,7 @@ struct MatchTraitWrapper final {
 
 template<typename ExprT, typename ... Args>
 struct MatchTraitWrapper<ExprT, Union<Args...>> final {
-  template <template <typename> class Matcher, typename impl_type>
+  template <template <typename, typename> class Matcher, typename impl_type>
   static bool MatchChildren(const impl_type& impl) {
       return MatchTrait<ExprT, Union<Args...>>::template MatchChildren<
           Match>(impl);
@@ -157,11 +156,23 @@ struct DoMatch</*is_leaf*/ false, ExprT> final {
   }
 };
 
+template<typename SourcePatternT, typename ExprT>
+struct Match<List<SourcePatternT>, List<ExprT>> {
+  static bool Call(const List<ExprT>& expr) {
+    for (const auto& e : *expr) {
+      if (!Match<SourcePatternT, ExprT>::Call(e)) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
 }  // namespace detail
 
 template <typename SourcePatternT, typename ExprT>
 bool Match(const ExprT& expr) {
-  return detail::Match<ExprT>::template Call<SourcePatternT>(expr);
+  return detail::Match<SourcePatternT, ExprT>::Call(expr);
 }
 
 }  // namespace cinn::adt

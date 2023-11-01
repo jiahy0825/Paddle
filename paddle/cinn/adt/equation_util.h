@@ -87,14 +87,6 @@ EquationGraphTopoWalker<VT, FT> GetSubgraph(
       VisitNextFunctions, VisitInputVariables, VisitOutputVariables);
 }
 
-inline List<EquationDim> MakeDims(std::size_t num_dims) {
-  List<EquationDim> ret{};
-  for (std::size_t i = 0; i < num_dims; ++i) {
-    ret->emplace_back(UniqueId::New());
-  }
-  return ret;
-}
-
 template <typename DoEachT>
 void IdentityConnect(const Index& out, const Index& in, const DoEachT& DoEach) {
   DoEach(Identity<tOut<Index>, tIn<Index>>{out, in});
@@ -151,18 +143,18 @@ inline void Equal(const Iterator& lhs,
 
 template <typename DoEachT>
 void GenerateDotEquation(const List<Iterator>& iterators,
-                         const List<EquationDim>& dims,
+                         const List<SymbolicDimExpr>& dims,
                          const Index& index,
                          const DoEachT& DoEach) {
-  DoEach(IndexDot<List<EquationDim>, tOut<Index>, tIn<List<Iterator>>>{
+  DoEach(IndexDot<List<SymbolicDimExpr>, tOut<Index>, tIn<List<Iterator>>>{
       dims, index, iterators});
-  DoEach(IndexUnDot<List<EquationDim>, tOut<List<Iterator>>, tIn<Index>>{
+  DoEach(IndexUnDot<List<SymbolicDimExpr>, tOut<List<Iterator>>, tIn<Index>>{
       dims, iterators, index});
 }
 
 template <typename DoEachT>
 Index MakeDot(const List<Iterator>& iterators,
-              const List<EquationDim>& dims,
+              const List<SymbolicDimExpr>& dims,
               const DoEachT& DoEach) {
   Index ret{UniqueId::New()};
   GenerateDotEquation(iterators, dims, ret, DoEach);
@@ -170,7 +162,7 @@ Index MakeDot(const List<Iterator>& iterators,
 }
 
 inline Index MakeDot(const List<Iterator>& iterators,
-                     const List<EquationDim>& dims,
+                     const List<SymbolicDimExpr>& dims,
                      Equations* equations) {
   return MakeDot(iterators, dims, [&](const auto& equation) {
     (*equations)->emplace_back(equation);

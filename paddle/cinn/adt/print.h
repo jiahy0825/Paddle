@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include "paddle/cinn/adt/print_constant.h"
 #include "paddle/cinn/adt/print_equations.h"
 #include "paddle/cinn/adt/print_map_expr.h"
 #include "paddle/cinn/adt/print_schedule_descriptor.h"

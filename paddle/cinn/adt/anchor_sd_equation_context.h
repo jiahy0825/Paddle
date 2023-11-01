@@ -34,34 +34,22 @@ class AnchorSdEquationContext final {
       : sd_dims_(MakeDims(GetOutputRank(sched_mesh))),
         sd_iterators_(MakeIterators(GetOutputRank(sched_mesh))),
         anchor_dims_(MakeDims(GetInputRank(sched_mesh))) {
-    InitDim2Constant(sched_mesh);
+    InitDim2SymbolicDimExpr(sched_mesh);
     GenerateSdEquation(sched_mesh, anchor_index);
   }
-
-  const List<EquationDim>& sd_dims() const { return sd_dims_; }
-
-  const List<EquationDim>& anchor_dims() const { return anchor_dims_; }
 
   const List<Iterator>& sd_iterators() const { return sd_iterators_; }
 
   const Equations& equations() const { return equations_; }
 
-  const std::unordered_map<EquationDim, const SymbolicDimExpr>&
-  dim2symbolic_dim_expr() const {
-    return dim2symbolic_dim_expr_;
-  }
-
  private:
-  void InitDim2Constant(const ScheduleMesh& sched_mesh);
+  void InitDim2SymbolicDimExpr(const ScheduleMesh& sched_mesh);
 
   void GenerateSdEquation(const ScheduleMesh& sched_mesh,
                           const Index& tensor_index);
 
-  List<EquationDim> sd_dims_;
   List<Iterator> sd_iterators_;
-  List<EquationDim> anchor_dims_;
   Equations equations_;
-  std::unordered_map<EquationDim, const SymbolicDimExpr> dim2symbolic_dim_expr_;
 };
 
 }  // namespace cinn::adt::config

@@ -32,8 +32,7 @@ std::shared_ptr<IndexExprInferContext> MakeIndexExprInferContext(
               .second);
   }
 
-  return std::make_shared<IndexExprInferContext>(anchor_iterator2value,
-                                                 igroup.constants_provider());
+  return std::make_shared<IndexExprInferContext>(anchor_iterator2value);
 }
 
 std::function<Value(const Iterator&)> MakeGetterValue4Iterator(
