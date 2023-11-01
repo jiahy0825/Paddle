@@ -16,10 +16,14 @@
 
 #include <string>
 
+#include "paddle/cinn/adt/adt.h"
+
 namespace cinn::adt {
 
 class Constant;
 
 std::string ToTxtString(const Constant& constant);
+
+std::string ToTxtString(const List<Constant>& constant);
 
 }  // namespace cinn::adt

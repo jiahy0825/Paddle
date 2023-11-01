@@ -195,9 +195,7 @@ void GraphSymbolicDimInferCtx::SetOutputDimExpr(
   if (dim_idx >= opt_symbolic_dims->size()) {
     opt_symbolic_dims->resize(dim_idx + 1);
   }
-  SymbolicDimExpr move_value = value;
-  opt_symbolic_dims->at(dim_idx) =
-      SimplifySymbolicDimExpr(std::move(move_value));
+  opt_symbolic_dims->at(dim_idx) = SimplifySymbolicDimExpr(value);
 }
 
 const hlir::framework::AttrMapType& GraphSymbolicDimInferCtx::GetAttributeMap(

@@ -228,6 +228,50 @@ struct RemoveRedundantConstantLhs_Mul_Mul {
   }
 };
 
+struct RemoveRedundantConstantLhs_BD_LeftBD {
+  using source_pattern_type =
+      BroadcastedDim<BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>,
+                     SymbolicDimExpr>;
+
+  SymbolicDimExpr MatchAndRewrite(const SymbolicDimExpr& expr) {
+    const auto& [outter_lhs, outter_rhs] =
+        expr.Get<BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+    const auto& [inner_lhs, inner_rhs] =
+        outter_lhs.Get<BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>>()
+            .tuple();
+    if (outter_rhs == inner_lhs) {
+      return Simplify(outter_lhs);
+    } else if (outter_rhs == inner_rhs) {
+      return Simplify(outter_lhs);
+    } else {
+      return expr;
+    }
+    LOG(FATAL) << "Dead code";
+  }
+};
+
+struct RemoveRedundantConstantLhs_BD_RightBD {
+  using source_pattern_type =
+      BroadcastedDim<SymbolicDimExpr,
+                     BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>>;
+
+  SymbolicDimExpr MatchAndRewrite(const SymbolicDimExpr& expr) {
+    const auto& [outter_lhs, outter_rhs] =
+        expr.Get<BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+    const auto& [inner_lhs, inner_rhs] =
+        outter_rhs.Get<BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>>()
+            .tuple();
+    if (outter_lhs == inner_lhs) {
+      return Simplify(outter_rhs);
+    } else if (outter_lhs == inner_rhs) {
+      return Simplify(outter_rhs);
+    } else {
+      return expr;
+    }
+    LOG(FATAL) << "Dead code";
+  }
+};
+
 SymbolicDimExpr Simplify(SymbolicDimExpr expr) {
   expr = TrySimplifyPass<FoldConstantAdd>(expr);
   expr = TrySimplifyPass<FoldConstantMul>(expr);
@@ -241,6 +285,7 @@ SymbolicDimExpr Simplify(SymbolicDimExpr expr) {
   expr = TrySimplifyPass<FoldConstantUnit<BroadcastedDim, 1>>(expr);
   expr = TrySimplifyPass<RemoveRedundantConstantLhs_Add_Add>(expr);
   expr = TrySimplifyPass<RemoveRedundantConstantLhs_Mul_Mul>(expr);
+  expr = TrySimplifyPass<RemoveRedundantConstantLhs_BD_LeftBD>(expr);
   return expr;
 }
 

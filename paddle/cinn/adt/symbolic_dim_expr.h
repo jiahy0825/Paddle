@@ -72,4 +72,6 @@ inline bool operator!=(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
   return !(lhs == rhs);
 }
 
+std::size_t GetHashValue(const SymbolicDimExpr& expr);
+
 }  // namespace cinn::adt

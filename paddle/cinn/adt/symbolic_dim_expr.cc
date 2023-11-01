@@ -86,4 +86,47 @@ bool operator==(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
       rhs.variant());
 }
 
+namespace {
+
+std::size_t GetHashValueImpl(std::int64_t expr) { return expr; }
+
+std::size_t GetHashValueImpl(const SymbolicDim& expr) {
+  return expr.value().unique_id();
+}
+
+std::size_t GetHashValueImpl(const Negative<SymbolicDimExpr>& expr) {
+  const auto& [item] = expr.tuple();
+  return -GetHashValue(item);
+}
+
+std::size_t GetHashValueImpl(const Reciprocal<SymbolicDimExpr>& expr) {
+  const auto& [item] = expr.tuple();
+  return -GetHashValue(item);
+}
+
+std::size_t GetHashValueImpl(
+    const Add<SymbolicDimExpr, SymbolicDimExpr>& expr) {
+  const auto& [lhs, rhs] = expr.tuple();
+  return hash_combine(GetHashValue(lhs), GetHashValue(rhs));
+}
+
+std::size_t GetHashValueImpl(
+    const Mul<SymbolicDimExpr, SymbolicDimExpr>& expr) {
+  const auto& [lhs, rhs] = expr.tuple();
+  return hash_combine(GetHashValue(lhs), GetHashValue(rhs));
+}
+
+std::size_t GetHashValueImpl(
+    const BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>& expr) {
+  const auto& [lhs, rhs] = expr.tuple();
+  return hash_combine(GetHashValue(lhs), GetHashValue(rhs));
+}
+
+}  // namespace
+
+std::size_t GetHashValue(const SymbolicDimExpr& expr) {
+  return std::visit([&](const auto& impl) { return GetHashValueImpl(impl); },
+                    expr.variant());
+}
+
 }  // namespace cinn::adt

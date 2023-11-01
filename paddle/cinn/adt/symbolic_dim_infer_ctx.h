@@ -52,6 +52,11 @@ class SymbolicDimInferCtx {
     return graph_ctx_->GetAttributeMap(node_);
   }
 
+  template <typename T>
+  const T& Attr(const std::string& name) const {
+    return absl::get<T>(GetAttributeMap().at(name));
+  }
+
  private:
   const hlir::framework::Node* node_;
   GraphSymbolicDimInferCtx* graph_ctx_;
