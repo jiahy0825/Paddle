@@ -68,15 +68,18 @@ class Graph : public cinn::common::Graph {
   absl::flat_hash_map<std::string, std::shared_ptr<absl::any>> attrs;
 
   void set_graph_ctx(
-      std::unique_ptr<cinn::adt::config::GraphSymbolicDimInferCtx>&&
-          graph_ctx) {
-    CHECK_EQ(this, graph_ctx.graph());
+      std::unique_ptr<adt::config::GraphSymbolicDimInferCtx>&& graph_ctx) {
+    CHECK_EQ(this, graph_ctx->graph());
     graph_ctx_ = std::move(graph_ctx);
   }
 
-  const GraphSymbolicDimInferCtx* graph_ctx() const { return graph_ctx_.get(); }
+  const adt::config::GraphSymbolicDimInferCtx* graph_ctx() const {
+    return graph_ctx_.get();
+  }
 
-  GraphSymbolicDimInferCtx* mut_graph_ctx() { return graph_ctx_.get(); }
+  adt::config::GraphSymbolicDimInferCtx* mut_graph_ctx() {
+    return graph_ctx_.get();
+  }
 
   std::vector<std::vector<Node*>> groups;
   struct Group {
@@ -334,7 +337,7 @@ class Graph : public cinn::common::Graph {
 
   std::vector<std::vector<Node*>> FusionGroupsToGroups();
 
-  std::unique_ptr<cinn::adt::config::GraphSymbolicDimInferCtx> graph_ctx_;
+  std::unique_ptr<adt::config::GraphSymbolicDimInferCtx> graph_ctx_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
 };

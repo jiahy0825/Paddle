@@ -17,7 +17,7 @@
 #include <unordered_map>
 
 #include "paddle/cinn/adt/equation_function_constants_provider.h"
-#include "paddle/cinn/adt/m_expr.h"
+#include "paddle/cinn/adt/map_expr.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
 
 namespace cinn::adt {

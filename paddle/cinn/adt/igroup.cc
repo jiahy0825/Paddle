@@ -50,51 +50,43 @@ std::function<Value(const Iterator&)> MakeGetterValue4Iterator(
   return [ctx](const Iterator& iterator) { return ctx->GetValue(iterator); };
 }
 
-List<LoopSize> MakeAnchorLoopSizeImpl(const adapter::Tensor& tensor) {
+List<LoopSize> MakeLoopSizeForTensorImpl(const adapter::Tensor& tensor) {
   List<LoopSize> ret{};
-  for (const auto& dim : tensor.GetShape()) {
-    ret->emplace_back(dim);
+  for (int32_t dim : tensor.GetShape()) {
+    ret->emplace_back(LoopSize{dim});
   }
   return ret;
 }
 
-namespace {
-
-LoopSize MakeLoopSizeImpl(const SymbolicDim& symbolic_dim) {
-  return LoopSize{symbolic_dim};
-}
-
-LoopSize MakeLoopSizeImpl(const std::int64_t dim) { return LoopSize{dim}; }
-
-LoopSize MakeLoopSize(const Union<SymbolicDim, std::int64_t>& dim) {
-  return std::visit([&](const auto& impl) { return MakeLoopSizeImpl(impl); },
-                    dim.variant());
-}
-
-}  // namespace
-
-List<LoopSize> MakeAnchorLoopSizeImpl(const adapter::DynamicTensor& tensor) {
+List<LoopSize> MakeLoopSizeForTensorImpl(const adapter::DynamicTensor& tensor) {
   List<LoopSize> ret{};
-  for (const auto& dim : tensor.GetShape()) {
-    ret->emplace_back(MakeLoopSize(dim));
+  for (const std::optional<SymbolicDimExpr>& dim : tensor.GetShape()) {
+    CHECK(dim.has_value());
+    ret->emplace_back(dim.value());
   }
   return ret;
 }
 
-List<LoopSize> MakeAnchorLoopSizeImpl(const TempStorage& tensor) { ADT_TODO(); }
+List<LoopSize> MakeLoopSizeForTensorImpl(const TempStorage& tensor) {
+  ADT_TODO();
+}
 
-List<LoopSize> MakeAnchorLoopSize(const Tensor& tensor) {
+List<LoopSize> MakeLoopSizeForTensor(const Tensor& tensor) {
   return std::visit(
-      [&](const auto& impl) { return MakeAnchorLoopSizeImpl(impl); },
+      [&](const auto& impl) { return MakeLoopSizeForTensorImpl(impl); },
       tensor.variant());
 }
 
 }  // namespace
 
+List<LoopSize> IGroup::GetAnchorTensorLoopSize() const {
+  return MakeLoopSizeForTensor(this->anchor_tensor());
+}
+
 void IGroup::InitAnchorScheduleDims() {
   const auto& Value4Iterator = MakeGetterValue4Iterator(this);
 
-  const auto& loop_size = MakeAnchorLoopSize(this->anchor_tensor());
+  const auto& loop_size = GetAnchorTensorLoopSize();
 
   anchor_schedule_dims_ = MakeAnchorScheduleDims(
       *this, Value4Iterator, loop_size, this->GetAnchorIterators());

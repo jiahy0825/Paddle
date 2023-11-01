@@ -86,7 +86,6 @@ void Graph::Initialize(const frontend::Program& prog,
   }
   this->attrs["infershape"] = std::make_shared<absl::any>(shape_dict);
   this->attrs["inferdtype"] = std::make_shared<absl::any>(dtype_dict);
-  InferSymbolicDim(this);
 }
 
 std::vector<std::vector<Node*>> Graph::FusionGroupsToGroups() {

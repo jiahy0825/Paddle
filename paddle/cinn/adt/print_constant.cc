@@ -14,27 +14,27 @@
 
 #include "paddle/cinn/adt/print_constant.h"
 #include "paddle/cinn/adt/equation_constant.h"
+#include "paddle/cinn/adt/print_symbolic_dim_expr.h"
 
 namespace cinn::adt {
 
 namespace {
 
 struct ToTxtStringStruct {
-  std::string operator()(const std::int64_t constant) {
+  std::string operator()(const std::int64_t constant) const {
     return std::to_string(constant);
   }
 
-  std::string operator()(const EquationDim& constant) {
+  std::string operator()(const EquationDim& constant) const {
     std::size_t constant_unique_id = constant.value().unique_id();
     return "dim_" + std::to_string(constant_unique_id);
   }
 
-  std::string operator()(const SymbolicDim& constant) {
-    std::size_t constant_unique_id = constant.value().unique_id();
-    return "sym_" + std::to_string(constant_unique_id);
+  std::string operator()(const SymbolicDimExpr& constant) const {
+    return ToTxtString(constant);
   }
 
-  std::string operator()(const List<Constant>& constants) {
+  std::string operator()(const List<Constant>& constants) const {
     std::string ret;
     ret += "[";
 
@@ -53,6 +53,11 @@ struct ToTxtStringStruct {
 
 std::string ToTxtString(const Constant& constant) {
   return std::visit(ToTxtStringStruct{}, constant.variant());
+}
+
+std::string ToTxtString(const List<Constant>& constant) {
+  const auto& string_function = ToTxtStringStruct{};
+  return string_function(constant);
 }
 
 }  // namespace cinn::adt

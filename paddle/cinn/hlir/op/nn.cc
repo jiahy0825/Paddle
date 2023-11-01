@@ -17,6 +17,7 @@
 #include <functional>
 
 #include "paddle/cinn/adt/op_equation_context.h"
+#include "paddle/cinn/adt/symbolic_dim_infer_ctx.h"
 #include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/op.h"
 #include "paddle/cinn/hlir/framework/op_strategy.h"

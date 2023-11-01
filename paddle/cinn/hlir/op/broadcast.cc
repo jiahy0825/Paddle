@@ -17,6 +17,7 @@
 #include <iostream>
 
 #include "paddle/cinn/adt/op_equation_context.h"
+#include "paddle/cinn/adt/symbolic_dim_infer_ctx.h"
 #include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/op.h"
 #include "paddle/cinn/hlir/framework/op_strategy.h"
@@ -152,6 +153,7 @@ void GenerateEquationsForBroadcast(cinn::adt::config::OpEquationContext *ctx) {
 }
 
 void InferSymbolicDimForBroadcast(cinn::adt::config::SymbolicDimInferCtx *ctx) {
+  VLOG(1) << "Use InferSymbolicDimForBroadcast";
   CHECK_EQ(ctx->GetInTensorsRanks().size(), 2)
       << "The inputs is " << ctx->GetInTensorsRanks().size()
       << "! Please check again.";
@@ -165,7 +167,7 @@ void InferSymbolicDimForBroadcast(cinn::adt::config::SymbolicDimInferCtx *ctx) {
   CHECK(offset0 == 0 || offset1 == 0);
   CHECK(in_tensor0_ranks == out_tensor_ranks ||
         in_tensor1_ranks == out_tensor_ranks);
-  int offset = max(offset0, offset1);
+  int offset = std::max(offset0, offset1);
   int equal_tensor_index = offset0 > 0 ? 1 : 0;
   for (std::size_t i = 0; i < offset; ++i) {
     ctx->SetOutputDimExpr(0, i, ctx->GetInputDimExpr(equal_tensor_index, i));

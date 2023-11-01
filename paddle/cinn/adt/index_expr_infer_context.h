@@ -51,7 +51,7 @@ class IndexExprInferContext final {
 
   std::optional<std::int64_t> GetStaticDimSize(const EquationDim& dim) const;
 
-  SimbolicDimExpr GetDimSize(const EquationDim& dim) const;
+  SymbolicDimExpr GetDimSize(const EquationDim& dim) const;
 
   bool DimsEqual(const List<Constant>& lhs, const List<Constant>& rhs) const;
 

@@ -14,12 +14,19 @@
 
 #pragma once
 
+#include <memory>
+
 namespace cinn::hlir::framework {
 class Graph;
 }
 
 namespace cinn::adt {
 
-void InferSymbolicDim(const hlir::framework::Graph* graph);
-
+namespace config {
+class GraphSymbolicDimInferCtx;
 }
+
+std::unique_ptr<config::GraphSymbolicDimInferCtx> InferSymbolicDim(
+    const hlir::framework::Graph* graph);
+
+}  // namespace cinn::adt

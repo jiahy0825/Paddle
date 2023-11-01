@@ -21,27 +21,33 @@
 
 namespace cinn::adt {
 
-void InferSymbolicDim(const hlir::framework::Graph* graph) {
+std::unique_ptr<config::GraphSymbolicDimInferCtx> InferSymbolicDim(
+    const hlir::framework::Graph* graph) {
   using InferSymbolicDimFunc =
       std::function<void(adt::config::SymbolicDimInferCtx * ctx)>;
+  auto infer_ctx_ptr =
+      std::make_unique<config::GraphSymbolicDimInferCtx>(graph);
 
-  graph.set_graph_ctx(std::make_unique<GraphSymbolicDimInferCtx>(graph));
+  std::vector<common::GraphNode*> topo_nodes =
+      std::get<0>(graph->topological_order());
+  for (const common::GraphNode* graph_node : topo_nodes) {
+    const hlir::framework::Node* op_node =
+        graph_node->safe_as<hlir::framework::Node>();
+    // if node is NodeData or not op, continue.
+    if (!op_node || op_node->op() == nullptr) {
+      continue;
+    }
 
-  std::vector<GraphNode*> topo_nodes = std::get<0>(topological_order());
-  for (const hlir::framework::GraphNode* graph_node : topo_nodes) {
-    const Node* op_node = graph_node->safe_as<Node>();
     VLOG(1) << "op_name : " << op_node->op()->name;
-
-    CHECK(op_node != nullptr && op_node->op() != nullptr);
-
     const auto& infer_symbolic_dim =
         hlir::framework::Operator::GetAttrs<InferSymbolicDimFunc>(
             "infer_symbolic_dim");
     CHECK(infer_symbolic_dim.Find(op_node->op()));
 
-    adt::config::SymbolicDimInferCtx ctx{op_node, graph.mut_graph_ctx()};
+    adt::config::SymbolicDimInferCtx ctx{op_node, infer_ctx_ptr.get()};
     infer_symbolic_dim[op_node->op()](&ctx);
   }
+  return infer_ctx_ptr;
 }
 
 }  // namespace cinn::adt

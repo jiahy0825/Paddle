@@ -22,8 +22,7 @@ namespace cinn::adt {
 
 class AutoSize final {};
 
-// LoopSize = Int64
-DEFINE_ADT_UNION(LoopSize, std::int64_t, SymbolicDimExpr);
+using LoopSize = SymbolicDimExpr;
 
 // S(Spatial): S0 = BlockIdx; S1 = ThreadIdx
 // LoopType = S0x | S0y | S0z | S1x | S1y | S1z | Temporal | Vectorize |
@@ -121,9 +120,5 @@ class ScheduleMesh;
 
 LoopDescriptors CreateScheduleDescriptor(const ScheduleMesh& sched_mesh,
                                          const List<LoopType>& loop_types);
-
-std::optional<LoopSize> ConstantToLoopSize(const Constant& constant);
-
-Constant LoopSize2Constant(const LoopSize& loop_size);
 
 }  // namespace cinn::adt

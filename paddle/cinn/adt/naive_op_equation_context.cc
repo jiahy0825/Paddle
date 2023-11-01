@@ -121,7 +121,7 @@ using GetArgSymbolicDimT = std::function<std::optional<SymbolicDimExpr>(
 
 GetArgSymbolicDimT MakeGetterArgSymbolicDim(const List<Tensor>& tensors) {
   return [=](std::size_t tensor_idx,
-             std::size_t dim_idx) -> std::optional<SymbolicDim> {
+             std::size_t dim_idx) -> std::optional<SymbolicDimExpr> {
     const auto& opt_symbolic_dim_expr =
         GetArgSymbolicDimExpr(tensors, tensor_idx, dim_idx);
     if (!opt_symbolic_dim_expr.has_value()) {
