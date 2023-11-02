@@ -86,17 +86,15 @@ std::string ToTxtString(const List<Arg>& out_args,
   return ret;
 }
 
-std::string ToTxtStringOpImpl(const hlir::framework::Node* op) {
+std::string ToTxtStringOpImpl(const pir::Operation* op) {
   return op->op()->name;
 }
 
-std::string ToTxtStringOpImpl(
-    const tReduceInit<const hlir::framework::Node*>& op) {
+std::string ToTxtStringOpImpl(const tReduceInit<const pir::Operation*>& op) {
   return op.value()->op()->name + "_init";
 }
 
-std::string ToTxtStringOpImpl(
-    const tReduceAcc<const hlir::framework::Node*>& op) {
+std::string ToTxtStringOpImpl(const tReduceAcc<const pir::Operation*>& op) {
   return op.value()->op()->name + "_acc";
 }
 

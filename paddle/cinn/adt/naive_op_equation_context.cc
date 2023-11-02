@@ -37,7 +37,7 @@ std::vector<std::uint64_t> MakeTensorRanks(const List<Arg>& arg_lists) {
   return ret;
 }
 
-void GenerateOpEquationsImpl(const hlir::framework::Node* op_node,
+void GenerateOpEquationsImpl(const pir::Operation* op_node,
                              const OpStmt& op_stmt,
                              config::NaiveOpEquationContext* ctx) {
   const auto& [_, inputs, outputs] = op_stmt.tuple();
@@ -62,7 +62,7 @@ GetArgStaticDimT MakeGetArgStaticDimT(const List<Tensor>& tensors) {
       return std::nullopt;
     }
     CHECK(tensors->at(tensor_idx).Has<adapter::Tensor>());
-    const auto& tensor_shape =
+    const std::vector<int32_t> tensor_shape =
         tensors->at(tensor_idx).Get<adapter::Tensor>().GetShape();
     if (dim_idx >= tensor_shape.size()) {
       return std::nullopt;
@@ -71,17 +71,15 @@ GetArgStaticDimT MakeGetArgStaticDimT(const List<Tensor>& tensors) {
   };
 }
 
-void GenerateOpEquationsImpl(
-    const tReduceAcc<const hlir::framework::Node*>& op_node,
-    const OpStmt& op_stmt,
-    config::NaiveOpEquationContext* ctx) {
+void GenerateOpEquationsImpl(const tReduceAcc<const pir::Operation*>& op_node,
+                             const OpStmt& op_stmt,
+                             config::NaiveOpEquationContext* ctx) {
   GenerateOpEquationsImpl(op_node.value(), op_stmt, ctx);
 }
 
-void GenerateOpEquationsImpl(
-    const tReduceInit<const hlir::framework::Node*>& op_node,
-    const OpStmt& op_stmt,
-    config::NaiveOpEquationContext* ctx) {
+void GenerateOpEquationsImpl(const tReduceInit<const pir::Operation*>& op_node,
+                             const OpStmt& op_stmt,
+                             config::NaiveOpEquationContext* ctx) {
   // Do nothing
 }
 
@@ -97,18 +95,18 @@ void GenerateOpEquations(const OpStmt& op_stmt,
 }
 
 const hlir::framework::AttrMapType* GetOpAttrImpl(
-    const hlir::framework::Node* op_node) {
+    const pir::Operation* op_node) {
   return &op_node->attrs.attr_store;
 }
 
 const hlir::framework::AttrMapType* GetOpAttrImpl(
-    const tReduceInit<const hlir::framework::Node*>&) {
+    const tReduceInit<const pir::Operation*>&) {
   static hlir::framework::AttrMapType empty{};
   return &empty;
 }
 
 const hlir::framework::AttrMapType* GetOpAttrImpl(
-    const tReduceAcc<const hlir::framework::Node*>& op_node) {
+    const tReduceAcc<const pir::Operation*>& op_node) {
   return GetOpAttrImpl(op_node.value());
 }
 

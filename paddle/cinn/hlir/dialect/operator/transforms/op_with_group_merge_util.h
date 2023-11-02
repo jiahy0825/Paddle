@@ -28,6 +28,11 @@
 #include "paddle/pir/core/value.h"
 
 namespace cinn {
+
+namespace adt {
+class MapExprCtx;
+}  // namespace adt
+
 namespace dialect {
 namespace ir {
 // alias OpPatternKind and pir::Group

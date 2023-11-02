@@ -28,13 +28,13 @@ std::string ToTxtString(const tDim<UniqueId>& constant) {
   return "dim_" + std::to_string(constant_unique_id);
 }
 
-std::string OpImpl(const hlir::framework::Node* op) { return op->op()->name; }
+std::string OpImpl(const pir::Operation* op) { return op->op()->name; }
 
-std::string OpImpl(const tReduceInit<const hlir::framework::Node*>& op) {
+std::string OpImpl(const tReduceInit<const pir::Operation*>& op) {
   return op.value()->op()->name + "_init";
 }
 
-std::string OpImpl(const tReduceAcc<const hlir::framework::Node*>& op) {
+std::string OpImpl(const tReduceAcc<const pir::Operation*>& op) {
   return op.value()->op()->name + "_acc";
 }
 

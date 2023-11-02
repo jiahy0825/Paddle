@@ -18,6 +18,7 @@
 
 #include <unordered_map>
 
+#include "paddle/cinn/adt/generate_map_expr.h"
 #include "paddle/cinn/hlir/dialect/operator/ir/manual_op.h"
 #include "paddle/cinn/hlir/dialect/operator/ir/op_attribute.h"
 #include "paddle/cinn/hlir/dialect/operator/ir/op_dialect.h"
@@ -121,6 +122,7 @@ std::unique_ptr<pir::Program> CINNGroupLoweringPass(::pir::Program* program) {
                         phi::errors::Unimplemented(
                             "Only support one group after group fusion"));
       for (auto group : group_list) {
+        TryGenerateMapExprFromGraph(group);
         auto ir_compiler =
             new cinn::hlir::framework::PIRCompiler(*program, target, scope);
         auto group1 =

@@ -3,6 +3,7 @@ core_gather_headers()
 gather_srcs(
   cinnapi_src
   SRCS
+  adapter.cc
   anchor_sd_equation_context.cc
   equation_function.cc
   equation_solver.cc

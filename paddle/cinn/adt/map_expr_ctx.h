@@ -18,16 +18,21 @@
 #include <unordered_map>
 
 #include "paddle/cinn/adt/m_expr.h"
-#include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/ir/lowered_func.h"
 #include "paddle/cinn/ir/utils/ir_copy.h"
+#include "paddle/pir/core/operation.h"
+
+namespace pir {
+class Operation;
+}
 
 namespace cinn::adt {
 
 class MapExprCtx final {
  public:
+  // Q: How can pir::Operation be the key?
   using Node2LoweredFuncs =
-      std::unordered_map<hlir::framework::Node*, std::vector<ir::LoweredFunc>>;
+      std::unordered_map<pir::Operation*, std::vector<ir::LoweredFunc>>;
 
   MapExprCtx(const MapExprCtx&) = delete;
   MapExprCtx(MapExprCtx&&) = delete;
@@ -37,8 +42,7 @@ class MapExprCtx final {
   const MapExpr& map_expr() const { return map_expr_; }
 
   void UpdateOpLoweredFuncKey(
-      hlir::framework::Node* node,
-      const std::vector<ir::LoweredFunc>& lowered_funcs) {
+      pir::Operation* node, const std::vector<ir::LoweredFunc>& lowered_funcs) {
     Node2LoweredFuncs* map = &node2lowered_funcs_;
     CHECK(map->emplace(node, ir::ir_utils::IRCopy(lowered_funcs)).second);
   }
