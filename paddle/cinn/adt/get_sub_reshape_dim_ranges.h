@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "paddle/cinn/adt/adt.h"
+#include "paddle/cinn/adt/symbolic_dim_expr.h"
 
 namespace cinn::adt {
 

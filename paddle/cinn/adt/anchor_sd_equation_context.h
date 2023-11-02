@@ -31,10 +31,7 @@ class AnchorSdEquationContext final {
 
   AnchorSdEquationContext(const ScheduleMesh& sched_mesh,
                           const AnchorIndex& anchor_index)
-      : sd_dims_(MakeDims(GetOutputRank(sched_mesh))),
-        sd_iterators_(MakeIterators(GetOutputRank(sched_mesh))),
-        anchor_dims_(MakeDims(GetInputRank(sched_mesh))) {
-    InitDim2SymbolicDimExpr(sched_mesh);
+      : sd_iterators_(MakeIterators(GetOutputRank(sched_mesh))) {
     GenerateSdEquation(sched_mesh, anchor_index);
   }
 
@@ -43,8 +40,6 @@ class AnchorSdEquationContext final {
   const Equations& equations() const { return equations_; }
 
  private:
-  void InitDim2SymbolicDimExpr(const ScheduleMesh& sched_mesh);
-
   void GenerateSdEquation(const ScheduleMesh& sched_mesh,
                           const Index& tensor_index);
 

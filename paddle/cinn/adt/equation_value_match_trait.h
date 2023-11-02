@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "paddle/cinn/adt/symbolic_dim_expr_match_trait.h"
 #include "paddle/cinn/adt/equation_value.h"
 #include "paddle/cinn/adt/match.h"
 

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "paddle/cinn/adt/print_equations.h"
+#include "paddle/cinn/adt/print_symbolic_dim_expr.h"
 
 #include <sstream>
 #include <string>

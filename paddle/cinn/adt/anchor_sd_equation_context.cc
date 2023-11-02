@@ -114,8 +114,10 @@ void AnchorSdEquationContext::GenerateSdEquation(const ScheduleMesh& sched_mesh,
   const auto& tmp_anchor_iterators = MakeIterators(GetInputRank(sched_mesh));
 
   {
+  const auto& anchor_dim_values =
+      GetOutputDimValues(GetInputScheduleMesh(sched_mesh));
     const auto& tmp_anchor_index =
-        MakeDot(tmp_anchor_iterators, anchor_dims_, &equations_);
+        MakeDot(tmp_anchor_iterators, anchor_dim_values, &equations_);
     Equal(tmp_anchor_index, anchor_index, &equations_);
   }
 

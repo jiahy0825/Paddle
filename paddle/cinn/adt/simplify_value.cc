@@ -64,8 +64,7 @@ struct SimplifyRedundantBroadcastedIterator {
     if (outter_dim == inner_dim) {
       return SimplifyValue(outter_iterator, ctx);
     } else {
-      const auto& bd = MakeBroadcastedDim(outter_dim.Get<SymbolicDimExpr>(),
-                                          inner_dim.Get<SymbolicDimExpr>());
+      const auto& bd = MakeBroadcastedDim(outter_dim, inner_dim);
       const auto& simplified_bd = SymbolicDimExpr{SimplifySymbolicDimExpr(bd)};
       return BroadcastedIterator<Value, SymbolicDimExpr>{inner_iterator,
                                                   simplified_bd};
@@ -334,9 +333,9 @@ struct SimplifyDotDot {
 struct SymbolicDim_SimplifyDotUndot {
   using source_pattern_type = IndexDotValue<
       List<ListGetItem<
-          IndexUnDotValue<Value, List<SymblicDimExpr>>,
+          IndexUnDotValue<Value, List<SymbolicDimExpr>>,
           std::int64_t>>,
-      List<SymblicDimExpr>>;
+      List<SymbolicDimExpr>>;
 
   Value MatchAndRewrite(const Value& value, const IndexExprInferContext& ctx) {
     const auto& [list_get_item_values, dot_dims] =
@@ -347,7 +346,7 @@ struct SymbolicDim_SimplifyDotUndot {
       const auto& [index_undot_value, constant_idx] =
           list_get_items.Get(i).Get<ListGetItem<Value, SymbolicDimExpr>>().tuple();
       if (constant_idx.Get<std::int64_t>() != i) {
-        return IndexDotValue<Value, List<SymbolicDimExpr>{
+        return IndexDotValue<Value, List<SymbolicDimExpr>>{
             SimplifyValue(list_get_item_values, ctx), dot_dims};
       }
       if (pre_index_undot.has_value()) {

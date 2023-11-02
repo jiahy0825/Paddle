@@ -58,7 +58,7 @@ struct ToTxtStringStruct {
     return ret;
   }
 
-  std::string operator()(const IndexDotValue<Value, List<SymbolicDimExpr>& value) {
+  std::string operator()(const IndexDotValue<Value, List<SymbolicDimExpr>>& value) {
     std::string ret;
     const auto& [iters, constant] = value.tuple();
     ret +=
@@ -66,7 +66,7 @@ struct ToTxtStringStruct {
     return ret;
   }
 
-  std::string operator()(const IndexUnDotValue<Value, List<SymbolicDimExpr>& value) {
+  std::string operator()(const IndexUnDotValue<Value, List<SymbolicDimExpr>>& value) {
     std::string ret;
     const auto& [_, constant] = value.tuple();
     const Value& value_ = value.GetIndexValue();
