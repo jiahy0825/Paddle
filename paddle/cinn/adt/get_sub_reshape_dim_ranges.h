@@ -18,13 +18,13 @@
 #include <vector>
 
 #include "paddle/cinn/adt/adt.h"
-#include "paddle/cinn/adt/symbolic_dim_expr.h"
+#include "paddle/cinn/adt/dim_expr.h"
 
 namespace cinn::adt {
 
 std::optional<std::tuple<std::vector<std::pair<int, int>>,
                          std::vector<std::pair<int, int>>>>
-GetSubReshapeDimRanges(const List<SymbolicDimExpr>& lhs_dims,
-                       const List<SymbolicDimExpr>& rhs_dims);
+GetSubReshapeDimRanges(const List<DimExpr>& lhs_dims,
+                       const List<DimExpr>& rhs_dims);
 
 }  // namespace cinn::adt

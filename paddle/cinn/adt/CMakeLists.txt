@@ -23,8 +23,8 @@ gather_srcs(
   schedule_descriptor.cc
   schedule_dim.cc
   schedule_mesh.cc
-  symbolic_dim_expr.cc
-  symbolic_dim_expr_simplifier.cc
+  dim_expr.cc
+  dim_expr_simplifier.cc
   symbolic_dim_infer_util.cc
   simplify_value.cc
   print_equations.cc
@@ -33,7 +33,7 @@ gather_srcs(
   write_broadcast_disabled_bidirection_equation_generator.cc
   print_schedule_mesh.cc
   print_schedule_dim.cc
-  print_symbolic_dim_expr.cc)
+  print_dim_expr.cc)
 
 cinn_cc_test(equation_value_match_trait_test SRCS
              equation_value_match_trait_test.cc DEPS gtest glog)

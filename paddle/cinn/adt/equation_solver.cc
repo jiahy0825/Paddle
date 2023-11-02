@@ -56,7 +56,7 @@ bool HasReplicatedValues(const List<Value>& values) {
 }
 
 std::unordered_map<Variable, Value> InferValuesImpl(
-    const IndexDot<List<SymbolicDimExpr>, tOut<Index>, tIn<List<Iterator>>>& dot,
+    const IndexDot<List<DimExpr>, tOut<Index>, tIn<List<Iterator>>>& dot,
     IndexExprInferContext* ctx) {
   const auto& [dims, out_index, in_iters] = dot.tuple();
   List<Value> in_values;
@@ -66,40 +66,40 @@ std::unordered_map<Variable, Value> InferValuesImpl(
   if (HasReplicatedValues(in_values)) {
     return {{out_index.value(), Undefined{}}};
   }
-  List<SymbolicDimExpr> dim_constants{};
+  List<DimExpr> dim_constants{};
   for (const auto& dim : *dims) {
     dim_constants->emplace_back(dim);
   }
-  IndexDotValue<Value, List<SymbolicDimExpr>> index_dot{in_values, dim_constants};
+  IndexDotValue<Value, List<DimExpr>> index_dot{in_values, dim_constants};
   return {{out_index.value(), index_dot}};
 }
 
 std::unordered_map<Variable, Value> InferValuesImpl(
-    const GetBroadcastedIterator<SymbolicDimExpr, tOut<Iterator>, tIn<Iterator>>&
+    const GetBroadcastedIterator<DimExpr, tOut<Iterator>, tIn<Iterator>>&
         broadcast,
     IndexExprInferContext* ctx) {
   const auto& [dim, out_iterator, in_iterator] = broadcast.tuple();
-  BroadcastedIterator<Value, SymbolicDimExpr> broadcast_iterator{
+  BroadcastedIterator<Value, DimExpr> broadcast_iterator{
       ctx->GetValue(in_iterator.value()), dim};
   return {{out_iterator.value(), broadcast_iterator}};
 }
 
 std::unordered_map<Variable, Value> InferValuesImpl(
-    const IndexUnDot<List<SymbolicDimExpr>, tOut<List<Iterator>>, tIn<Index>>&
+    const IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>&
         undot,
     IndexExprInferContext* ctx) {
   const auto& [dims, out_iters, in_index] = undot.tuple();
 
-  List<SymbolicDimExpr> dim_constants{};
+  List<DimExpr> dim_constants{};
   for (const auto& dim : *dims) {
     dim_constants->emplace_back(dim);
   }
-  IndexUnDotValue<Value, List<SymbolicDimExpr>> index_undot{ctx->GetValue(in_index.value()),
+  IndexUnDotValue<Value, List<DimExpr>> index_undot{ctx->GetValue(in_index.value()),
                                                dim_constants};
 
   std::unordered_map<Variable, Value> ret{};
   for (std::size_t idx = 0; idx < out_iters.value()->size(); ++idx) {
-    ListGetItem<Value, SymbolicDimExpr> list_get_item{index_undot, idx};
+    ListGetItem<Value, DimExpr> list_get_item{index_undot, idx};
     ret.emplace(out_iters.value()->at(idx), list_get_item);
   }
   return ret;

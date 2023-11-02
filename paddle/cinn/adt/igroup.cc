@@ -59,7 +59,7 @@ List<LoopSize> MakeLoopSizeForTensorImpl(const adapter::Tensor& tensor) {
 
 List<LoopSize> MakeLoopSizeForTensorImpl(const adapter::DynamicTensor& tensor) {
   List<LoopSize> ret{};
-  for (const std::optional<SymbolicDimExpr>& dim : tensor.GetShape()) {
+  for (const std::optional<DimExpr>& dim : tensor.GetShape()) {
     CHECK(dim.has_value());
     ret->emplace_back(dim.value());
   }

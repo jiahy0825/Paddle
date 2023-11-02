@@ -51,7 +51,7 @@ void CollectTensorIndexIteratorsImpl(const Iterator& iterator,
   ret->emplace(iterator);
 }
 
-void CollectTensorIndexIteratorsImpl(const SymbolicDimExpr& constant,
+void CollectTensorIndexIteratorsImpl(const DimExpr& constant,
                                      std::unordered_set<Iterator>* ret) {
   // Do nothing
 }
@@ -64,25 +64,25 @@ void CollectTensorIndexIteratorsImpl(const List<Value>& tensor_index_expr,
 }
 
 void CollectTensorIndexIteratorsImpl(
-    const IndexDotValue<Value, List<SymbolicDimExpr>>& tensor_index_expr,
+    const IndexDotValue<Value, List<DimExpr>>& tensor_index_expr,
     std::unordered_set<Iterator>* ret) {
   CollectTensorIndexIterators(tensor_index_expr.GetIteratorsValue(), ret);
 }
 
 void CollectTensorIndexIteratorsImpl(
-    const IndexUnDotValue<Value, List<SymbolicDimExpr>>& tensor_index_expr,
+    const IndexUnDotValue<Value, List<DimExpr>>& tensor_index_expr,
     std::unordered_set<Iterator>* ret) {
   CollectTensorIndexIterators(tensor_index_expr.GetIndexValue(), ret);
 }
 
 void CollectTensorIndexIteratorsImpl(
-    const ListGetItem<Value, SymbolicDimExpr>& tensor_index_expr,
+    const ListGetItem<Value, DimExpr>& tensor_index_expr,
     std::unordered_set<Iterator>* ret) {
   CollectTensorIndexIterators(tensor_index_expr.GetList(), ret);
 }
 
 void CollectTensorIndexIteratorsImpl(
-    const BroadcastedIterator<Value, SymbolicDimExpr>& broadcasted_iterator,
+    const BroadcastedIterator<Value, DimExpr>& broadcasted_iterator,
     std::unordered_set<Iterator>* ret) {
   CollectTensorIndexIterators(broadcasted_iterator.GetArg0(), ret);
 }

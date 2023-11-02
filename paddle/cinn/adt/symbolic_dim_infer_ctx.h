@@ -15,7 +15,7 @@
 #pragma once
 
 #include "paddle/cinn/adt/graph_symbolic_dim_infer_ctx.h"
-#include "paddle/cinn/adt/symbolic_dim_expr.h"
+#include "paddle/cinn/adt/dim_expr.h"
 #include "paddle/cinn/hlir/framework/node.h"
 
 namespace cinn::adt::config {
@@ -37,14 +37,14 @@ class SymbolicDimInferCtx {
     return graph_ctx_->GetNumOutTensors(node_);
   }
 
-  const SymbolicDimExpr& GetInputDimExpr(std::size_t arg_idx,
+  const DimExpr& GetInputDimExpr(std::size_t arg_idx,
                                          std::size_t dim_idx) const {
     return graph_ctx_->GetInputDimExpr(node_, arg_idx, dim_idx);
   }
 
   void SetOutputDimExpr(std::size_t arg_idx,
                         std::size_t dim_idx,
-                        const SymbolicDimExpr& value) {
+                        const DimExpr& value) {
     return graph_ctx_->SetOutputDimExpr(node_, arg_idx, dim_idx, value);
   }
 

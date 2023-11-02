@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/cinn/adt/print_equations.h"
-#include "paddle/cinn/adt/print_symbolic_dim_expr.h"
+#include "paddle/cinn/adt/print_dim_expr.h"
 
 #include <sstream>
 #include <string>
@@ -163,7 +163,7 @@ struct ToTxtStringStruct {
   }
 
   std::string operator()(
-      const IndexDot<List<SymbolicDimExpr>, tOut<Index>, tIn<List<Iterator>>>& dot)
+      const IndexDot<List<DimExpr>, tOut<Index>, tIn<List<Iterator>>>& dot)
       const {
     std::string ret;
     const auto& [dim_list, out_index_tag, in_iterator_list_tag] = dot.tuple();
@@ -175,7 +175,7 @@ struct ToTxtStringStruct {
   }
 
   std::string operator()(
-      const GetBroadcastedIterator<SymbolicDimExpr, tOut<Iterator>, tIn<Iterator>>&
+      const GetBroadcastedIterator<DimExpr, tOut<Iterator>, tIn<Iterator>>&
           broadcast) const {
     std::string ret;
     const auto& [dim, out_iterator, in_iterator] = broadcast.tuple();
@@ -185,7 +185,7 @@ struct ToTxtStringStruct {
   }
 
   std::string operator()(
-      const IndexUnDot<List<SymbolicDimExpr>, tOut<List<Iterator>>, tIn<Index>>&
+      const IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>&
           undot) const {
     std::string ret;
     const auto& [dim_list, out_iterator_list_tag, in_index_tag] = undot.tuple();

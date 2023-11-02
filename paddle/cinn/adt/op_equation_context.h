@@ -20,12 +20,12 @@
 #include "glog/logging.h"
 #include "paddle/cinn/adt/adt.h"
 #include "paddle/cinn/adt/equation.h"
-#include "paddle/cinn/adt/symbolic_dim_expr.h"
+#include "paddle/cinn/adt/dim_expr.h"
 #include "paddle/cinn/hlir/framework/node.h"
 
 namespace cinn::adt::config {
 
-using DimTuple = List<SymbolicDimExpr>;
+using DimTuple = List<DimExpr>;
 
 class OpEquationContext {
  public:
@@ -44,7 +44,7 @@ class OpEquationContext {
   virtual void Equal(const IteratorTuple& lhs, const IteratorTuple& rhs) = 0;
 
   virtual Iterator GetBroadcastedInputIterator(const Iterator& out_iterator,
-                                               const SymbolicDimExpr& dim) = 0;
+                                               const DimExpr& dim) = 0;
 
   virtual const IteratorTuple& GetInIteratorTuple(
       std::size_t input_idx) const = 0;

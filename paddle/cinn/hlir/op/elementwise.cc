@@ -444,7 +444,7 @@ void InferSymbolicDimForFillConstant(
   CHECK(attrs.count("shape"));
   const auto &shape = absl::get<std::vector<int>>(attrs.at("shape"));
   for (std::size_t i = 0; i < shape.size(); ++i) {
-    ctx->SetOutputDimExpr(0, i, cinn::adt::SymbolicDimExpr{shape.at(i)});
+    ctx->SetOutputDimExpr(0, i, cinn::adt::DimExpr{shape.at(i)});
   }
 }
 

@@ -493,7 +493,7 @@ void InferSymbolicDimForReduction(cinn::adt::config::SymbolicDimInferCtx *ctx) {
     if (visited_output_axis.count(axis)) {
       // Do nothing
     } else {
-      ctx->SetOutputDimExpr(0, axis, adt::SymbolicDimExpr{1});
+      ctx->SetOutputDimExpr(0, axis, adt::DimExpr{1});
     }
   }
 }

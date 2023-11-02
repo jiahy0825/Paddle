@@ -15,23 +15,23 @@
 #pragma once
 
 #include "paddle/cinn/adt/match.h"
-#include "paddle/cinn/adt/symbolic_dim_expr.h"
+#include "paddle/cinn/adt/dim_expr.h"
 
 namespace cinn::adt {
 
 template <>
-struct MatchTrait<SymbolicDimExpr, std::int64_t> final {
+struct MatchTrait<DimExpr, std::int64_t> final {
   static constexpr int is_template = false;
 };
 
 template <>
-struct MatchTrait<SymbolicDimExpr, SymbolicDim> final {
+struct MatchTrait<DimExpr, SymbolicDim> final {
   static constexpr int is_template = false;
 };
 
 #define DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1(name, type0)               \
   template <typename T0>                                                    \
-  struct MatchTrait<SymbolicDimExpr, name<T0>> final {                      \
+  struct MatchTrait<DimExpr, name<T0>> final {                      \
     using base_type = name<type0>;                                          \
                                                                             \
     static constexpr int is_template = true;                                \
@@ -41,13 +41,13 @@ struct MatchTrait<SymbolicDimExpr, SymbolicDim> final {
       return Matcher<T0, type0>::Call(std::get<0>(value.tuple())); \
     }                                                                       \
   };
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1(Negative, SymbolicDimExpr);
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1(Reciprocal, SymbolicDimExpr);
+DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1(Negative, DimExpr);
+DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1(Reciprocal, DimExpr);
 #undef DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1
 
 #define DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(name, type0, type1)          \
   template <typename T0, typename T1>                                         \
-  struct MatchTrait<SymbolicDimExpr, name<T0, T1>> final {                    \
+  struct MatchTrait<DimExpr, name<T0, T1>> final {                    \
     using base_type = name<type0, type1>;                                     \
                                                                               \
     static constexpr int is_template = true;                                  \
@@ -59,11 +59,11 @@ DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1(Reciprocal, SymbolicDimExpr);
     }                                                                         \
   };
 
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(Add, SymbolicDimExpr, SymbolicDimExpr);
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(Mul, SymbolicDimExpr, SymbolicDimExpr);
+DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(Add, DimExpr, DimExpr);
+DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(Mul, DimExpr, DimExpr);
 DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(BroadcastedDim,
-                                         SymbolicDimExpr,
-                                         SymbolicDimExpr);
+                                         DimExpr,
+                                         DimExpr);
 #undef DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2
 
 }  // namespace cinn::adt

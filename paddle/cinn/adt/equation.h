@@ -14,6 +14,6 @@
 
 #pragma once
 
-#include "paddle/cinn/adt/symbolic_dim_expr.h"
+#include "paddle/cinn/adt/dim_expr.h"
 #include "paddle/cinn/adt/equation_function.h"
 #include "paddle/cinn/adt/equation_variable.h"

@@ -38,7 +38,7 @@ class NaiveOpEquationContext final : public OpEquationContext {
 
   using GetArgStaticDimT = std::function<std::optional<std::int64_t>(
       std::size_t tensor_idx, std::size_t dim_idx)>;
-  using GetArgSymbolicDimT = std::function<std::optional<SymbolicDimExpr>(
+  using GetArgSymbolicDimT = std::function<std::optional<DimExpr>(
       std::size_t tensor_idx, std::size_t dim_idx)>;
 
   explicit NaiveOpEquationContext(
@@ -60,8 +60,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
         fake_op_placeholder_{UniqueId::New()} {
     Init<Iterator>(&in_iterator_tuples_, in_tensors_ranks);
     Init<Iterator>(&out_iterator_tuples_, out_tensors_ranks);
-    InitInputSymbolicDimExpr(&in_dim_tuples_, in_tensors_ranks);
-    InitOutputSymbolicDimExpr(&out_dim_tuples_, out_tensors_ranks);
+    InitInputDimExpr(&in_dim_tuples_, in_tensors_ranks);
+    InitOutputDimExpr(&out_dim_tuples_, out_tensors_ranks);
     in_indexes_ = MakeArgIndexes(in_tensors_ranks.size());
     out_indexes_ = MakeArgIndexes(out_tensors_ranks.size());
     GenerateDots();
@@ -93,10 +93,10 @@ class NaiveOpEquationContext final : public OpEquationContext {
   }
 
   Iterator GetBroadcastedInputIterator(const Iterator& out_tensor_iterator,
-                                       const SymbolicDimExpr& dim) override {
+                                       const DimExpr& dim) override {
     Iterator input_tensor_iterator{UniqueId::New()};
     using Function =
-        GetBroadcastedIterator<SymbolicDimExpr, tOut<Iterator>, tIn<Iterator>>;
+        GetBroadcastedIterator<DimExpr, tOut<Iterator>, tIn<Iterator>>;
     equations_->emplace_back(
         Function{dim, input_tensor_iterator, out_tensor_iterator});
     return input_tensor_iterator;
@@ -210,7 +210,7 @@ class NaiveOpEquationContext final : public OpEquationContext {
     return Undefined{};
   }
 
-  SymbolicDimExpr GetDim(bool is_out, std::size_t arg_idx, std::size_t axis) const {
+  DimExpr GetDim(bool is_out, std::size_t arg_idx, std::size_t axis) const {
     if (is_out) {
       return out_dim_tuples_.at(arg_idx)->at(axis);
     } else {
@@ -226,7 +226,7 @@ class NaiveOpEquationContext final : public OpEquationContext {
     return opt_dim;
   }
 
-  std::optional<SymbolicDimExpr> GetSymbolicDimSize(bool is_out,
+  std::optional<DimExpr> GetSymbolicDimSize(bool is_out,
                                                     std::size_t arg_idx,
                                                     std::size_t axis) const {
     const auto* Get = (is_out ? &GetSymbolicOutDim_ : &GetSymbolicInDim_);
@@ -247,7 +247,7 @@ class NaiveOpEquationContext final : public OpEquationContext {
     }
   }
 
-  void InitInputSymbolicDimExpr(std::vector<DimTuple>* vec, const std::vector<std::uint64_t>& tensors_ranks) {
+  void InitInputDimExpr(std::vector<DimTuple>* vec, const std::vector<std::uint64_t>& tensors_ranks) {
     for (std::size_t i = 0; i < tensors_ranks.size(); ++i) {
       vec->push_back(DimTuple{});
       for (std::size_t j = 0; j < tensors_ranks.at(i); ++j) {
@@ -258,7 +258,7 @@ class NaiveOpEquationContext final : public OpEquationContext {
     }
   }
 
-  void InitOutputSymbolicDimExpr(std::vector<DimTuple>* vec, const std::vector<std::uint64_t>& tensors_ranks) {
+  void InitOutputDimExpr(std::vector<DimTuple>* vec, const std::vector<std::uint64_t>& tensors_ranks) {
     for (std::size_t i = 0; i < tensors_ranks.size(); ++i) {
       vec->push_back(DimTuple{});
       for (std::size_t j = 0; j < tensors_ranks.at(i); ++j) {
@@ -274,10 +274,10 @@ class NaiveOpEquationContext final : public OpEquationContext {
     CHECK(iterator_tuple->size() == dim_tuple->size());
     Index index{UniqueId::New()};
     equations_->emplace_back(
-        adt::IndexDot<List<SymbolicDimExpr>, tOut<Index>, tIn<List<Iterator>>>{
+        adt::IndexDot<List<DimExpr>, tOut<Index>, tIn<List<Iterator>>>{
             dim_tuple, index, iterator_tuple});
     equations_->emplace_back(
-        adt::IndexUnDot<List<SymbolicDimExpr>, tOut<List<Iterator>>, tIn<Index>>{
+        adt::IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>{
             dim_tuple, iterator_tuple, index});
     return index;
   }

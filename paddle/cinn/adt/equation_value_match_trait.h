@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "paddle/cinn/adt/symbolic_dim_expr_match_trait.h"
+#include "paddle/cinn/adt/dim_expr_match_trait.h"
 #include "paddle/cinn/adt/equation_value.h"
 #include "paddle/cinn/adt/match.h"
 
@@ -61,10 +61,10 @@ struct MatchTrait<Value, List<T>> final {
     }                                                                         \
   };
 
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(ListGetItem, Value, SymbolicDimExpr);
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(BroadcastedIterator, Value, SymbolicDimExpr);
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(IndexDotValue, Value, List<SymbolicDimExpr>);
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(IndexUnDotValue, Value, List<SymbolicDimExpr>);
+DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(ListGetItem, Value, DimExpr);
+DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(BroadcastedIterator, Value, DimExpr);
+DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(IndexDotValue, Value, List<DimExpr>);
+DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(IndexUnDotValue, Value, List<DimExpr>);
 #undef DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2
 
 #define DEFINE_ADT_MATCH_TRAIT_EQUATION(name)                              \

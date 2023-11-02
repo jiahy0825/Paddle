@@ -43,9 +43,9 @@ void GenerateScheduleMeshEquationsImpl(
   const auto& [middle_sched_mesh, shape] = sched_reshape.tuple();
   List<Iterator> middle_iterators =
       MakeIterators(GetOutputRank(middle_sched_mesh));
-  List<SymbolicDimExpr> middle_dims = GetOutputDimValues(middle_sched_mesh);
+  List<DimExpr> middle_dims = GetOutputDimValues(middle_sched_mesh);
   CHECK_EQ(shape.value()->size(), output_iterators->size());
-  List<SymbolicDimExpr> output_dims = GetOutputDimValues(ScheduleMesh{sched_reshape});
+  List<DimExpr> output_dims = GetOutputDimValues(ScheduleMesh{sched_reshape});
   const auto& middle_index = MakeDot(middle_iterators, middle_dims, equations);
   const auto& output_index = MakeDot(output_iterators, output_dims, equations);
   Equal(middle_index, output_index, equations);

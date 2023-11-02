@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/cinn/adt/symbolic_dim_expr_simplifier.h"
+#include "paddle/cinn/adt/dim_expr_simplifier.h"
 
 #include <numeric>
 
@@ -20,10 +20,10 @@ namespace cinn::adt {
 
 namespace {
 
-SymbolicDimExpr Simplify(SymbolicDimExpr expr);
+DimExpr Simplify(DimExpr expr);
 
 template <typename T>
-SymbolicDimExpr TrySimplifyPass(const SymbolicDimExpr& expr) {
+DimExpr TrySimplifyPass(const DimExpr& expr) {
   if (cinn::adt::Match<typename T::source_pattern_type>(expr)) {
     return T().MatchAndRewrite(expr);
   } else {
@@ -34,9 +34,9 @@ SymbolicDimExpr TrySimplifyPass(const SymbolicDimExpr& expr) {
 struct FoldConstantAdd {
   using source_pattern_type = Add<std::int64_t, std::int64_t>;
 
-  SymbolicDimExpr MatchAndRewrite(const SymbolicDimExpr& expr) {
+  DimExpr MatchAndRewrite(const DimExpr& expr) {
     const auto& [lhs, rhs] =
-        expr.Get<Add<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+        expr.Get<Add<DimExpr, DimExpr>>().tuple();
     return lhs.Get<std::int64_t>() + rhs.Get<std::int64_t>();
   }
 };
@@ -44,9 +44,9 @@ struct FoldConstantAdd {
 struct FoldConstantMul {
   using source_pattern_type = Mul<std::int64_t, std::int64_t>;
 
-  SymbolicDimExpr MatchAndRewrite(const SymbolicDimExpr& expr) {
+  DimExpr MatchAndRewrite(const DimExpr& expr) {
     const auto& [lhs, rhs] =
-        expr.Get<Mul<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+        expr.Get<Mul<DimExpr, DimExpr>>().tuple();
     return lhs.Get<std::int64_t>() * rhs.Get<std::int64_t>();
   }
 };
@@ -54,9 +54,9 @@ struct FoldConstantMul {
 struct FoldConstantBroadcastedDim {
   using source_pattern_type = BroadcastedDim<std::int64_t, std::int64_t>;
 
-  SymbolicDimExpr MatchAndRewrite(const SymbolicDimExpr& expr) {
+  DimExpr MatchAndRewrite(const DimExpr& expr) {
     const auto& [lhs, rhs] =
-        expr.Get<BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+        expr.Get<BroadcastedDim<DimExpr, DimExpr>>().tuple();
     const std::int64_t int64_lhs = lhs.Get<std::int64_t>();
     const std::int64_t int64_rhs = rhs.Get<std::int64_t>();
     if (int64_lhs == 1) {
@@ -71,11 +71,11 @@ struct FoldConstantBroadcastedDim {
 };
 
 struct EraseRedundantBroadcastedDim {
-  using source_pattern_type = BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>;
+  using source_pattern_type = BroadcastedDim<DimExpr, DimExpr>;
 
-  SymbolicDimExpr MatchAndRewrite(const SymbolicDimExpr& expr) {
+  DimExpr MatchAndRewrite(const DimExpr& expr) {
     const auto& [lhs, rhs] =
-        expr.Get<BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+        expr.Get<BroadcastedDim<DimExpr, DimExpr>>().tuple();
     if (lhs == rhs) {
       return lhs;
     } else {
@@ -86,22 +86,22 @@ struct EraseRedundantBroadcastedDim {
 
 template <template <typename, typename> class Op>
 struct SwapConstantLhs {
-  using source_pattern_type = Op<std::int64_t, SymbolicDimExpr>;
+  using source_pattern_type = Op<std::int64_t, DimExpr>;
 
-  SymbolicDimExpr MatchAndRewrite(const SymbolicDimExpr& expr) {
+  DimExpr MatchAndRewrite(const DimExpr& expr) {
     const auto& [lhs, rhs] =
-        expr.Get<Op<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
-    return Op<SymbolicDimExpr, SymbolicDimExpr>{rhs, lhs};
+        expr.Get<Op<DimExpr, DimExpr>>().tuple();
+    return Op<DimExpr, DimExpr>{rhs, lhs};
   }
 };
 
 template <template <typename, typename> class Op, int unit>
 struct FoldConstantUnit {
-  using source_pattern_type = Op<SymbolicDimExpr, std::int64_t>;
+  using source_pattern_type = Op<DimExpr, std::int64_t>;
 
-  SymbolicDimExpr MatchAndRewrite(const SymbolicDimExpr& expr) {
+  DimExpr MatchAndRewrite(const DimExpr& expr) {
     const auto& [lhs, rhs] =
-        expr.Get<Op<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+        expr.Get<Op<DimExpr, DimExpr>>().tuple();
     if (rhs.template Get<std::int64_t>() == unit) {
       return lhs;
     } else {
@@ -113,9 +113,9 @@ struct FoldConstantUnit {
 
 using ConstIntegerPattern = Union<std::int64_t, Negative<std::int64_t>>;
 
-std::int64_t GetInteger(const SymbolicDimExpr& expr) {
-  if (expr.Has<Negative<SymbolicDimExpr>>()) {
-    const auto& [integer] = expr.Get<Negative<SymbolicDimExpr>>().tuple();
+std::int64_t GetInteger(const DimExpr& expr) {
+  if (expr.Has<Negative<DimExpr>>()) {
+    const auto& [integer] = expr.Get<Negative<DimExpr>>().tuple();
     CHECK(integer.Has<std::int64_t>());
     return -integer.Get<std::int64_t>();
   }
@@ -125,17 +125,17 @@ std::int64_t GetInteger(const SymbolicDimExpr& expr) {
 
 struct RemoveRedundantConstantLhs_Add_Add {
   using source_pattern_type =
-      Add<Add<SymbolicDimExpr, ConstIntegerPattern>, ConstIntegerPattern>;
+      Add<Add<DimExpr, ConstIntegerPattern>, ConstIntegerPattern>;
 
-  SymbolicDimExpr MatchAndRewrite(const SymbolicDimExpr& expr) {
+  DimExpr MatchAndRewrite(const DimExpr& expr) {
     const auto& [outter_lhs, outter_rhs] =
-        expr.Get<Add<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+        expr.Get<Add<DimExpr, DimExpr>>().tuple();
     const auto& [inner_lhs, inner_rhs] =
-        outter_lhs.Get<Add<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+        outter_lhs.Get<Add<DimExpr, DimExpr>>().tuple();
     const auto& new_inner_lhs = Simplify(inner_lhs);
     const auto& new_inner_rhs =
-        SymbolicDimExpr(GetInteger(outter_rhs) + GetInteger(inner_rhs));
-    return Add<SymbolicDimExpr, SymbolicDimExpr>{new_inner_lhs, new_inner_rhs};
+        DimExpr(GetInteger(outter_rhs) + GetInteger(inner_rhs));
+    return Add<DimExpr, DimExpr>{new_inner_lhs, new_inner_rhs};
   }
 };
 
@@ -154,7 +154,7 @@ ConstRational GetConstRationalImpl(std::int64_t value) {
   return ConstRational{value, 1};
 }
 
-ConstRational GetConstRationalImpl(const Reciprocal<SymbolicDimExpr>& value) {
+ConstRational GetConstRationalImpl(const Reciprocal<DimExpr>& value) {
   const auto& [denominator] = value.tuple();
   return ConstRational{1, denominator.Get<std::int64_t>()};
 }
@@ -165,15 +165,15 @@ ConstRational SimplifiedConstRational(int64_t num, int64_t dem) {
 }
 
 ConstRational GetConstRationalImpl(
-    const Mul<SymbolicDimExpr, SymbolicDimExpr>& value) {
+    const Mul<DimExpr, DimExpr>& value) {
   const auto& [numerator, reciprocal] = value.tuple();
   const auto& [denominator] =
-      reciprocal.Get<Reciprocal<SymbolicDimExpr>>().tuple();
+      reciprocal.Get<Reciprocal<DimExpr>>().tuple();
   return SimplifiedConstRational(numerator.Get<std::int64_t>(),
                                  denominator.Get<std::int64_t>());
 }
 
-ConstRational GetConstRational(const SymbolicDimExpr& expr) {
+ConstRational GetConstRational(const DimExpr& expr) {
   return std::visit(
       [&](const auto& impl) { return GetConstRationalImpl(impl); },
       expr.variant());
@@ -194,13 +194,13 @@ ConstRational MulConstRational(const ConstRational& lhs,
 
 struct RemoveRedundantConstantLhs_Mul_Mul {
   using source_pattern_type =
-      Mul<Mul<SymbolicDimExpr, ConstIntegerPattern>, ConstIntegerPattern>;
+      Mul<Mul<DimExpr, ConstIntegerPattern>, ConstIntegerPattern>;
 
-  SymbolicDimExpr MatchAndRewrite(const SymbolicDimExpr& expr) {
+  DimExpr MatchAndRewrite(const DimExpr& expr) {
     const auto& [outter_lhs, outter_rhs] =
-        expr.Get<Mul<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+        expr.Get<Mul<DimExpr, DimExpr>>().tuple();
     const auto& [inner_lhs, inner_rhs] =
-        outter_lhs.Get<Mul<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+        outter_lhs.Get<Mul<DimExpr, DimExpr>>().tuple();
     const auto& new_inner_lhs = Simplify(inner_lhs);
     const auto [num, dem] = MulConstRational(GetConstRational(outter_rhs),
                                              GetConstRational(inner_rhs));
@@ -209,18 +209,18 @@ struct RemoveRedundantConstantLhs_Mul_Mul {
         return inner_lhs;
       } else {
         const auto& new_inner_rhs =
-            Reciprocal<SymbolicDimExpr>{SymbolicDimExpr{dem}};
-        return Mul<SymbolicDimExpr, SymbolicDimExpr>{new_inner_lhs,
+            Reciprocal<DimExpr>{DimExpr{dem}};
+        return Mul<DimExpr, DimExpr>{new_inner_lhs,
                                                      new_inner_rhs};
       }
     } else {
       if (dem == 1) {
-        const auto& new_inner_rhs = SymbolicDimExpr{num};
-        return Mul<SymbolicDimExpr, SymbolicDimExpr>{new_inner_lhs,
+        const auto& new_inner_rhs = DimExpr{num};
+        return Mul<DimExpr, DimExpr>{new_inner_lhs,
                                                      new_inner_rhs};
       } else {
-        const auto& new_inner_rhs = SymbolicDimExpr{num} / SymbolicDimExpr{dem};
-        return Mul<SymbolicDimExpr, SymbolicDimExpr>{new_inner_lhs,
+        const auto& new_inner_rhs = DimExpr{num} / DimExpr{dem};
+        return Mul<DimExpr, DimExpr>{new_inner_lhs,
                                                      new_inner_rhs};
       }
     }
@@ -230,14 +230,14 @@ struct RemoveRedundantConstantLhs_Mul_Mul {
 
 struct RemoveRedundantConstantLhs_BD_LeftBD {
   using source_pattern_type =
-      BroadcastedDim<BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>,
-                     SymbolicDimExpr>;
+      BroadcastedDim<BroadcastedDim<DimExpr, DimExpr>,
+                     DimExpr>;
 
-  SymbolicDimExpr MatchAndRewrite(const SymbolicDimExpr& expr) {
+  DimExpr MatchAndRewrite(const DimExpr& expr) {
     const auto& [outter_lhs, outter_rhs] =
-        expr.Get<BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+        expr.Get<BroadcastedDim<DimExpr, DimExpr>>().tuple();
     const auto& [inner_lhs, inner_rhs] =
-        outter_lhs.Get<BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>>()
+        outter_lhs.Get<BroadcastedDim<DimExpr, DimExpr>>()
             .tuple();
     if (outter_rhs == inner_lhs) {
       return Simplify(outter_lhs);
@@ -252,14 +252,14 @@ struct RemoveRedundantConstantLhs_BD_LeftBD {
 
 struct RemoveRedundantConstantLhs_BD_RightBD {
   using source_pattern_type =
-      BroadcastedDim<SymbolicDimExpr,
-                     BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>>;
+      BroadcastedDim<DimExpr,
+                     BroadcastedDim<DimExpr, DimExpr>>;
 
-  SymbolicDimExpr MatchAndRewrite(const SymbolicDimExpr& expr) {
+  DimExpr MatchAndRewrite(const DimExpr& expr) {
     const auto& [outter_lhs, outter_rhs] =
-        expr.Get<BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>>().tuple();
+        expr.Get<BroadcastedDim<DimExpr, DimExpr>>().tuple();
     const auto& [inner_lhs, inner_rhs] =
-        outter_rhs.Get<BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>>()
+        outter_rhs.Get<BroadcastedDim<DimExpr, DimExpr>>()
             .tuple();
     if (outter_lhs == inner_lhs) {
       return Simplify(outter_rhs);
@@ -272,7 +272,7 @@ struct RemoveRedundantConstantLhs_BD_RightBD {
   }
 };
 
-SymbolicDimExpr Simplify(SymbolicDimExpr expr) {
+DimExpr Simplify(DimExpr expr) {
   expr = TrySimplifyPass<FoldConstantAdd>(expr);
   expr = TrySimplifyPass<FoldConstantMul>(expr);
   expr = TrySimplifyPass<FoldConstantBroadcastedDim>(expr);
@@ -291,7 +291,7 @@ SymbolicDimExpr Simplify(SymbolicDimExpr expr) {
 
 }  // namespace
 
-SymbolicDimExpr SimplifySymbolicDimExpr(const SymbolicDimExpr& expr) {
+DimExpr SimplifyDimExpr(const DimExpr& expr) {
   return Simplify(expr);
 }
 

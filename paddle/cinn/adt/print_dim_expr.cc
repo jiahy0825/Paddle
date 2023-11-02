@@ -12,64 +12,64 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/cinn/adt/print_symbolic_dim_expr.h"
+#include "paddle/cinn/adt/print_dim_expr.h"
 
 namespace cinn::adt {
 
-std::string ToTxtString(const SymbolicDimExpr& loop_size);
+std::string ToTxtString(const DimExpr& loop_size);
 
 namespace {
 
-std::string ToTxtStringImpl(std::int64_t symbolic_dim_expr) {
-  return std::to_string(symbolic_dim_expr);
+std::string ToTxtStringImpl(std::int64_t dim_expr) {
+  return std::to_string(dim_expr);
 }
 
-std::string ToTxtStringImpl(const SymbolicDim& symbolic_dim_expr) {
+std::string ToTxtStringImpl(const SymbolicDim& dim_expr) {
   return std::string("sym_") +
-         std::to_string(symbolic_dim_expr.value().unique_id());
+         std::to_string(dim_expr.value().unique_id());
 }
 
 std::string ToTxtStringImpl(
-    const Negative<SymbolicDimExpr>& symbolic_dim_expr) {
-  const auto& [item] = symbolic_dim_expr.tuple();
+    const Negative<DimExpr>& dim_expr) {
+  const auto& [item] = dim_expr.tuple();
   return std::string("-") + ToTxtString(item);
 }
 
 std::string ToTxtStringImpl(
-    const Reciprocal<SymbolicDimExpr>& symbolic_dim_expr) {
-  const auto& [item] = symbolic_dim_expr.tuple();
+    const Reciprocal<DimExpr>& dim_expr) {
+  const auto& [item] = dim_expr.tuple();
   return std::string("1 / (") + ToTxtString(item) + std::string(")");
 }
 
 std::string ToTxtStringImpl(
-    const Add<SymbolicDimExpr, SymbolicDimExpr>& symbolic_dim_expr) {
-  const auto& [lhs, rhs] = symbolic_dim_expr.tuple();
+    const Add<DimExpr, DimExpr>& dim_expr) {
+  const auto& [lhs, rhs] = dim_expr.tuple();
   return std::string("(") + ToTxtString(lhs) + std::string(" + ") +
          ToTxtString(rhs) + std::string(")");
 }
 
 std::string ToTxtStringImpl(
-    const Mul<SymbolicDimExpr, SymbolicDimExpr>& symbolic_dim_expr) {
-  const auto& [lhs, rhs] = symbolic_dim_expr.tuple();
+    const Mul<DimExpr, DimExpr>& dim_expr) {
+  const auto& [lhs, rhs] = dim_expr.tuple();
   return std::string("(") + ToTxtString(lhs) + std::string(" * ") +
          ToTxtString(rhs) + std::string(")");
 }
 
 std::string ToTxtStringImpl(
-    const BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>& symbolic_dim_expr) {
-  const auto& [lhs, rhs] = symbolic_dim_expr.tuple();
+    const BroadcastedDim<DimExpr, DimExpr>& dim_expr) {
+  const auto& [lhs, rhs] = dim_expr.tuple();
   return std::string("BD(") + ToTxtString(lhs) + std::string(", ") +
          ToTxtString(rhs) + std::string(")");
 }
 
 }  // namespace
 
-std::string ToTxtString(const SymbolicDimExpr& loop_size) {
+std::string ToTxtString(const DimExpr& loop_size) {
   return std::visit([&](const auto& impl) { return ToTxtStringImpl(impl); },
                     loop_size.variant());
 }
 
-std::string ToTxtString(const List<SymbolicDimExpr>& loop_sizes) {
+std::string ToTxtString(const List<DimExpr>& loop_sizes) {
   std::string ret;
   ret += "[";
   for (std::size_t idx = 0; idx < loop_sizes->size(); ++idx) {

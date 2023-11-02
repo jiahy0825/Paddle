@@ -16,8 +16,8 @@
 
 namespace cinn::adt {
 
-bool IndexExprInferContext::DimsEqual(const List<SymbolicDimExpr>& lhs,
-                                      const List<SymbolicDimExpr>& rhs) const {
+bool IndexExprInferContext::DimsEqual(const List<DimExpr>& lhs,
+                                      const List<DimExpr>& rhs) const {
   return lhs == rhs;
 }
 

@@ -143,18 +143,18 @@ inline void Equal(const Iterator& lhs,
 
 template <typename DoEachT>
 void GenerateDotEquation(const List<Iterator>& iterators,
-                         const List<SymbolicDimExpr>& dims,
+                         const List<DimExpr>& dims,
                          const Index& index,
                          const DoEachT& DoEach) {
-  DoEach(IndexDot<List<SymbolicDimExpr>, tOut<Index>, tIn<List<Iterator>>>{
+  DoEach(IndexDot<List<DimExpr>, tOut<Index>, tIn<List<Iterator>>>{
       dims, index, iterators});
-  DoEach(IndexUnDot<List<SymbolicDimExpr>, tOut<List<Iterator>>, tIn<Index>>{
+  DoEach(IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>{
       dims, iterators, index});
 }
 
 template <typename DoEachT>
 Index MakeDot(const List<Iterator>& iterators,
-              const List<SymbolicDimExpr>& dims,
+              const List<DimExpr>& dims,
               const DoEachT& DoEach) {
   Index ret{UniqueId::New()};
   GenerateDotEquation(iterators, dims, ret, DoEach);
@@ -162,7 +162,7 @@ Index MakeDot(const List<Iterator>& iterators,
 }
 
 inline Index MakeDot(const List<Iterator>& iterators,
-                     const List<SymbolicDimExpr>& dims,
+                     const List<DimExpr>& dims,
                      Equations* equations) {
   return MakeDot(iterators, dims, [&](const auto& equation) {
     (*equations)->emplace_back(equation);
