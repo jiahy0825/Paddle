@@ -209,18 +209,14 @@ void PartitionIGroupOpStmts(const List<OpStmt>& op_stmts,
 }
 
 std::shared_ptr<IGroup> MakeIGroup(const AnchorGroup& igroup_spec) {
-  std::shared_ptr<const EquationFunctionConstantsProvider> constants_provider{
-      new NaiveEquationFunctionConstantsProvider{
-          igroup_spec.op_stmts, igroup_spec.EquationCtx4OpStmt}};
   std::shared_ptr<DirectionEquationGenerator> direction_equation_generator{
       new NaiveBidirectionEquationGenerator{igroup_spec.op_stmts,
                                             igroup_spec.EquationCtx4OpStmt}};
   CheckEquationSolvable(
-      igroup_spec, constants_provider, direction_equation_generator);
+      igroup_spec, direction_equation_generator);
   return std::make_shared<IGroup>(igroup_spec.op_stmts,
                                   igroup_spec.anchor_index,
-                                  igroup_spec.EquationCtx4OpStmt,
-                                  constants_provider);
+                                  igroup_spec.EquationCtx4OpStmt);
 }
 
 std::vector<std::shared_ptr<IGroup>> GenerateIGroups(
@@ -279,7 +275,7 @@ std::shared_ptr<IndexExprInferContext> SolveEquationsThenReturnCtx(
 
   const auto& init_var2value = MakeSdIterator2Iterator(*igroup);
   auto ctx = std::make_shared<IndexExprInferContext>(
-      init_var2value, igroup->constants_provider());
+      init_var2value);
 
   std::vector<Variable> starts{};
   for (const auto& loop_iterator : *igroup->loop_iterators()) {

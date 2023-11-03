@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "paddle/cinn/adt/print_equations.h"
+#include "paddle/cinn/adt/print_dim_expr.h"
 
 #include <sstream>
 #include <string>
@@ -22,11 +23,6 @@
 namespace cinn::adt {
 
 namespace {
-
-std::string ToTxtString(const tEquationDim<UniqueId>& constant) {
-  std::size_t constant_unique_id = constant.value().unique_id();
-  return "dim_" + std::to_string(constant_unique_id);
-}
 
 std::string OpImpl(const hlir::framework::Node* op) { return op->op()->name; }
 
@@ -100,19 +96,6 @@ std::string ToTxtString(const List<Iterator>& iterators) {
   return ret;
 }
 
-std::string ToTxtString(const List<EquationDim>& dim_list) {
-  std::string ret;
-  ret += "[";
-  for (std::size_t idx = 0; idx < dim_list->size(); ++idx) {
-    if (idx != 0) {
-      ret += ", ";
-    }
-    ret += ToTxtString(dim_list.Get(idx));
-  }
-  ret += "]";
-  return ret;
-}
-
 std::string ToTxtString(const tInMsg<List<Index>>& in_msg_indexes) {
   std::string ret;
   const List<Index>& index_list = in_msg_indexes.value();
@@ -180,7 +163,7 @@ struct ToTxtStringStruct {
   }
 
   std::string operator()(
-      const IndexDot<List<EquationDim>, tOut<Index>, tIn<List<Iterator>>>& dot)
+      const IndexDot<List<DimExpr>, tOut<Index>, tIn<List<Iterator>>>& dot)
       const {
     std::string ret;
     const auto& [dim_list, out_index_tag, in_iterator_list_tag] = dot.tuple();
@@ -192,7 +175,7 @@ struct ToTxtStringStruct {
   }
 
   std::string operator()(
-      const GetBroadcastedIterator<EquationDim, tOut<Iterator>, tIn<Iterator>>&
+      const GetBroadcastedIterator<DimExpr, tOut<Iterator>, tIn<Iterator>>&
           broadcast) const {
     std::string ret;
     const auto& [dim, out_iterator, in_iterator] = broadcast.tuple();
@@ -202,7 +185,7 @@ struct ToTxtStringStruct {
   }
 
   std::string operator()(
-      const IndexUnDot<List<EquationDim>, tOut<List<Iterator>>, tIn<Index>>&
+      const IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>&
           undot) const {
     std::string ret;
     const auto& [dim_list, out_iterator_list_tag, in_index_tag] = undot.tuple();

@@ -397,8 +397,6 @@ tBreak<bool> AggregateAnchorGroupOpStmt(const AnchorGroup& igroup_spec,
 
 void CheckEquationSolvable(
     const AnchorGroup& igroup_spec,
-    const std::shared_ptr<const EquationFunctionConstantsProvider>&
-        constants_provider,
     const std::shared_ptr<DirectionEquationGenerator>&
         direction_equation_generator) {
   const auto& equation_graph_view =
@@ -407,7 +405,7 @@ void CheckEquationSolvable(
                                               direction_equation_generator);
 
   const auto& init_var2value = MakeAnchorIndex2Ok(igroup_spec);
-  IndexExprInferContext ctx{init_var2value, constants_provider};
+  IndexExprInferContext ctx{init_var2value};
 
   const auto& IsOpSolved = [&](const auto& op_stmt) {
     const auto& equation_ctx = *igroup_spec.EquationCtx4OpStmt(op_stmt);

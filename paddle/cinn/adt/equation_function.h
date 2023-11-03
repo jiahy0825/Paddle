@@ -20,7 +20,7 @@
 #include <type_traits>
 
 #include "paddle/cinn/adt/adt.h"
-#include "paddle/cinn/adt/equation_constant.h"
+#include "paddle/cinn/adt/dim_expr.h"
 #include "paddle/cinn/adt/equation_variable.h"
 #include "paddle/cinn/adt/tags.h"
 #include "paddle/cinn/common/equation_graph_topo_walker.h"
@@ -47,21 +47,21 @@ struct Identity<tOut<Index>, tIn<Index>>
 template <typename DimT, typename OutT, typename InT>
 struct IndexDot;
 
-// IndexDot [EquationDim] (tOut Index) (tIn [Iterator])
+// IndexDot [DimExpr] (tOut Index) (tIn [Iterator])
 template <>
-struct IndexDot<List<EquationDim>, tOut<Index>, tIn<List<Iterator>>>
-    : public Tuple<List<EquationDim>, tOut<Index>, tIn<List<Iterator>>> {
-  using Tuple<List<EquationDim>, tOut<Index>, tIn<List<Iterator>>>::Tuple;
+struct IndexDot<List<DimExpr>, tOut<Index>, tIn<List<Iterator>>>
+    : public Tuple<List<DimExpr>, tOut<Index>, tIn<List<Iterator>>> {
+  using Tuple<List<DimExpr>, tOut<Index>, tIn<List<Iterator>>>::Tuple;
 };
 
 template <typename DimT, typename OutT, typename InT>
 struct IndexUnDot;
 
-// IndexUnDot [EquationDim] (tOut [Iterator]) (tIn Index)
+// IndexUnDot [DimExpr] (tOut [Iterator]) (tIn Index)
 template <>
-struct IndexUnDot<List<EquationDim>, tOut<List<Iterator>>, tIn<Index>>
-    : public Tuple<List<EquationDim>, tOut<List<Iterator>>, tIn<Index>> {
-  using Tuple<List<EquationDim>, tOut<List<Iterator>>, tIn<Index>>::Tuple;
+struct IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>
+    : public Tuple<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>> {
+  using Tuple<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>::Tuple;
 };
 
 // OpArgIndexes = (tIn [Index], tOut [Index])
@@ -93,28 +93,28 @@ struct ConstantFunction;
 
 template <>
 struct ConstantFunction<tOut<Iterator>, tIn<Index>> final
-    : public Tuple<tOut<Iterator>, tIn<Index>, Constant> {
-  using Tuple<tOut<Iterator>, tIn<Index>, Constant>::Tuple;
+    : public Tuple<tOut<Iterator>, tIn<Index>, DimExpr> {
+  using Tuple<tOut<Iterator>, tIn<Index>, DimExpr>::Tuple;
 };
 
 template <typename DimT, typename OutT, typename InT>
 struct GetBroadcastedIterator;
 
 template <>
-struct GetBroadcastedIterator<EquationDim, tOut<Iterator>, tIn<Iterator>>
-    : public Tuple<EquationDim, tOut<Iterator>, tIn<Iterator>> {
-  using Tuple<EquationDim, tOut<Iterator>, tIn<Iterator>>::Tuple;
+struct GetBroadcastedIterator<DimExpr, tOut<Iterator>, tIn<Iterator>>
+    : public Tuple<DimExpr, tOut<Iterator>, tIn<Iterator>> {
+  using Tuple<DimExpr, tOut<Iterator>, tIn<Iterator>>::Tuple;
 };
 
 // clang-format off
 DEFINE_ADT_UNION(Equation,
                  Identity<tOut<Iterator>, tIn<Iterator>>,
                  Identity<tOut<Index>, tIn<Index>>,
-                 GetBroadcastedIterator<EquationDim,
+                 GetBroadcastedIterator<DimExpr,
                                         tOut<Iterator>, tIn<Iterator>>,
-                 IndexDot<List<EquationDim>, tOut<Index>,
+                 IndexDot<List<DimExpr>, tOut<Index>,
                           tIn<List<Iterator>>>,
-                 IndexUnDot<List<EquationDim>,
+                 IndexUnDot<List<DimExpr>,
                             tOut<List<Iterator>>, tIn<Index>>,
                  InMsg2OutMsg<tOut<FakeOpPlaceHolder>,
                                     tOut<OpArgIndexes<std::optional<Index>>>,

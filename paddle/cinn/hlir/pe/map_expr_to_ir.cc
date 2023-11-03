@@ -620,7 +620,7 @@ class MapExprToIrTranslator {
     LOG(FATAL) << "Dead code";
   }
 
-  std::int64_t GetStride(const List<Constant>& dims, int start) const {
+  std::int64_t GetStride(const List<DimExpr>& dims, int start) const {
     CHECK_GE(start, -1);
     std::int64_t ret = 1;
     for (int idx = start + 1; idx < dims->size(); ++idx) {
@@ -633,9 +633,9 @@ class MapExprToIrTranslator {
   using IndexDotValueOfList = IndexDotValue<List<Value>, List<std::int64_t>>;
   ir::Expr TranslateIndexDotValueOfList(const Value& value) const {
     const auto& [list_value, dot_dims_value] =
-        value.Get<IndexDotValue<Value, Constant>>().tuple();
+        value.Get<IndexDotValue<Value, List<DimExpr>>>().tuple();
     const auto& values = list_value.Get<List<Value>>();
-    const auto& dim_values = dot_dims_value.Get<List<Constant>>();
+    const auto& dim_values = dot_dims_value;
     CHECK_EQ(values->size(), dim_values->size());
 
     std::vector<ir::Expr> strided_exprs{};
@@ -651,12 +651,12 @@ class MapExprToIrTranslator {
       ListGetItem<IndexUnDotValue<Value, List<std::int64_t>>, std::int64_t>;
   ir::Expr TranslateListGetItemOfUnDot(const Value& value) const {
     const auto& [undot_value, idx_value] =
-        value.Get<ListGetItem<Value, Constant>>().tuple();
+        value.Get<ListGetItem<Value, DimExpr>>().tuple();
     const auto& [tensor_index_value, dims_value] =
-        undot_value.Get<IndexUnDotValue<Value, Constant>>().tuple();
+        undot_value.Get<IndexUnDotValue<Value, List<DimExpr>>>().tuple();
     ir::Expr tensor_index_expr = TranslateTensorIterator(tensor_index_value);
     std::int64_t idx = idx_value.Get<std::int64_t>();
-    const auto& dims = dims_value.Get<List<Constant>>();
+    const auto& dims = dims_value;
 
     ir::Expr mod_operand{IteratorInt(GetStride(dims, idx - 1))};
     ir::Expr div_operant{IteratorInt(GetStride(dims, idx))};

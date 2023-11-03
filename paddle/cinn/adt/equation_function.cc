@@ -33,7 +33,7 @@ CollectInputAndOutputVariables(const Function& function) {
             out_variables.emplace(Variable{out_index.value()});
             in_variables.emplace(Variable{in_index.value()});
           },
-          [&](const IndexDot<List<EquationDim>,
+          [&](const IndexDot<List<DimExpr>,
                              tOut<Index>,
                              tIn<List<Iterator>>>& dot) {
             const auto& [dims, out_index, in_iterators] = dot.tuple();
@@ -42,14 +42,14 @@ CollectInputAndOutputVariables(const Function& function) {
               in_variables.emplace(Variable{iterator});
             }
           },
-          [&](const GetBroadcastedIterator<EquationDim,
+          [&](const GetBroadcastedIterator<DimExpr,
                                            tOut<Iterator>,
                                            tIn<Iterator>>& broadcast) {
             const auto& [dim, out_iterator, in_iterator] = broadcast.tuple();
             out_variables.emplace(Variable{out_iterator.value()});
             in_variables.emplace(Variable{in_iterator.value()});
           },
-          [&](const IndexUnDot<List<EquationDim>,
+          [&](const IndexUnDot<List<DimExpr>,
                                tOut<List<Iterator>>,
                                tIn<Index>>& undot) {
             const auto& [dims, out_iterators, in_index] = undot.tuple();
@@ -103,17 +103,17 @@ std::string GetFunctionTypeName(const Function& function) {
              [&](const Identity<tOut<Index>, tIn<Index>>& identity) {
                return "Identity";
              },
-             [&](const IndexDot<List<EquationDim>,
+             [&](const IndexDot<List<DimExpr>,
                                 tOut<Index>,
                                 tIn<List<Iterator>>>& dot) {
                return "IndexDot";
              },
-             [&](const GetBroadcastedIterator<EquationDim,
+             [&](const GetBroadcastedIterator<DimExpr,
                                               tOut<Iterator>,
                                               tIn<Iterator>>& broadcast) {
                return "GetBroadcastedIterator";
              },
-             [&](const IndexUnDot<List<EquationDim>,
+             [&](const IndexUnDot<List<DimExpr>,
                                   tOut<List<Iterator>>,
                                   tIn<Index>>& undot) { return "IndexUnDot"; },
              [&](const InMsg2OutMsg<tOut<FakeOpPlaceHolder>,
@@ -133,16 +133,16 @@ const void* GetFunctionDataPtr(const Function& function) {
                  -> const void* { return &identity.tuple(); },
              [&](const Identity<tOut<Index>, tIn<Index>>& identity)
                  -> const void* { return &identity.tuple(); },
-             [&](const IndexDot<List<EquationDim>,
+             [&](const IndexDot<List<DimExpr>,
                                 tOut<Index>,
                                 tIn<List<Iterator>>>& dot) -> const void* {
                return &dot.tuple();
              },
-             [&](const GetBroadcastedIterator<EquationDim,
+             [&](const GetBroadcastedIterator<DimExpr,
                                               tOut<Iterator>,
                                               tIn<Iterator>>& broadcast)
                  -> const void* { return &broadcast.tuple(); },
-             [&](const IndexUnDot<List<EquationDim>,
+             [&](const IndexUnDot<List<DimExpr>,
                                   tOut<List<Iterator>>,
                                   tIn<Index>>& undot) -> const void* {
                return &undot.tuple();

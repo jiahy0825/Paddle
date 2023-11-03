@@ -14,7 +14,7 @@
 
 #include "paddle/cinn/adt/graph_symbolic_dim_infer_ctx.h"
 
-#include "paddle/cinn/adt/symbolic_dim_expr_simplifier.h"
+#include "paddle/cinn/adt/dim_expr_simplifier.h"
 #include "paddle/cinn/adt/unique_id.h"
 #include "paddle/cinn/common/graph_utils.h"
 #include "paddle/cinn/hlir/framework/graph.h"
@@ -119,19 +119,19 @@ std::vector<const hlir::framework::NodeData*> GetFeedList(
   return ret;
 }
 
-std::vector<std::optional<SymbolicDimExpr>> MakeSymbolicDimExprForTensor(
+std::vector<std::optional<DimExpr>> MakeDimExprForTensor(
     const hlir::framework::Graph* graph,
     const hlir::framework::NodeData* node_data) {
-  std::vector<std::optional<SymbolicDimExpr>> ret{};
+  std::vector<std::optional<DimExpr>> ret{};
 
   const std::vector<int32_t>& shape = GetShape(graph, node_data);
   for (std::size_t i = 0; i < shape.size(); ++i) {
     if (i == 0) {
-      static SymbolicDimExpr temp_elementwise_dim_expr{
+      static DimExpr temp_elementwise_dim_expr{
           SymbolicDim{UniqueId::New()}};
       ret.emplace_back(temp_elementwise_dim_expr);
     } else {
-      ret.emplace_back(SymbolicDimExpr{shape.at(i)});
+      ret.emplace_back(DimExpr{shape.at(i)});
     }
   }
   return ret;
@@ -139,15 +139,15 @@ std::vector<std::optional<SymbolicDimExpr>> MakeSymbolicDimExprForTensor(
 
 }  // namespace
 
-void GraphSymbolicDimInferCtx::InitGraphInputSymbolicDimExpr() {
+void GraphSymbolicDimInferCtx::InitGraphInputDimExpr() {
   std::vector<const hlir::framework::Node*> topo_op_nodes =
       GetTopoOrderOpNodes(graph_);
   std::vector<const hlir::framework::NodeData*> feed_list =
       GetFeedList(topo_op_nodes, GetAllOutputNames(topo_op_nodes));
   for (const hlir::framework::NodeData* node_data : feed_list) {
     CHECK(
-        tensor2symbolic_dim_exprs_
-            .emplace(node_data, MakeSymbolicDimExprForTensor(graph_, node_data))
+        tensor2dim_exprs_
+            .emplace(node_data, MakeDimExprForTensor(graph_, node_data))
             .second);
   }
 }
@@ -164,7 +164,7 @@ std::uint64_t GraphSymbolicDimInferCtx::GetNumOutTensors(
   return node->outlinks_in_order().size();
 }
 
-const SymbolicDimExpr& GraphSymbolicDimInferCtx::GetInputDimExpr(
+const DimExpr& GraphSymbolicDimInferCtx::GetInputDimExpr(
     const hlir::framework::Node* node,
     std::size_t arg_idx,
     std::size_t dim_idx) const {
@@ -172,30 +172,30 @@ const SymbolicDimExpr& GraphSymbolicDimInferCtx::GetInputDimExpr(
   CHECK_LT(arg_idx, edges.size());
   const hlir::framework::NodeData* tensor =
       edges.at(arg_idx)->source()->safe_as<hlir::framework::NodeData>();
-  const auto& iter = tensor2symbolic_dim_exprs_.find(tensor);
-  CHECK(iter != tensor2symbolic_dim_exprs_.end());
+  const auto& iter = tensor2dim_exprs_.find(tensor);
+  CHECK(iter != tensor2dim_exprs_.end());
   CHECK_LT(dim_idx, iter->second.size());
-  const auto& opt_symbolic_dim_expr = iter->second.at(dim_idx);
-  CHECK(opt_symbolic_dim_expr.has_value());
-  return opt_symbolic_dim_expr.value();
+  const auto& opt_dim_expr = iter->second.at(dim_idx);
+  CHECK(opt_dim_expr.has_value());
+  return opt_dim_expr.value();
 }
 
 void GraphSymbolicDimInferCtx::SetOutputDimExpr(
     const hlir::framework::Node* node,
     std::size_t arg_idx,
     std::size_t dim_idx,
-    const SymbolicDimExpr& value) {
+    const DimExpr& value) {
   const auto& edges = node->outlinks_in_order();
   CHECK_LT(arg_idx, edges.size());
   const hlir::framework::NodeData* tensor =
       edges.at(arg_idx)->sink()->safe_as<hlir::framework::NodeData>();
   std::size_t rank = GetTensorRank(graph_, tensor);
   CHECK_LT(dim_idx, rank);
-  auto* opt_symbolic_dims = &tensor2symbolic_dim_exprs_[tensor];
+  auto* opt_symbolic_dims = &tensor2dim_exprs_[tensor];
   if (dim_idx >= opt_symbolic_dims->size()) {
     opt_symbolic_dims->resize(dim_idx + 1);
   }
-  opt_symbolic_dims->at(dim_idx) = SimplifySymbolicDimExpr(value);
+  opt_symbolic_dims->at(dim_idx) = SimplifyDimExpr(value);
 }
 
 const hlir::framework::AttrMapType& GraphSymbolicDimInferCtx::GetAttributeMap(

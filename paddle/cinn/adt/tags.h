@@ -27,7 +27,6 @@ DEFINE_ADT_TAG(tAnchor);
 
 DEFINE_ADT_TAG(tIterator);
 DEFINE_ADT_TAG(tIndex);
-DEFINE_ADT_TAG(tEquationDim);
 DEFINE_ADT_TAG(tOpPlaceHolder);
 
 DEFINE_ADT_TAG(tInMsg);

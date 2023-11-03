@@ -70,7 +70,23 @@ void GenerateOpEquationsImpl(const hlir::framework::Node* op_node,
   generate_equations[op_node->op()](ctx);
 }
 
-std::optional<SymbolicDimExpr> GetArgSymbolicDimExpr(
+std::optional<DimExpr> GetArgStaticDimSize(
+    const List<Tensor>& tensors, std::size_t tensor_idx, std::size_t dim_idx) {
+  if (!tensors->at(tensor_idx).Has<adapter::Tensor>()) {
+    return std::nullopt;
+  }
+  if (tensor_idx >= tensors->size()) {
+    return std::nullopt;
+  }
+  const auto& tensor_shape =
+      tensors->at(tensor_idx).Get<adapter::Tensor>().GetShape();
+  if (dim_idx >= tensor_shape.size()) {
+    return std::nullopt;
+  }
+  return tensor_shape.at(dim_idx);
+}
+
+std::optional<DimExpr> GetArgDimExpr(
     const List<Tensor>& tensors, std::size_t tensor_idx, std::size_t dim_idx) {
   if (!tensors->at(tensor_idx).Has<adapter::DynamicTensor>()) {
     return std::nullopt;
@@ -87,47 +103,35 @@ std::optional<SymbolicDimExpr> GetArgSymbolicDimExpr(
   return tensor_shape.at(dim_idx);
 }
 
+std::optional<DimExpr> GetArgDim(
+    const List<Tensor>& tensors, std::size_t tensor_idx, std::size_t dim_idx) {
+  const auto& opt_expr = GetArgDimExpr(tensors, tensor_idx, dim_idx);
+  if (opt_expr.has_value()) {
+    return opt_expr;
+  }
+  return GetArgStaticDimSize(tensors, tensor_idx, dim_idx);
+}
+
 using GetArgStaticDimT = std::function<std::optional<std::int64_t>(
     std::size_t tensor_idx, std::size_t dim_idx)>;
 
 GetArgStaticDimT MakeGetterArgStaticDim(const List<Tensor>& tensors) {
   return [=](std::size_t tensor_idx,
              std::size_t dim_idx) -> std::optional<std::int64_t> {
-    if (!tensors->at(tensor_idx).Has<adapter::Tensor>()) {
-      const auto& opt_symbolic_dim_expr =
-          GetArgSymbolicDimExpr(tensors, tensor_idx, dim_idx);
-      if (!opt_symbolic_dim_expr.has_value()) {
-        return std::nullopt;
-      }
-      if (!opt_symbolic_dim_expr.value().Has<std::int64_t>()) {
-        return std::nullopt;
-      }
-      return opt_symbolic_dim_expr.value().Get<std::int64_t>();
-    }
-    if (tensor_idx >= tensors->size()) {
-      return std::nullopt;
-    }
-    const auto& tensor_shape =
-        tensors->at(tensor_idx).Get<adapter::Tensor>().GetShape();
-    if (dim_idx >= tensor_shape.size()) {
-      return std::nullopt;
-    }
-    return tensor_shape.at(dim_idx);
+    const auto& opt_expr = GetArgDim(tensors, tensor_idx, dim_idx);
+    CHECK(opt_expr.has_value());
+    CHECK(opt_expr.value().Has<std::int64_t>());
+    return opt_expr.value().Get<std::int64_t>();
   };
 }
 
-using GetArgSymbolicDimT = std::function<std::optional<SymbolicDimExpr>(
+using GetArgSymbolicDimT = std::function<std::optional<DimExpr>(
     std::size_t tensor_idx, std::size_t dim_idx)>;
 
 GetArgSymbolicDimT MakeGetterArgSymbolicDim(const List<Tensor>& tensors) {
   return [=](std::size_t tensor_idx,
-             std::size_t dim_idx) -> std::optional<SymbolicDimExpr> {
-    const auto& opt_symbolic_dim_expr =
-        GetArgSymbolicDimExpr(tensors, tensor_idx, dim_idx);
-    if (!opt_symbolic_dim_expr.has_value()) {
-      return std::nullopt;
-    }
-    return opt_symbolic_dim_expr.value();
+             std::size_t dim_idx) -> std::optional<DimExpr> {
+    return GetArgDim(tensors, tensor_idx, dim_idx);
   };
 }
 
@@ -246,14 +250,6 @@ std::optional<std::int64_t> GetArgDimSize(const OpArgDimPos& arg_dim_pos,
         return GetArgDimSizeImpl(impl, GetInDim, GetOutDim);
       },
       arg_dim_pos.variant());
-}
-
-std::optional<std::int64_t> NaiveOpEquationContext::GetStaticDimSize(
-    const EquationDim& dim) const {
-  const auto& arg_dim_pos = GetArgDimPosDescriptor(dim);
-  const auto& option_dim_size =
-      GetArgDimSize(arg_dim_pos, GetInDim_, GetOutDim_);
-  return option_dim_size;
 }
 
 }  // namespace cinn::adt::config

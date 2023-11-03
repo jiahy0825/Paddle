@@ -82,9 +82,9 @@ std::size_t GetOutputRank(const ScheduleMesh& sched_mesh) {
 
 namespace {
 
-List<SymbolicDimExpr> GetOutputDimValuesImpl(
+List<DimExpr> GetOutputDimValuesImpl(
     const List<ScheduleDim>& sched_dims) {
-  List<SymbolicDimExpr> ret{};
+  List<DimExpr> ret{};
   for (const auto& sched_dim : *sched_dims) {
     const auto& loop_size = GetLoopSize(sched_dim);
     ret->emplace_back(loop_size);
@@ -92,31 +92,31 @@ List<SymbolicDimExpr> GetOutputDimValuesImpl(
   return ret;
 }
 
-List<SymbolicDimExpr> GetOutputDimValuesImpl(
+List<DimExpr> GetOutputDimValuesImpl(
     const ScheduleMeshReshape<ScheduleMesh>& sched_reshape) {
   const auto& [_, shape] = sched_reshape.tuple();
-  List<SymbolicDimExpr> ret{};
+  List<DimExpr> ret{};
   for (const auto& loop_size : *shape.value()) {
     ret->emplace_back(loop_size);
   }
   return ret;
 }
 
-List<SymbolicDimExpr> GetOutputDimValuesImpl(
+List<DimExpr> GetOutputDimValuesImpl(
     const ScheduleMeshTranspose<ScheduleMesh>& sched_transpose) {
   const auto& [sched_mesh, perm] = sched_transpose.tuple();
   const auto& input_dims = GetOutputDimValues(sched_mesh);
-  List<SymbolicDimExpr> ret{};
+  List<DimExpr> ret{};
   for (const auto& idx : *perm.value()) {
     ret->emplace_back(input_dims->at(idx));
   }
   return ret;
 }
 
-List<SymbolicDimExpr> GetOutputDimValuesImpl(
+List<DimExpr> GetOutputDimValuesImpl(
     const ScheduleMeshPadding<ScheduleMesh>& sched_padding) {
   const auto& [_, shape] = sched_padding.tuple();
-  List<SymbolicDimExpr> ret{};
+  List<DimExpr> ret{};
   for (const auto& loop_size : *shape.value()) {
     ret->emplace_back(loop_size);
   }
@@ -125,7 +125,7 @@ List<SymbolicDimExpr> GetOutputDimValuesImpl(
 
 }  // namespace
 
-List<SymbolicDimExpr> GetOutputDimValues(const ScheduleMesh& sched_mesh) {
+List<DimExpr> GetOutputDimValues(const ScheduleMesh& sched_mesh) {
   return std::visit(
       [&](const auto& impl) { return GetOutputDimValuesImpl(impl); },
       sched_mesh.variant());

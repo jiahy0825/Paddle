@@ -32,8 +32,7 @@ std::shared_ptr<IndexExprInferContext> MakeIndexExprInferContext(
               .second);
   }
 
-  return std::make_shared<IndexExprInferContext>(anchor_iterator2value,
-                                                 igroup.constants_provider());
+  return std::make_shared<IndexExprInferContext>(anchor_iterator2value);
 }
 
 std::function<Value(const Iterator&)> MakeGetterValue4Iterator(
@@ -60,7 +59,7 @@ List<LoopSize> MakeLoopSizeForTensorImpl(const adapter::Tensor& tensor) {
 
 List<LoopSize> MakeLoopSizeForTensorImpl(const adapter::DynamicTensor& tensor) {
   List<LoopSize> ret{};
-  for (const std::optional<SymbolicDimExpr>& dim : tensor.GetShape()) {
+  for (const std::optional<DimExpr>& dim : tensor.GetShape()) {
     CHECK(dim.has_value());
     ret->emplace_back(dim.value());
   }

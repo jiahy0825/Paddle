@@ -18,7 +18,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "paddle/cinn/adt/symbolic_dim_expr.h"
+#include "paddle/cinn/adt/dim_expr.h"
 #include "paddle/cinn/hlir/framework/node.h"
 
 namespace cinn::hlir::framework {
@@ -37,7 +37,7 @@ class GraphSymbolicDimInferCtx {
   explicit GraphSymbolicDimInferCtx(const hlir::framework::Graph* graph)
       : graph_(graph) {
     InitOp2TensorRanks();
-    InitGraphInputSymbolicDimExpr();
+    InitGraphInputDimExpr();
   }
 
   const hlir::framework::Graph* graph() const { return graph_; }
@@ -47,33 +47,33 @@ class GraphSymbolicDimInferCtx {
 
   std::uint64_t GetNumOutTensors(const hlir::framework::Node* node) const;
 
-  const SymbolicDimExpr& GetInputDimExpr(const hlir::framework::Node* node,
+  const DimExpr& GetInputDimExpr(const hlir::framework::Node* node,
                                          std::size_t arg_idx,
                                          std::size_t dim_idx) const;
 
-  const std::vector<std::optional<SymbolicDimExpr>>& GetTensorSymbolicDimExprs(
+  const std::vector<std::optional<DimExpr>>& GetTensorDimExprs(
       const hlir::framework::NodeData* tensor) const {
-    const auto& iter = tensor2symbolic_dim_exprs_.find(tensor);
-    CHECK(iter != tensor2symbolic_dim_exprs_.end());
+    const auto& iter = tensor2dim_exprs_.find(tensor);
+    CHECK(iter != tensor2dim_exprs_.end());
     return iter->second;
   }
 
   void SetOutputDimExpr(const hlir::framework::Node* node,
                         std::size_t arg_idx,
                         std::size_t dim_idx,
-                        const SymbolicDimExpr& value);
+                        const DimExpr& value);
 
   const hlir::framework::AttrMapType& GetAttributeMap(
       const hlir::framework::Node* node) const;
 
  private:
   void InitOp2TensorRanks();
-  void InitGraphInputSymbolicDimExpr();
+  void InitGraphInputDimExpr();
 
   const hlir::framework::Graph* graph_;
   std::unordered_map<const hlir::framework::NodeData*,
-                     std::vector<std::optional<SymbolicDimExpr>>>
-      tensor2symbolic_dim_exprs_;
+                     std::vector<std::optional<DimExpr>>>
+      tensor2dim_exprs_;
   std::unordered_map<const hlir::framework::Node*, std::vector<std::uint64_t>>
       op2input_ranks_;
 };

@@ -13,44 +13,12 @@
 // limitations under the License.
 
 #include "paddle/cinn/adt/index_expr_infer_context.h"
-#include "paddle/cinn/adt/equation_function_constants_provider.h"
 
 namespace cinn::adt {
 
-std::optional<std::int64_t> IndexExprInferContext::GetStaticDimSize(
-    const EquationDim& dim) const {
-  return constants_provider_->GetStaticDimSize(dim);
-}
-
-SymbolicDimExpr IndexExprInferContext::GetDimSize(
-    const EquationDim& dim) const {
-  return constants_provider_->GetDimSize(dim);
-}
-
-bool IndexExprInferContext::DimsEqual(const List<Constant>& lhs,
-                                      const List<Constant>& rhs) const {
-  const auto& GetSymbolicDimExpr =
-      [&](const Constant& constant) -> SymbolicDimExpr {
-    if (constant.Has<std::int64_t>()) {
-      return SymbolicDimExpr{constant.Get<std::int64_t>()};
-    } else if (constant.Has<EquationDim>()) {
-      return GetDimSize(constant.Get<EquationDim>());
-    } else {
-      LOG(FATAL) << "Not supported";
-    }
-  };
-  if (lhs == rhs) {
-    return true;
-  }
-  if (lhs->size() != rhs->size()) {
-    return false;
-  }
-  for (std::size_t i = 0; i < lhs->size(); ++i) {
-    if (GetSymbolicDimExpr(lhs->at(i)) != GetSymbolicDimExpr(rhs->at(i))) {
-      return false;
-    }
-  }
-  return true;
+bool IndexExprInferContext::DimsEqual(const List<DimExpr>& lhs,
+                                      const List<DimExpr>& rhs) const {
+  return lhs == rhs;
 }
 
 }  // namespace cinn::adt

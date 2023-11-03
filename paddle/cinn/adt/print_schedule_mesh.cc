@@ -14,7 +14,7 @@
 
 #include "paddle/cinn/adt/print_schedule_mesh.h"
 #include "paddle/cinn/adt/print_schedule_dim.h"
-#include "paddle/cinn/adt/print_symbolic_dim_expr.h"
+#include "paddle/cinn/adt/print_dim_expr.h"
 #include "paddle/cinn/adt/schedule_mesh.h"
 
 namespace cinn::adt {

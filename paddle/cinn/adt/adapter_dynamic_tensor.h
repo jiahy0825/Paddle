@@ -39,8 +39,8 @@ struct DynamicTensor final {
     return shape_dict.at(node_data->id()).size();
   }
 
-  const std::vector<std::optional<SymbolicDimExpr>>& GetShape() const {
-    return graph->graph_ctx()->GetTensorSymbolicDimExprs(node_data);
+  const std::vector<std::optional<DimExpr>>& GetShape() const {
+    return graph->graph_ctx()->GetTensorDimExprs(node_data);
   }
 };
 

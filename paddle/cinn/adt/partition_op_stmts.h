@@ -15,7 +15,6 @@
 #pragma once
 
 #include "paddle/cinn/adt/adt.h"
-#include "paddle/cinn/adt/equation_function_constants_provider.h"
 #include "paddle/cinn/adt/equation_graph.h"
 #include "paddle/cinn/adt/map_expr.h"
 #include "paddle/cinn/adt/naive_op_equation_context.h"
@@ -48,8 +47,6 @@ std::vector<AnchorGroup> PartitionOpStmts(
 
 void CheckEquationSolvable(
     const AnchorGroup& igroup_spec,
-    const std::shared_ptr<const EquationFunctionConstantsProvider>&
-        constant_provider,
     const std::shared_ptr<DirectionEquationGenerator>&
         direction_equation_generator);
 

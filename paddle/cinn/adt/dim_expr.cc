@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/cinn/adt/symbolic_dim_expr.h"
+#include "paddle/cinn/adt/dim_expr.h"
 #include <type_traits>
 
 namespace cinn::adt {
@@ -20,51 +20,51 @@ namespace cinn::adt {
 namespace {
 
 template <typename T0, typename T1>
-bool SymbolicDimExprEqualImpl(const T0&, const T1&) {
+bool DimExprEqualImpl(const T0&, const T1&) {
   LOG(FATAL) << "Dead code";
 }
 
-bool SymbolicDimExprEqualImpl(std::int64_t lhs, std::int64_t rhs) {
+bool DimExprEqualImpl(std::int64_t lhs, std::int64_t rhs) {
   return lhs == rhs;
 }
 
-bool SymbolicDimExprEqualImpl(const SymbolicDim& lhs, const SymbolicDim& rhs) {
+bool DimExprEqualImpl(const SymbolicDim& lhs, const SymbolicDim& rhs) {
   return lhs == rhs;
 }
 
-bool SymbolicDimExprEqualImpl(const Negative<SymbolicDimExpr>& lhs,
-                              const Negative<SymbolicDimExpr>& rhs) {
+bool DimExprEqualImpl(const Negative<DimExpr>& lhs,
+                              const Negative<DimExpr>& rhs) {
   const auto& [lhs_arg0] = lhs.tuple();
   const auto& [rhs_arg0] = rhs.tuple();
   return lhs_arg0 == rhs_arg0;
 }
 
-bool SymbolicDimExprEqualImpl(const Reciprocal<SymbolicDimExpr>& lhs,
-                              const Reciprocal<SymbolicDimExpr>& rhs) {
+bool DimExprEqualImpl(const Reciprocal<DimExpr>& lhs,
+                              const Reciprocal<DimExpr>& rhs) {
   const auto& [lhs_arg0] = lhs.tuple();
   const auto& [rhs_arg0] = rhs.tuple();
   return lhs_arg0 == rhs_arg0;
 }
 
-bool SymbolicDimExprEqualImpl(
-    const Add<SymbolicDimExpr, SymbolicDimExpr>& lhs,
-    const Add<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
+bool DimExprEqualImpl(
+    const Add<DimExpr, DimExpr>& lhs,
+    const Add<DimExpr, DimExpr>& rhs) {
   const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
   const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
   return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;
 }
 
-bool SymbolicDimExprEqualImpl(
-    const Mul<SymbolicDimExpr, SymbolicDimExpr>& lhs,
-    const Mul<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
+bool DimExprEqualImpl(
+    const Mul<DimExpr, DimExpr>& lhs,
+    const Mul<DimExpr, DimExpr>& rhs) {
   const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
   const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
   return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;
 }
 
-bool SymbolicDimExprEqualImpl(
-    const BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>& lhs,
-    const BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>& rhs) {
+bool DimExprEqualImpl(
+    const BroadcastedDim<DimExpr, DimExpr>& lhs,
+    const BroadcastedDim<DimExpr, DimExpr>& rhs) {
   const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
   const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
   return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;
@@ -72,12 +72,12 @@ bool SymbolicDimExprEqualImpl(
 
 }  // namespace
 
-bool operator==(const SymbolicDimExpr& lhs, const SymbolicDimExpr& rhs) {
+bool operator==(const DimExpr& lhs, const DimExpr& rhs) {
   return std::visit(
       [](const auto& lhs, const auto& rhs) {
         if (std::is_same_v<std::decay_t<decltype(lhs)>,
                            std::decay_t<decltype(rhs)>>) {
-          return SymbolicDimExprEqualImpl(lhs, rhs);
+          return DimExprEqualImpl(lhs, rhs);
         } else {
           return false;
         }
@@ -94,37 +94,37 @@ std::size_t GetHashValueImpl(const SymbolicDim& expr) {
   return expr.value().unique_id();
 }
 
-std::size_t GetHashValueImpl(const Negative<SymbolicDimExpr>& expr) {
+std::size_t GetHashValueImpl(const Negative<DimExpr>& expr) {
   const auto& [item] = expr.tuple();
   return -GetHashValue(item);
 }
 
-std::size_t GetHashValueImpl(const Reciprocal<SymbolicDimExpr>& expr) {
+std::size_t GetHashValueImpl(const Reciprocal<DimExpr>& expr) {
   const auto& [item] = expr.tuple();
   return -GetHashValue(item);
 }
 
 std::size_t GetHashValueImpl(
-    const Add<SymbolicDimExpr, SymbolicDimExpr>& expr) {
+    const Add<DimExpr, DimExpr>& expr) {
   const auto& [lhs, rhs] = expr.tuple();
   return hash_combine(GetHashValue(lhs), GetHashValue(rhs));
 }
 
 std::size_t GetHashValueImpl(
-    const Mul<SymbolicDimExpr, SymbolicDimExpr>& expr) {
+    const Mul<DimExpr, DimExpr>& expr) {
   const auto& [lhs, rhs] = expr.tuple();
   return hash_combine(GetHashValue(lhs), GetHashValue(rhs));
 }
 
 std::size_t GetHashValueImpl(
-    const BroadcastedDim<SymbolicDimExpr, SymbolicDimExpr>& expr) {
+    const BroadcastedDim<DimExpr, DimExpr>& expr) {
   const auto& [lhs, rhs] = expr.tuple();
   return hash_combine(GetHashValue(lhs), GetHashValue(rhs));
 }
 
 }  // namespace
 
-std::size_t GetHashValue(const SymbolicDimExpr& expr) {
+std::size_t GetHashValue(const DimExpr& expr) {
   return std::visit([&](const auto& impl) { return GetHashValueImpl(impl); },
                     expr.variant());
 }
