@@ -83,11 +83,17 @@ struct ToTxtStringStruct {
     return ret;
   }
 
-  std::string operator()(
-      const BroadcastedIterator<Value, DimExpr>& broadcast) {
+  std::string operator()(const BroadcastedIterator<Value, DimExpr>& broadcast) {
     std::string ret;
     const auto& [value, constant] = broadcast.tuple();
     ret += "BI(" + ToTxtString(value) + ", " + ToTxtString(constant) + ")";
+    return ret;
+  }
+
+  std::string operator()(const SubValue<Value, DimExpr>& sub_value) {
+    std::string ret;
+    const auto& [value, constant] = sub_value.tuple();
+    ret += "(" + ToTxtString(value) + " - " + ToTxtString(constant) + ")";
     return ret;
   }
 

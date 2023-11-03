@@ -102,6 +102,22 @@ class NaiveOpEquationContext final : public OpEquationContext {
     return input_tensor_iterator;
   }
 
+  Iterator Sub(const Iterator& out_tensor_iterator,
+               const DimExpr& dim) override {
+    Iterator input_tensor_iterator{UniqueId::New()};
+    using Function = SubFunction<DimExpr, tOut<Iterator>, tIn<Iterator>>;
+    equations_->emplace_back(
+        Function{dim, input_tensor_iterator, out_tensor_iterator});
+    return input_tensor_iterator;
+  }
+
+  Iterator Identity(const Iterator& iterator) override {
+    Iterator new_iterator{UniqueId::New()};
+    using Function = cinn::adt::Identity<tOut<Iterator>, tIn<Iterator>>;
+    equations_->emplace_back(Function{new_iterator, iterator});
+    return new_iterator;
+  }
+
   Iterator MakeConstantIterator(std::size_t constant,
                                 Equations* equations) const {
     using ConstF = ConstantFunction<tOut<Iterator>, tIn<Index>>;
@@ -227,8 +243,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
   }
 
   std::optional<DimExpr> GetSymbolicDimSize(bool is_out,
-                                                    std::size_t arg_idx,
-                                                    std::size_t axis) const {
+                                            std::size_t arg_idx,
+                                            std::size_t axis) const {
     const auto* Get = (is_out ? &GetSymbolicOutDim_ : &GetSymbolicInDim_);
     const auto& opt_dim = (*Get)(arg_idx, axis);
     return opt_dim;
@@ -247,7 +263,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
     }
   }
 
-  void InitInputDimExpr(std::vector<DimTuple>* vec, const std::vector<std::uint64_t>& tensors_ranks) {
+  void InitInputDimExpr(std::vector<DimTuple>* vec,
+                        const std::vector<std::uint64_t>& tensors_ranks) {
     for (std::size_t i = 0; i < tensors_ranks.size(); ++i) {
       vec->push_back(DimTuple{});
       for (std::size_t j = 0; j < tensors_ranks.at(i); ++j) {
@@ -258,7 +275,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
     }
   }
 
-  void InitOutputDimExpr(std::vector<DimTuple>* vec, const std::vector<std::uint64_t>& tensors_ranks) {
+  void InitOutputDimExpr(std::vector<DimTuple>* vec,
+                         const std::vector<std::uint64_t>& tensors_ranks) {
     for (std::size_t i = 0; i < tensors_ranks.size(); ++i) {
       vec->push_back(DimTuple{});
       for (std::size_t j = 0; j < tensors_ranks.at(i); ++j) {
@@ -303,8 +321,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
 
   template <typename T>
   void Equal(const T& lhs, const T& rhs) {
-    equations_->emplace_back(Identity<tOut<T>, tIn<T>>(lhs, rhs));
-    equations_->emplace_back(Identity<tOut<T>, tIn<T>>(rhs, lhs));
+    equations_->emplace_back(cinn::adt::Identity<tOut<T>, tIn<T>>(lhs, rhs));
+    equations_->emplace_back(cinn::adt::Identity<tOut<T>, tIn<T>>(rhs, lhs));
   }
 
   static std::optional<std::size_t> FindPos(const List<Index>& vector,
@@ -317,11 +335,15 @@ class NaiveOpEquationContext final : public OpEquationContext {
     return std::nullopt;
   }
 
-  const utils::Attribute& GetAttribute(const std::string& name) const {
+  const utils::Attribute& GetAttribute(const std::string& name) const override {
     const auto& iter = attr_map_type_->find(name);
     CHECK(iter != attr_map_type_->end())
         << "Can't find Attribute with this name";
     return iter->second;
+  }
+
+  bool HasAttr(const std::string& name) const override {
+    return attr_map_type_->find(name) != attr_map_type_->end();
   }
 
   std::vector<std::uint64_t> in_tensors_ranks_;

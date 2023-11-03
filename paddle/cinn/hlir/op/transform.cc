@@ -16,6 +16,8 @@
 
 #include <algorithm>
 
+#include "paddle/cinn/adt/op_equation_context.h"
+#include "paddle/cinn/adt/symbolic_dim_infer_ctx.h"
 #include "paddle/cinn/common/cas.h"
 #include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/op.h"
@@ -506,6 +508,44 @@ std::vector<Type> InferDtypeForConcat(const std::vector<Type> &inputs_type,
       << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
+}
+
+void GenerateEquationsForConcat(cinn::adt::config::OpEquationContext *ctx) {
+  CHECK_EQ(ctx->GetInTensorsRanks().size(), 2UL)
+      << "Strong constraint branch only supports two inputs temporarily";
+  CHECK_EQ(ctx->GetInTensorsRanks().at(0), ctx->GetInTensorsRanks().at(1));
+  int axis = 0;
+  if (ctx->HasAttr("axis")) {
+    axis = ctx->Attr<int>("axis");
+  }
+
+  if (axis < 0) axis += ctx->GetInTensorsRanks().at(0);
+  CHECK(axis >= 0 && axis < ctx->GetInTensorsRanks().at(0))
+      << "In Concat op, the attribute `axis` should be >= 0 and < input "
+         "shape's size, please check!";
+
+  for (int i = 0; i < ctx->GetInTensorsRanks().at(0); ++i) {
+    if (i == axis) {
+      ctx->Equal(ctx->GetInIteratorTuple(0)->at(i),
+                 ctx->Identity(ctx->GetOutIteratorTuple(0)->at(i)));
+      ctx->Equal(ctx->GetInIteratorTuple(1)->at(i),
+                 ctx->Sub(ctx->GetOutIteratorTuple(0)->at(i),
+                          ctx->GetOutDimTuple(0)->at(i)));
+    } else {
+      // TODO(Hongyu Jia) : Add Check interface:
+      // ctx->CheckEqual(ctx->GetInDimTuple(0).at(i),
+      // ctx->GetInDimTuple(1).at(i))
+      ctx->Equal(ctx->GetInIteratorTuple(0)->at(i),
+                 ctx->GetOutIteratorTuple(0)->at(i));
+      ctx->Equal(ctx->GetInIteratorTuple(1)->at(i),
+                 ctx->GetOutIteratorTuple(0)->at(i));
+    }
+  }
+}
+
+void InferSymbolicDimForConcat(cinn::adt::config::SymbolicDimInferCtx *ctx) {
+  // TODO(Hongyu Jia): Support dynamic shape of concat, support Add in
+  // SymbolicDimInferCtx
 }
 
 std::vector<std::vector<std::string>> InferLayoutForConcat(
@@ -1844,6 +1884,10 @@ CINN_REGISTER_HELPER(transform_ops) {
                 MakeOpFunction(cinn::hlir::op::InferShapeForConcat))
       .set_attr("inferdtype",
                 MakeOpFunction(cinn::hlir::op::InferDtypeForConcat))
+      .set_attr("generate_equations",
+                MakeOpFunction(cinn::hlir::op::GenerateEquationsForConcat))
+      .set_attr("infer_symbolic_dim",
+                MakeOpFunction(cinn::hlir::op::InferSymbolicDimForConcat))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout",
                 MakeOpFunction(cinn::hlir::op::InferLayoutForConcat))
