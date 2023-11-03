@@ -19,8 +19,8 @@
 
 #include "glog/logging.h"
 #include "paddle/cinn/adt/adt.h"
-#include "paddle/cinn/adt/equation.h"
 #include "paddle/cinn/adt/dim_expr.h"
+#include "paddle/cinn/adt/equation.h"
 #include "paddle/cinn/hlir/framework/node.h"
 
 namespace cinn::adt::config {
@@ -43,8 +43,13 @@ class OpEquationContext {
 
   virtual void Equal(const IteratorTuple& lhs, const IteratorTuple& rhs) = 0;
 
-  virtual Iterator GetBroadcastedInputIterator(const Iterator& out_iterator,
-                                               const DimExpr& dim) = 0;
+  virtual Iterator GetBroadcastedInputIterator(
+      const Iterator& out_tensor_iterator, const DimExpr& dim) = 0;
+
+  virtual Iterator Sub(const Iterator& out_tensor_iterator,
+                       const DimExpr& dim) = 0;
+
+  virtual Iterator Identity(const Iterator& iterator) = 0;
 
   virtual const IteratorTuple& GetInIteratorTuple(
       std::size_t input_idx) const = 0;
@@ -64,6 +69,8 @@ class OpEquationContext {
   const T& Attr(const std::string& name) const {
     return absl::get<T>(GetAttribute(name));
   }
+
+  virtual bool HasAttr(const std::string& name) const = 0;
 
  protected:
   OpEquationContext() = default;

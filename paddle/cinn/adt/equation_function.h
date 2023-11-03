@@ -106,19 +106,27 @@ struct GetBroadcastedIterator<DimExpr, tOut<Iterator>, tIn<Iterator>>
   using Tuple<DimExpr, tOut<Iterator>, tIn<Iterator>>::Tuple;
 };
 
+template <typename DimT, typename OutT, typename InT>
+struct SubFunction;
+
+template <>
+struct SubFunction<DimExpr, tOut<Iterator>, tIn<Iterator>>
+    : public Tuple<DimExpr, tOut<Iterator>, tIn<Iterator>> {
+  using Tuple<DimExpr, tOut<Iterator>, tIn<Iterator>>::Tuple;
+};
+
 // clang-format off
 DEFINE_ADT_UNION(Equation,
                  Identity<tOut<Iterator>, tIn<Iterator>>,
                  Identity<tOut<Index>, tIn<Index>>,
                  GetBroadcastedIterator<DimExpr,
                                         tOut<Iterator>, tIn<Iterator>>,
-                 IndexDot<List<DimExpr>, tOut<Index>,
-                          tIn<List<Iterator>>>,
-                 IndexUnDot<List<DimExpr>,
-                            tOut<List<Iterator>>, tIn<Index>>,
+                 SubFunction<DimExpr, tOut<Iterator>, tIn<Iterator>>,
+                 IndexDot<List<DimExpr>, tOut<Index>, tIn<List<Iterator>>>,
+                 IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>,
                  InMsg2OutMsg<tOut<FakeOpPlaceHolder>,
-                                    tOut<OpArgIndexes<std::optional<Index>>>,
-                                    tIn<OpArgIndexes<Index>>>,
+                                   tOut<OpArgIndexes<std::optional<Index>>>,
+                                   tIn<OpArgIndexes<Index>>>,
                  ConstantFunction<tOut<Iterator>, tIn<Index>>);
 // clang-format on
 

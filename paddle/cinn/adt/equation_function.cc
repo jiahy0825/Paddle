@@ -33,9 +33,8 @@ CollectInputAndOutputVariables(const Function& function) {
             out_variables.emplace(Variable{out_index.value()});
             in_variables.emplace(Variable{in_index.value()});
           },
-          [&](const IndexDot<List<DimExpr>,
-                             tOut<Index>,
-                             tIn<List<Iterator>>>& dot) {
+          [&](const IndexDot<List<DimExpr>, tOut<Index>, tIn<List<Iterator>>>&
+                  dot) {
             const auto& [dims, out_index, in_iterators] = dot.tuple();
             out_variables.emplace(Variable{out_index.value()});
             for (const auto& iterator : *in_iterators.value()) {
@@ -49,9 +48,17 @@ CollectInputAndOutputVariables(const Function& function) {
             out_variables.emplace(Variable{out_iterator.value()});
             in_variables.emplace(Variable{in_iterator.value()});
           },
-          [&](const IndexUnDot<List<DimExpr>,
-                               tOut<List<Iterator>>,
-                               tIn<Index>>& undot) {
+          [&](const SubFunction<DimExpr, tOut<Iterator>, tIn<Iterator>>&
+                  sub_function) {
+            {
+              const auto& [dim, out_iterator, in_iterator] =
+                  sub_function.tuple();
+              out_variables.emplace(Variable{out_iterator.value()});
+              in_variables.emplace(Variable{in_iterator.value()});
+            }
+          },
+          [&](const IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>&
+                  undot) {
             const auto& [dims, out_iterators, in_index] = undot.tuple();
             for (const auto& iterator : *out_iterators.value()) {
               out_variables.emplace(Variable{iterator});
@@ -113,6 +120,8 @@ std::string GetFunctionTypeName(const Function& function) {
                                               tIn<Iterator>>& broadcast) {
                return "GetBroadcastedIterator";
              },
+             [&](const SubFunction<DimExpr, tOut<Iterator>, tIn<Iterator>>&
+                     sub_function) { return "SubFunction"; },
              [&](const IndexUnDot<List<DimExpr>,
                                   tOut<List<Iterator>>,
                                   tIn<Index>>& undot) { return "IndexUnDot"; },
@@ -142,6 +151,8 @@ const void* GetFunctionDataPtr(const Function& function) {
                                               tOut<Iterator>,
                                               tIn<Iterator>>& broadcast)
                  -> const void* { return &broadcast.tuple(); },
+             [&](const SubFunction<DimExpr, tOut<Iterator>, tIn<Iterator>>& sub)
+                 -> const void* { return &sub.tuple(); },
              [&](const IndexUnDot<List<DimExpr>,
                                   tOut<List<Iterator>>,
                                   tIn<Index>>& undot) -> const void* {

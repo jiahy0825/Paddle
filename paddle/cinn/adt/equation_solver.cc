@@ -85,8 +85,16 @@ std::unordered_map<Variable, Value> InferValuesImpl(
 }
 
 std::unordered_map<Variable, Value> InferValuesImpl(
-    const IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>&
-        undot,
+    const SubFunction<DimExpr, tOut<Iterator>, tIn<Iterator>>& sub,
+    IndexExprInferContext* ctx) {
+  const auto& [dim, out_iterator, in_iterator] = sub.tuple();
+  SubValue<Value, DimExpr> sub_iterator{ctx->GetValue(in_iterator.value()),
+                                        dim};
+  return {{out_iterator.value(), sub_iterator}};
+}
+
+std::unordered_map<Variable, Value> InferValuesImpl(
+    const IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>& undot,
     IndexExprInferContext* ctx) {
   const auto& [dims, out_iters, in_index] = undot.tuple();
 
@@ -94,8 +102,8 @@ std::unordered_map<Variable, Value> InferValuesImpl(
   for (const auto& dim : *dims) {
     dim_constants->emplace_back(dim);
   }
-  IndexUnDotValue<Value, List<DimExpr>> index_undot{ctx->GetValue(in_index.value()),
-                                               dim_constants};
+  IndexUnDotValue<Value, List<DimExpr>> index_undot{
+      ctx->GetValue(in_index.value()), dim_constants};
 
   std::unordered_map<Variable, Value> ret{};
   for (std::size_t idx = 0; idx < out_iters.value()->size(); ++idx) {

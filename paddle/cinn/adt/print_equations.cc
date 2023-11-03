@@ -185,8 +185,17 @@ struct ToTxtStringStruct {
   }
 
   std::string operator()(
-      const IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>&
-          undot) const {
+      const SubFunction<DimExpr, tOut<Iterator>, tIn<Iterator>>& sub) const {
+    std::string ret;
+    const auto& [dim, out_iterator, in_iterator] = sub.tuple();
+    ret += ToTxtString(out_iterator.value()) + " = Sub(" +
+           ToTxtString(in_iterator.value()) + ", " + ToTxtString(dim) + ")";
+    return ret;
+  }
+
+  std::string operator()(
+      const IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>& undot)
+      const {
     std::string ret;
     const auto& [dim_list, out_iterator_list_tag, in_index_tag] = undot.tuple();
     const List<Iterator>& out_iterator_list = out_iterator_list_tag.value();

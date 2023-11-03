@@ -82,9 +82,15 @@ void CollectTensorIndexIteratorsImpl(
 }
 
 void CollectTensorIndexIteratorsImpl(
-    const BroadcastedIterator<Value, DimExpr>& broadcasted_iterator,
+    const BroadcastedIterator<Value, DimExpr>& tensor_index_expr,
     std::unordered_set<Iterator>* ret) {
-  CollectTensorIndexIterators(broadcasted_iterator.GetArg0(), ret);
+  CollectTensorIndexIterators(tensor_index_expr.GetArg0(), ret);
+}
+
+void CollectTensorIndexIteratorsImpl(
+    const SubValue<Value, DimExpr>& tensor_index_expr,
+    std::unordered_set<Iterator>* ret) {
+  CollectTensorIndexIterators(tensor_index_expr.GetArg0(), ret);
 }
 
 void CollectTensorIndexIteratorsImpl(const PtrGetItem<Value>& tensor_index_expr,
