@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "paddle/cinn/adt/dim_expr.h"
+#include "paddle/cinn/adt/print_dim_expr.h"
 #include <type_traits>
 
 namespace cinn::adt {
@@ -46,28 +47,22 @@ bool DimExprEqualImpl(const Reciprocal<DimExpr>& lhs,
   return lhs_arg0 == rhs_arg0;
 }
 
-bool DimExprEqualImpl(
-    const Add<DimExpr, DimExpr>& lhs,
-    const Add<DimExpr, DimExpr>& rhs) {
-  const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
-  const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
-  return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;
+bool DimExprEqualImpl(const Sum<DimExpr>& lhs, const Sum<DimExpr>& rhs) {
+  const auto& [lhs_operands] = lhs;
+  const auto& [rhs_operands] = rhs;
+  return lhs_operands == rhs_operands;
 }
 
-bool DimExprEqualImpl(
-    const Mul<DimExpr, DimExpr>& lhs,
-    const Mul<DimExpr, DimExpr>& rhs) {
-  const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
-  const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
-  return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;
+bool DimExprEqualImpl(const Product<DimExpr>& lhs, const Product<DimExpr>& rhs) {
+  const auto& [lhs_operands] = lhs;
+  const auto& [rhs_operands] = rhs;
+  return lhs_operands == rhs_operands;
 }
 
-bool DimExprEqualImpl(
-    const BroadcastedDim<DimExpr, DimExpr>& lhs,
-    const BroadcastedDim<DimExpr, DimExpr>& rhs) {
-  const auto& [lhs_arg0, lhs_arg1] = lhs.tuple();
-  const auto& [rhs_arg0, rhs_arg1] = rhs.tuple();
-  return lhs_arg0 == rhs_arg0 && lhs_arg1 == rhs_arg1;
+bool DimExprEqualImpl(const BroadcastedDim<DimExpr>& lhs, const BroadcastedDim<DimExpr>& rhs) {
+  const auto& [lhs_operands] = lhs;
+  const auto& [rhs_operands] = rhs;
+  return lhs_operands == rhs_operands;
 }
 
 }  // namespace
@@ -105,21 +100,29 @@ std::size_t GetHashValueImpl(const Reciprocal<DimExpr>& expr) {
 }
 
 std::size_t GetHashValueImpl(
-    const Add<DimExpr, DimExpr>& expr) {
-  const auto& [lhs, rhs] = expr.tuple();
-  return hash_combine(GetHashValue(lhs), GetHashValue(rhs));
+    const List<DimExpr>& exprs) {
+  std::size_t ret = 0;
+  for (const auto& expr : *exprs) {
+    ret = hash_combine(ret, GetHashValue(expr));
+  }
 }
 
 std::size_t GetHashValueImpl(
-    const Mul<DimExpr, DimExpr>& expr) {
-  const auto& [lhs, rhs] = expr.tuple();
-  return hash_combine(GetHashValue(lhs), GetHashValue(rhs));
+    const Sum<DimExpr>& expr) {
+  const auto& [operands] = expr;
+  return GetHashValueImpl(operands);
 }
 
 std::size_t GetHashValueImpl(
-    const BroadcastedDim<DimExpr, DimExpr>& expr) {
-  const auto& [lhs, rhs] = expr.tuple();
-  return hash_combine(GetHashValue(lhs), GetHashValue(rhs));
+    const Product<DimExpr>& expr) {
+  const auto& [operands] = expr;
+  return GetHashValueImpl(operands);
+}
+
+std::size_t GetHashValueImpl(
+    const BroadcastedDim<DimExpr>& expr) {
+  const auto& [operands] = expr;
+  return GetHashValueImpl(operands);
 }
 
 }  // namespace
@@ -129,4 +132,31 @@ std::size_t GetHashValue(const DimExpr& expr) {
                     expr.variant());
 }
 
+DimExpr operator+(const DimExpr& lhs, const DimExpr& rhs) {
+  return Sum<DimExpr>{List<DimExpr>{lhs, rhs}};
+}
+
+DimExpr operator-(const DimExpr& lhs, const DimExpr& rhs) {
+  return Sum<DimExpr>{List<DimExpr>{lhs, Negative<DimExpr>{rhs}}};
+}
+
+DimExpr operator*(const DimExpr& lhs,
+                                 const DimExpr& rhs) {
+  return Product<DimExpr>{List<DimExpr>{lhs, rhs}};
+}
+
+DimExpr operator/(const DimExpr& lhs,
+                                 const DimExpr& rhs) {
+  return Product<DimExpr>{List<DimExpr>{lhs, Reciprocal<DimExpr>{rhs}}};
+}
+
+DimExpr MakeBroadcastedDim(const DimExpr& lhs,
+                                          const DimExpr& rhs) {
+  return BroadcastedDim<DimExpr>{List<DimExpr>{lhs, rhs}};
+}
+
+std::ostream& operator<<(std::ostream& stream, const DimExpr& expr) {
+  stream << ToTxtString(expr);
+  return stream;
+}
 }  // namespace cinn::adt

@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <ostream>
 #include "paddle/cinn/adt/adt.h"
 #include "paddle/cinn/adt/arithmetic.h"
 #include "paddle/cinn/adt/logical.h"
@@ -21,50 +22,36 @@
 
 namespace cinn::adt {
 
-DEFINE_ADT_BINARY(BroadcastedDim);
+template <typename T>
+struct BroadcastedDim final {
+  List<T> operands;
+
+  const BroadcastedDim& tuple() const { return *this; }
+};
+
 
 // DimExpr = std::int64_t
 //                 | SymbolicDim
 //                 | Negative DimExpr
 //                 | Reciprocal DimExpr
-//                 | Add DimExpr DimExpr
-//                 | Mul DimExpr DimExpr
-//                 | BroadcastedDim DimExpr DimExpr
+//                 | Sum DimExpr
+//                 | Product DimExpr
+//                 | BroadcastedDim DimExpr
 DEFINE_ADT_UNION(DimExpr,
                  std::int64_t,
                  SymbolicDim,
                  Negative<DimExpr>,
                  Reciprocal<DimExpr>,
-                 Add<DimExpr, DimExpr>,
-                 Mul<DimExpr, DimExpr>,
-                 BroadcastedDim<DimExpr, DimExpr>);
+                 Sum<DimExpr>,
+                 Product<DimExpr>,
+                 BroadcastedDim<DimExpr>);
 
-inline DimExpr operator+(const DimExpr& lhs,
-                                 const DimExpr& rhs) {
-  return Add<DimExpr, DimExpr>{lhs, rhs};
-}
+DimExpr operator+(const DimExpr& lhs, const DimExpr& rhs);
+DimExpr operator-(const DimExpr& lhs, const DimExpr& rhs);
+DimExpr operator*(const DimExpr& lhs, const DimExpr& rhs);
+DimExpr operator/(const DimExpr& lhs, const DimExpr& rhs);
 
-inline DimExpr operator-(const DimExpr& lhs,
-                                 const DimExpr& rhs) {
-  return Add<DimExpr, DimExpr>{lhs,
-                                               Negative<DimExpr>{rhs}};
-}
-
-inline DimExpr operator*(const DimExpr& lhs,
-                                 const DimExpr& rhs) {
-  return Mul<DimExpr, DimExpr>{lhs, rhs};
-}
-
-inline DimExpr operator/(const DimExpr& lhs,
-                                 const DimExpr& rhs) {
-  return Mul<DimExpr, DimExpr>{
-      lhs, Reciprocal<DimExpr>{rhs}};
-}
-
-inline DimExpr MakeBroadcastedDim(const DimExpr& lhs,
-                                          const DimExpr& rhs) {
-  return BroadcastedDim<DimExpr, DimExpr>{lhs, rhs};
-}
+DimExpr MakeBroadcastedDim(const DimExpr& lhs, const DimExpr& rhs);
 
 bool operator==(const DimExpr& lhs, const DimExpr& rhs);
 
@@ -74,4 +61,7 @@ inline bool operator!=(const DimExpr& lhs, const DimExpr& rhs) {
 
 std::size_t GetHashValue(const DimExpr& expr);
 
+std::ostream& operator<<(std::ostream&, const DimExpr& expr);
+
 }  // namespace cinn::adt
+
