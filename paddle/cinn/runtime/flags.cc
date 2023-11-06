@@ -80,8 +80,8 @@ PD_DEFINE_bool(cinn_enable_map_expr,
                "It controls whether to use cinn with map_expr");
 
 PD_DEFINE_bool(
-    cinn_map_expr_enable_schedule,
-    BoolFromEnv("FLAGS_cinn_map_expr_enable_schedule", false),
+    cinn_enable_map_expr_schedule,
+    BoolFromEnv("FLAGS_cinn_enable_map_expr_schedule", true),
     "It controls whether to use schedule and pass when enables map_expr");
 
 PD_DEFINE_bool(
