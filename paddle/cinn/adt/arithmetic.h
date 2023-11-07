@@ -19,8 +19,6 @@
 namespace cinn::adt {
 
 DEFINE_ADT_UNARY(Negative);
-template <typename T>
-using Neg = Negative<T>;
 DEFINE_ADT_UNARY(Reciprocal);
 DEFINE_ADT_BINARY(Add);
 DEFINE_ADT_BINARY(Sub);
@@ -28,7 +26,7 @@ DEFINE_ADT_BINARY(Mul);
 DEFINE_ADT_BINARY(Div);
 DEFINE_ADT_BINARY(Mod);
 
-// Arithmetic T = Neg T
+// Arithmetic T = Negative T
 //              | Add T T
 //              | Sub T T
 //              | Mul T T
@@ -36,7 +34,7 @@ DEFINE_ADT_BINARY(Mod);
 //              | Mod T T
 template <typename ValueT>
 DEFINE_ADT_UNION(Arithmetic,
-                 Neg<ValueT>,
+                 Negative<ValueT>,
                  Add<ValueT, ValueT>,
                  Sub<ValueT, ValueT>,
                  Mul<ValueT, ValueT>,
