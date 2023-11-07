@@ -42,6 +42,6 @@ template <typename T>
 DEFINE_ADT_UNION(LogicalOp, And<T, T>, Or<T, T>, Not<T>);
 
 template <typename ValueT>
-using Logical = Tree<LogicalOp, ValueT>>;
+using Logical = Tree<LogicalOp, Compare<ValueT>>>;
 
 }  // namespace cinn::adt
