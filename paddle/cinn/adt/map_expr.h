@@ -191,7 +191,7 @@ class Kernel final : public Tuple<List<AnchoredMapStmt>,
                                   tOut<List<Tensor>>,
                                   List<std::pair<CppVar, DimExpr>>> {
  public:
-  using Tuple<List<AnchoredMapStmt>, tIn<List<Tensor>>, tOut<List<Tensor>>, List<SymbolicDim>>::
+  using Tuple<List<AnchoredMapStmt>, tIn<List<Tensor>>, tOut<List<Tensor>>, List<std::pair<CppVar, DimExpr>>>::
       Tuple;
 };
 
