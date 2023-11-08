@@ -28,6 +28,20 @@ DEFINE_ADT_BINARY(Mul);
 DEFINE_ADT_BINARY(Div);
 DEFINE_ADT_BINARY(Mod);
 
+template <typename T>
+struct Sum final {
+  List<T> operands;
+
+  const Sum& tuple() const { return *this; }
+};
+
+template <typename T>
+struct Product final {
+  List<T> operands;
+
+  const Product& tuple() const { return *this; }
+};
+
 // Arithmetic T = Neg T
 //              | Add T T
 //              | Sub T T

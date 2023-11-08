@@ -27,6 +27,7 @@ gather_srcs(
   schedule_dim.cc
   schedule_mesh.cc
   dim_expr.cc
+  dim_expr_test.cc
   dim_expr_simplifier.cc
   symbolic_dim_infer_util.cc
   simplify_value.cc

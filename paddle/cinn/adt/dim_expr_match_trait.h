@@ -16,8 +16,40 @@
 
 #include "paddle/cinn/adt/match.h"
 #include "paddle/cinn/adt/dim_expr.h"
+#include "paddle/cinn/adt/print_dim_expr.h"
+#include <type_traits>
 
 namespace cinn::adt {
+
+template <template<typename> class Op, typename T0>
+struct UnaryDimExprMatchTrait {
+  using base_type = Op<DimExpr>;
+
+  static constexpr int is_template = true;
+
+  template <template <typename, typename> class Matcher>
+  static bool MatchChildren(const base_type& value) {
+    return Matcher<T0, DimExpr>::Call(std::get<0>(value.tuple()));
+  }
+};
+
+template <template<typename> class Op, typename T0>
+struct ListDimExprMatchTrait {
+  using base_type = Op<DimExpr>;
+
+  static constexpr int is_template = true;
+
+  template <template <typename, typename> class Matcher>
+  static bool MatchChildren(const base_type& value) {
+    const auto& [operands] = value;
+    for (const auto& operand : *operands) {
+      if (!Matcher<T0, DimExpr>::Call(operand)) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
 
 template <>
 struct MatchTrait<DimExpr, std::int64_t> final {
@@ -29,41 +61,29 @@ struct MatchTrait<DimExpr, SymbolicDim> final {
   static constexpr int is_template = false;
 };
 
-#define DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1(name, type0)               \
-  template <typename T0>                                                    \
-  struct MatchTrait<DimExpr, name<T0>> final {                      \
-    using base_type = name<type0>;                                          \
-                                                                            \
-    static constexpr int is_template = true;                                \
-                                                                            \
-    template <template <typename, typename> class Matcher>                            \
-    static bool MatchChildren(const base_type& value) {                     \
-      return Matcher<T0, type0>::Call(std::get<0>(value.tuple())); \
-    }                                                                       \
-  };
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1(Negative, DimExpr);
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1(Reciprocal, DimExpr);
-#undef DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_1
+template <typename T0>
+struct MatchTrait<DimExpr, Negative<T0>> final
+  : public UnaryDimExprMatchTrait<Negative, T0> {
+};
 
-#define DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(name, type0, type1)          \
-  template <typename T0, typename T1>                                         \
-  struct MatchTrait<DimExpr, name<T0, T1>> final {                    \
-    using base_type = name<type0, type1>;                                     \
-                                                                              \
-    static constexpr int is_template = true;                                  \
-                                                                              \
-    template <template <typename, typename> class Matcher>                              \
-    static bool MatchChildren(const base_type& value) {                       \
-      return Matcher<T0, type0>::Call(std::get<0>(value.tuple())) && \
-             Matcher<T1, type1>::Call(std::get<1>(value.tuple()));   \
-    }                                                                         \
-  };
+template <typename T0>
+struct MatchTrait<DimExpr, Reciprocal<T0>> final
+  : public UnaryDimExprMatchTrait<Reciprocal, T0> {
+};
 
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(Add, DimExpr, DimExpr);
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(Mul, DimExpr, DimExpr);
-DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2(BroadcastedDim,
-                                         DimExpr,
-                                         DimExpr);
-#undef DEFINE_MATCH_TRAIT_VALUE_UNION_ARGSIZE_2
+template <typename T0>
+struct MatchTrait<DimExpr, Sum<T0>> final
+  : public ListDimExprMatchTrait<Sum, T0> {
+};
+
+template <typename T0>
+struct MatchTrait<DimExpr, Product<T0>> final
+  : public ListDimExprMatchTrait<Product, T0> {
+};
+
+template <typename T0>
+struct MatchTrait<DimExpr, BroadcastedDim<T0>> final
+  : public ListDimExprMatchTrait<BroadcastedDim, T0> {
+};
 
 }  // namespace cinn::adt

@@ -41,25 +41,34 @@ std::string ToTxtStringImpl(
   return std::string("1 / (") + ToTxtString(item) + std::string(")");
 }
 
-std::string ToTxtStringImpl(
-    const Add<DimExpr, DimExpr>& dim_expr) {
-  const auto& [lhs, rhs] = dim_expr.tuple();
-  return std::string("(") + ToTxtString(lhs) + std::string(" + ") +
-         ToTxtString(rhs) + std::string(")");
+std::string ListDimExprToTxtString(
+    const List<DimExpr>& dim_exprs) {
+  std::string ret;
+  for (std::size_t i = 0; i < dim_exprs->size(); ++i) {
+    if (i > 0) {
+      ret += ", ";
+    }
+    ret += ToTxtString(dim_exprs->at(i));
+  }
+  return ret;
 }
 
 std::string ToTxtStringImpl(
-    const Mul<DimExpr, DimExpr>& dim_expr) {
-  const auto& [lhs, rhs] = dim_expr.tuple();
-  return std::string("(") + ToTxtString(lhs) + std::string(" * ") +
-         ToTxtString(rhs) + std::string(")");
+    const Sum<DimExpr>& dim_expr) {
+  const auto& [operands] = dim_expr;
+  return std::string() + "Sum(" + ListDimExprToTxtString(operands) +")";
 }
 
 std::string ToTxtStringImpl(
-    const BroadcastedDim<DimExpr, DimExpr>& dim_expr) {
-  const auto& [lhs, rhs] = dim_expr.tuple();
-  return std::string("BD(") + ToTxtString(lhs) + std::string(", ") +
-         ToTxtString(rhs) + std::string(")");
+    const Product<DimExpr>& dim_expr) {
+  const auto& [operands] = dim_expr;
+  return std::string() + "Prod(" + ListDimExprToTxtString(operands) +")";
+}
+
+std::string ToTxtStringImpl(
+    const BroadcastedDim<DimExpr>& dim_expr) {
+  const auto& [operands] = dim_expr;
+  return std::string() + "BD(" + ListDimExprToTxtString(operands) +")";
 }
 
 }  // namespace
