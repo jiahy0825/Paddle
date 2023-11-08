@@ -56,7 +56,7 @@ struct SimplifyOperands {
     for (const auto& operand : *operands) {
       mut_operands->emplace_back(Simplify(operand));
     }
-    if (mut_operands != operands) {
+    if (mut_operands == operands) {
       return expr;
     } else {
       return Op<DimExpr>{mut_operands};
