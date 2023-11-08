@@ -19,6 +19,7 @@
 #include "paddle/cinn/adt/adapter_dynamic_tensor.h"
 #include "paddle/cinn/adt/adapter_tensor.h"
 #include "paddle/cinn/adt/adt.h"
+#include "paddle/cinn/adt/ast.h"
 #include "paddle/cinn/adt/arithmetic.h"
 #include "paddle/cinn/adt/equation_value.h"
 #include "paddle/cinn/adt/logical.h"
@@ -181,29 +182,42 @@ class AnchoredMapStmt final : public Tuple<MapStmt<Stmt>,
   }
 };
 
-DEFINE_ADT_UNION(GenericDim, SymbolicDim, std::int64_t);
-using KernelCondition = Logical<Tree<Arithmetic, GenericDim>>;
+using CppVar = tVar<UniqueId>;
 
-template <typename T>
-class ConditionalAnchoredMapStmt
-    : public Tuple<List<KernelCondition>, tTrue<T>, tFalse<T>> {
- public:
-  using Tuple<List<KernelCondition>, tTrue<T>, tFalse<T>>::Tuple;
-};
 
-using KernelBody = Tree<ConditionalAnchoredMapStmt, AnchoredMapStmt>;
-
-// Kernel = (KernelBody, In [Tensor], Out [Tensor])
+// Kernel = (AnchoredMapStmt, In [Tensor], Out [Tensor], [SymbolicDim])
 class Kernel final : public Tuple<List<AnchoredMapStmt>,
                                   tIn<List<Tensor>>,
-                                  tOut<List<Tensor>>> {
+                                  tOut<List<Tensor>>,
+                                  List<std::pair<CppVar, DimExpr>>> {
  public:
-  using Tuple<List<AnchoredMapStmt>, tIn<List<Tensor>>, tOut<List<Tensor>>>::
+  using Tuple<List<AnchoredMapStmt>, tIn<List<Tensor>>, tOut<List<Tensor>>, List<std::pair<CppVar, DimExpr>>>::
       Tuple;
 };
 
-// MapExpr = Kernel;
-using MapExpr = Kernel;
+template <typename T>
+struct ConditionalEntries {
+  List<If<Logical<DimExpr>, T, T>> conditional_entries;
+};
+
+struct ShapeInferExpr final {
+  List<List<DimExpr>> output_shape_expr;
+  ConditionalEntries<DimExpr> temp_storage_expr;
+};
+
+struct GetTensorShapeDim final {
+  Tensor tensor;
+  std::int64_t aixs;
+  DimExpr symbolic_dim_expr;
+};
+
+template <typename T>
+using WithRuntimeTensorShapeDim = Let<CppVar, GetTensorShapeDim, T>;
+
+struct MapExpr final {
+  WithRuntimeTensorShapeDim<ShapeInferExpr> shape_infer_expr;
+  WithRuntimeTensorShapeDim<ConditionalEntries<Kernel>> host_kernel_expr;
+};
 
 }  // namespace adt
 }  // namespace cinn
