@@ -28,15 +28,6 @@
 
 namespace cinn {
 
-namespace adt {
-class MapExprCtx;
-
-namespace config {
-class GraphSymbolicDimInferCtx;
-}
-
-}  // namespace adt
-
 namespace hlir {
 namespace framework {
 
@@ -66,20 +57,6 @@ class Graph : public cinn::common::Graph {
 
   /** \brief attributes of a graph */
   absl::flat_hash_map<std::string, std::shared_ptr<absl::any>> attrs;
-
-  void set_graph_ctx(
-      std::unique_ptr<adt::config::GraphSymbolicDimInferCtx>&& graph_ctx) {
-    CHECK_EQ(this, graph_ctx->graph());
-    graph_ctx_ = std::move(graph_ctx);
-  }
-
-  const adt::config::GraphSymbolicDimInferCtx* graph_ctx() const {
-    return graph_ctx_.get();
-  }
-
-  adt::config::GraphSymbolicDimInferCtx* mut_graph_ctx() {
-    return graph_ctx_.get();
-  }
 
   std::vector<std::vector<Node*>> groups;
   struct Group {
@@ -207,17 +184,6 @@ class Graph : public cinn::common::Graph {
 
     hlir::framework::OpPatternKind kind() const { return op_pattern_kind; }
 
-    adt::MapExprCtx* mut_map_expr_ctx() { return map_expr_ctx_.get(); }
-
-    const adt::MapExprCtx& map_expr_ctx() const {
-      return *CHECK_NOTNULL(map_expr_ctx_);
-    }
-
-    void set_map_expr_ctx(
-        const std::shared_ptr<adt::MapExprCtx>& map_expr_ctx) {
-      map_expr_ctx_ = map_expr_ctx;
-    }
-
    private:
     // input groups
     std::unordered_set<std::shared_ptr<Group>,
@@ -229,7 +195,6 @@ class Graph : public cinn::common::Graph {
                        SharedGroupHasher,
                        SharedGroupComparator>
         consumer_groups_;
-    std::shared_ptr<adt::MapExprCtx> map_expr_ctx_;
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 
@@ -336,8 +301,6 @@ class Graph : public cinn::common::Graph {
       const std::unordered_set<std::string>& fetch_var_ids = {});
 
   std::vector<std::vector<Node*>> FusionGroupsToGroups();
-
-  std::unique_ptr<adt::config::GraphSymbolicDimInferCtx> graph_ctx_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
 };

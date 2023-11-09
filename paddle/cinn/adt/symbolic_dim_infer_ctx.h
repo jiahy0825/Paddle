@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "paddle/cinn/adt/graph_symbolic_dim_infer_ctx.h"
 #include "paddle/cinn/adt/dim_expr.h"
-#include "paddle/cinn/hlir/framework/node.h"
+#include "paddle/cinn/adt/graph_symbolic_dim_infer_ctx.h"
+#include "paddle/pir/core/operation.h"
 
 namespace cinn::adt::config {
 
@@ -25,7 +25,7 @@ class SymbolicDimInferCtx {
   SymbolicDimInferCtx(const SymbolicDimInferCtx&) = delete;
   SymbolicDimInferCtx(SymbolicDimInferCtx&&) = delete;
 
-  SymbolicDimInferCtx(const hlir::framework::Node* node,
+  SymbolicDimInferCtx(const ::pir::Operation* node,
                       GraphSymbolicDimInferCtx* graph_ctx)
       : node_(node), graph_ctx_(graph_ctx) {}
 
@@ -38,7 +38,7 @@ class SymbolicDimInferCtx {
   }
 
   const DimExpr& GetInputDimExpr(std::size_t arg_idx,
-                                         std::size_t dim_idx) const {
+                                 std::size_t dim_idx) const {
     return graph_ctx_->GetInputDimExpr(node_, arg_idx, dim_idx);
   }
 
@@ -58,7 +58,7 @@ class SymbolicDimInferCtx {
   }
 
  private:
-  const hlir::framework::Node* node_;
+  const ::pir::Operation* node_;
   GraphSymbolicDimInferCtx* graph_ctx_;
 };
 

@@ -16,57 +16,41 @@
 
 #include "paddle/cinn/adt/dim_expr_simplifier.h"
 #include "paddle/cinn/adt/unique_id.h"
-#include "paddle/cinn/common/graph_utils.h"
-#include "paddle/cinn/hlir/framework/graph.h"
-#include "paddle/cinn/hlir/framework/node.h"
+#include "paddle/cinn/hlir/framework/pir/group.h"
+#include "paddle/cinn/hlir/framework/pir/utils.h"
+#include "paddle/pir/core/operation.h"
+#include "paddle/pir/core/value.h"
 
 namespace cinn::adt::config {
 
 namespace {
 
-const std::vector<int32_t>& GetShape(const hlir::framework::Graph* graph,
-                                     const hlir::framework::NodeData* tensor) {
-  const auto& shape_dict =
-      graph->GetAttrs<absl::flat_hash_map<std::string, utils::ShapeType>>(
-          "infershape");
-  CHECK(shape_dict.count(tensor->id()))
-      << "Can't find " << tensor->id() << " 's shape!";
-  return shape_dict.at(tensor->id());
-}
-
-std::size_t GetTensorRank(const hlir::framework::Graph* graph,
-                          const hlir::framework::NodeData* tensor) {
-  const auto& shape_dict =
-      graph->GetAttrs<absl::flat_hash_map<std::string, utils::ShapeType>>(
-          "infershape");
-  CHECK(shape_dict.count(tensor->id()))
-      << "Can't find " << tensor->id() << " 's shape!";
-  return shape_dict.at(tensor->id()).size();
-}
-
-std::vector<std::uint64_t> GetOpInputRanks(const hlir::framework::Graph* graph,
-                                           const hlir::framework::Node* node) {
-  std::vector<std::uint64_t> ret{};
-  for (const auto& graph_edge : node->inlinks_in_order()) {
-    const hlir::framework::NodeData* tensor =
-        graph_edge->source()->safe_as<hlir::framework::NodeData>();
-    ret.emplace_back(GetTensorRank(graph, tensor));
+std::vector<int32_t> GetShape(const ::pir::Value& tensor) {
+  std::vector<int> tensor_shape =
+      hlir::framework::pir::CompatibleInfo::ValueShape(tensor);
+  std::vector<int32_t> ret{};
+  for (int32_t dim : tensor_shape) {
+    ret.push_back(dim);
   }
   return ret;
 }
 
-std::vector<const hlir::framework::Node*> GetTopoOrderOpNodes(
-    const hlir::framework::Graph* graph) {
-  std::vector<const hlir::framework::Node*> ret{};
-  std::vector<common::GraphNode*> topo_nodes =
-      std::get<0>(graph->topological_order());
-  for (const common::GraphNode* graph_node : topo_nodes) {
-    const hlir::framework::Node* op_node =
-        graph_node->safe_as<hlir::framework::Node>();
-    // if node is NodeData or not op, continue.
-    if (!op_node || op_node->op() == nullptr) {
-      continue;
-    }
+std::size_t GetTensorRank(const ::pir::Value& tensor) {
+  return hlir::framework::pir::CompatibleInfo::ValueShape(tensor).size();
+}
+
+std::vector<std::uint64_t> GetOpInputRanks(const ::pir::Operation* node) {
+  std::vector<std::uint64_t> ret{};
+  for (const ::pir::Value& tensor : node->operands_source()) {
+    ret.emplace_back(GetTensorRank(tensor));
+  }
+  return ret;
+}
+
+std::vector<const ::pir::Operation*> GetTopoOrderOpNodes(
+    const hlir::framework::pir::Group* group) {
+  std::vector<const ::pir::Operation*> ret{};
+  for (const ::pir::Operation* op_node : group->ops) {
     ret.emplace_back(op_node);
   }
   return ret;
@@ -75,8 +59,8 @@ std::vector<const hlir::framework::Node*> GetTopoOrderOpNodes(
 }  // namespace
 
 void GraphSymbolicDimInferCtx::InitOp2TensorRanks() {
-  for (const hlir::framework::Node* op_node : GetTopoOrderOpNodes(graph_)) {
-    const auto& input_ranks = GetOpInputRanks(graph_, op_node);
+  for (const ::pir::Operation* op_node : GetTopoOrderOpNodes(group_)) {
+    std::vector<std::uint64_t> input_ranks = GetOpInputRanks(op_node);
     if (op2input_ranks_.find(op_node) == op2input_ranks_.end()) {
       op2input_ranks_.emplace(op_node, input_ranks);
     } else {
@@ -88,30 +72,31 @@ void GraphSymbolicDimInferCtx::InitOp2TensorRanks() {
 namespace {
 
 std::unordered_set<std::string> GetAllOutputNames(
-    const std::vector<const hlir::framework::Node*>& nodes) {
+    const std::vector<const ::pir::Operation*>& nodes) {
   std::unordered_set<std::string> output_names;
-  for (const auto* node : nodes) {
-    for (const auto& link : node->outlinks()) {
-      const auto* out_node = link->sink()->safe_as<hlir::framework::NodeData>();
-      output_names.emplace(out_node->id());
+  for (const auto* op_node : nodes) {
+    for (const ::pir::Value& out_node :
+         const_cast<::pir::Operation*>(op_node)->results()) {
+      output_names.emplace(
+          hlir::framework::pir::CompatibleInfo::ValueName(out_node));
     }
   }
   return output_names;
 }
 
-std::vector<const hlir::framework::NodeData*> GetFeedList(
-    const std::vector<const hlir::framework::Node*>& nodes,
+std::vector<::pir::Value> GetFeedList(
+    const std::vector<const ::pir::Operation*>& op_nodes,
     const std::unordered_set<std::string>& out_names) {
-  std::vector<const hlir::framework::NodeData*> ret{};
+  std::vector<::pir::Value> ret{};
   // if the op's input var name cannot found in out_names, it is the group's
   // feed var
   std::unordered_set<std::string> feed_names;
-  for (const auto* node : nodes) {
-    for (const auto& link : node->inlinks()) {
-      const auto* in_node =
-          link->source()->safe_as<hlir::framework::NodeData>();
-      if (!out_names.count(in_node->id()) && !feed_names.count(in_node->id())) {
-        feed_names.emplace(in_node->id());
+  for (const auto* op_node : op_nodes) {
+    for (const ::pir::Value in_node : op_node->operands_source()) {
+      const auto& node_id =
+          hlir::framework::pir::CompatibleInfo::ValueName(in_node);
+      if (!out_names.count(node_id) && !feed_names.count(node_id)) {
+        feed_names.emplace(node_id);
         ret.emplace_back(in_node);
       }
     }
@@ -120,15 +105,13 @@ std::vector<const hlir::framework::NodeData*> GetFeedList(
 }
 
 std::vector<std::optional<DimExpr>> MakeDimExprForTensor(
-    const hlir::framework::Graph* graph,
-    const hlir::framework::NodeData* node_data) {
+    const ::pir::Value& node_data) {
   std::vector<std::optional<DimExpr>> ret{};
 
-  const std::vector<int32_t>& shape = GetShape(graph, node_data);
+  std::vector<int32_t> shape = GetShape(node_data);
   for (std::size_t i = 0; i < shape.size(); ++i) {
     if (i == 0) {
-      static DimExpr temp_elementwise_dim_expr{
-          SymbolicDim{UniqueId::New()}};
+      static DimExpr temp_elementwise_dim_expr{SymbolicDim{UniqueId::New()}};
       ret.emplace_back(temp_elementwise_dim_expr);
     } else {
       ret.emplace_back(DimExpr{shape.at(i)});
@@ -140,38 +123,34 @@ std::vector<std::optional<DimExpr>> MakeDimExprForTensor(
 }  // namespace
 
 void GraphSymbolicDimInferCtx::InitGraphInputDimExpr() {
-  std::vector<const hlir::framework::Node*> topo_op_nodes =
-      GetTopoOrderOpNodes(graph_);
-  std::vector<const hlir::framework::NodeData*> feed_list =
+  std::vector<const ::pir::Operation*> topo_op_nodes =
+      GetTopoOrderOpNodes(group_);
+  std::vector<::pir::Value> feed_list =
       GetFeedList(topo_op_nodes, GetAllOutputNames(topo_op_nodes));
-  for (const hlir::framework::NodeData* node_data : feed_list) {
-    CHECK(
-        tensor2dim_exprs_
-            .emplace(node_data, MakeDimExprForTensor(graph_, node_data))
-            .second);
+  for (const ::pir::Value node_data : feed_list) {
+    CHECK(tensor2dim_exprs_.emplace(node_data, MakeDimExprForTensor(node_data))
+              .second);
   }
 }
 
 const std::vector<std::uint64_t>& GraphSymbolicDimInferCtx::GetInTensorsRanks(
-    const hlir::framework::Node* node) const {
+    const ::pir::Operation* node) const {
   const auto& iter = op2input_ranks_.find(node);
   CHECK(iter != op2input_ranks_.end());
   return iter->second;
 }
 
 std::uint64_t GraphSymbolicDimInferCtx::GetNumOutTensors(
-    const hlir::framework::Node* node) const {
-  return node->outlinks_in_order().size();
+    const ::pir::Operation* node) const {
+  return node->num_results();
 }
 
 const DimExpr& GraphSymbolicDimInferCtx::GetInputDimExpr(
-    const hlir::framework::Node* node,
+    const ::pir::Operation* node,
     std::size_t arg_idx,
     std::size_t dim_idx) const {
-  const auto& edges = node->inlinks_in_order();
-  CHECK_LT(arg_idx, edges.size());
-  const hlir::framework::NodeData* tensor =
-      edges.at(arg_idx)->source()->safe_as<hlir::framework::NodeData>();
+  CHECK_LT(arg_idx, node->num_operands());
+  const ::pir::Value tensor = node->operand_source(arg_idx);
   const auto& iter = tensor2dim_exprs_.find(tensor);
   CHECK(iter != tensor2dim_exprs_.end());
   CHECK_LT(dim_idx, iter->second.size());
@@ -180,16 +159,14 @@ const DimExpr& GraphSymbolicDimInferCtx::GetInputDimExpr(
   return opt_dim_expr.value();
 }
 
-void GraphSymbolicDimInferCtx::SetOutputDimExpr(
-    const hlir::framework::Node* node,
-    std::size_t arg_idx,
-    std::size_t dim_idx,
-    const DimExpr& value) {
-  const auto& edges = node->outlinks_in_order();
-  CHECK_LT(arg_idx, edges.size());
-  const hlir::framework::NodeData* tensor =
-      edges.at(arg_idx)->sink()->safe_as<hlir::framework::NodeData>();
-  std::size_t rank = GetTensorRank(graph_, tensor);
+void GraphSymbolicDimInferCtx::SetOutputDimExpr(const ::pir::Operation* node,
+                                                std::size_t arg_idx,
+                                                std::size_t dim_idx,
+                                                const DimExpr& value) {
+  CHECK_LT(arg_idx, node->num_results());
+  const ::pir::Value tensor =
+      const_cast<::pir::Operation*>(node)->result(arg_idx);
+  std::size_t rank = GetTensorRank(tensor);
   CHECK_LT(dim_idx, rank);
   auto* opt_symbolic_dims = &tensor2dim_exprs_[tensor];
   if (dim_idx >= opt_symbolic_dims->size()) {
@@ -198,9 +175,9 @@ void GraphSymbolicDimInferCtx::SetOutputDimExpr(
   opt_symbolic_dims->at(dim_idx) = SimplifyDimExpr(value);
 }
 
-const hlir::framework::AttrMapType& GraphSymbolicDimInferCtx::GetAttributeMap(
-    const hlir::framework::Node* op_node) const {
-  return op_node->attrs.attr_store;
+cinn::utils::AttributeMap GraphSymbolicDimInferCtx::GetAttributeMap(
+    const ::pir::Operation* op_node) const {
+  return hlir::framework::pir::CompatibleInfo::ConvertAttributes(*op_node);
 }
 
 }  // namespace cinn::adt::config

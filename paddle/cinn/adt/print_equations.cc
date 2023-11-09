@@ -13,25 +13,29 @@
 // limitations under the License.
 
 #include "paddle/cinn/adt/print_equations.h"
-#include "paddle/cinn/adt/print_dim_expr.h"
 
 #include <sstream>
 #include <string>
 
 #include "paddle/cinn/adt/equation_function.h"
+#include "paddle/cinn/adt/print_dim_expr.h"
+#include "paddle/cinn/hlir/framework/pir/utils.h"
+#include "paddle/pir/core/operation.h"
 
 namespace cinn::adt {
 
 namespace {
 
-std::string OpImpl(const hlir::framework::Node* op) { return op->op()->name; }
-
-std::string OpImpl(const tReduceInit<const hlir::framework::Node*>& op) {
-  return op.value()->op()->name + "_init";
+std::string OpImpl(const ::pir::Operation* op) {
+  return hlir::framework::pir::CompatibleInfo::OpName(*op);
 }
 
-std::string OpImpl(const tReduceAcc<const hlir::framework::Node*>& op) {
-  return op.value()->op()->name + "_acc";
+std::string OpImpl(const tReduceInit<const ::pir::Operation*>& op) {
+  return OpImpl(op.value()) + "_init";
+}
+
+std::string OpImpl(const tReduceAcc<const ::pir::Operation*>& op) {
+  return OpImpl(op.value()) + "_acc";
 }
 
 }  // namespace
@@ -185,8 +189,8 @@ struct ToTxtStringStruct {
   }
 
   std::string operator()(
-      const IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>&
-          undot) const {
+      const IndexUnDot<List<DimExpr>, tOut<List<Iterator>>, tIn<Index>>& undot)
+      const {
     std::string ret;
     const auto& [dim_list, out_iterator_list_tag, in_index_tag] = undot.tuple();
     const List<Iterator>& out_iterator_list = out_iterator_list_tag.value();

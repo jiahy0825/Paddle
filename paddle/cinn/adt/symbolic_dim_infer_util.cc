@@ -15,37 +15,32 @@
 #include "paddle/cinn/adt/symbolic_dim_infer_util.h"
 
 #include "paddle/cinn/adt/symbolic_dim_infer_ctx.h"
-#include "paddle/cinn/common/graph_utils.h"
-#include "paddle/cinn/hlir/framework/graph.h"
-#include "paddle/cinn/hlir/framework/node.h"
+#include "paddle/cinn/hlir/framework/pir/group.h"
+#include "paddle/cinn/hlir/framework/pir/utils.h"
 
 namespace cinn::adt {
 
+// ADT_TODO : Replace Group with AnalysisManager
 std::unique_ptr<config::GraphSymbolicDimInferCtx> InferSymbolicDim(
-    const hlir::framework::Graph* graph) {
+    const cinn::hlir::framework::pir::Group* group) {
   using InferSymbolicDimFunc =
       std::function<void(adt::config::SymbolicDimInferCtx * ctx)>;
   auto infer_ctx_ptr =
-      std::make_unique<config::GraphSymbolicDimInferCtx>(graph);
+      std::make_unique<config::GraphSymbolicDimInferCtx>(group);
 
-  std::vector<common::GraphNode*> topo_nodes =
-      std::get<0>(graph->topological_order());
-  for (const common::GraphNode* graph_node : topo_nodes) {
-    const hlir::framework::Node* op_node =
-        graph_node->safe_as<hlir::framework::Node>();
-    // if node is NodeData or not op, continue.
-    if (!op_node || op_node->op() == nullptr) {
-      continue;
-    }
-
-    VLOG(1) << "op_name : " << op_node->op()->name;
+  for (const ::pir::Operation* op_node : group->ops) {
+    VLOG(1) << "op_name : "
+            << hlir::framework::pir::CompatibleInfo::OpName(*op_node);
     const auto& infer_symbolic_dim =
         hlir::framework::Operator::GetAttrs<InferSymbolicDimFunc>(
             "infer_symbolic_dim");
-    CHECK(infer_symbolic_dim.Find(op_node->op()));
+
+    const hlir::framework::Operator* cinn_op = hlir::framework::Operator::Get(
+        hlir::framework::pir::CompatibleInfo::OpName(*op_node));
+    CHECK(infer_symbolic_dim.Find(cinn_op));
 
     adt::config::SymbolicDimInferCtx ctx{op_node, infer_ctx_ptr.get()};
-    infer_symbolic_dim[op_node->op()](&ctx);
+    infer_symbolic_dim[cinn_op](&ctx);
   }
   return infer_ctx_ptr;
 }

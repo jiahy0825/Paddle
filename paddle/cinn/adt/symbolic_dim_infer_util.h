@@ -16,8 +16,8 @@
 
 #include <memory>
 
-namespace cinn::hlir::framework {
-class Graph;
+namespace cinn::hlir::framework::pir {
+struct Group;
 }
 
 namespace cinn::adt {
@@ -27,6 +27,6 @@ class GraphSymbolicDimInferCtx;
 }
 
 std::unique_ptr<config::GraphSymbolicDimInferCtx> InferSymbolicDim(
-    const hlir::framework::Graph* graph);
+    const hlir::framework::pir::Group* group);
 
 }  // namespace cinn::adt

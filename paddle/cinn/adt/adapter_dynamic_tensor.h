@@ -17,37 +17,30 @@
 
 #include "paddle/cinn/adt/adt.h"
 #include "paddle/cinn/adt/symbolic_dim.h"
-#include "paddle/cinn/hlir/framework/graph.h"
-#include "paddle/cinn/hlir/framework/node.h"
+#include "paddle/cinn/hlir/framework/pir/group.h"
 
 namespace cinn::adt::adapter {
 
 struct DynamicTensor final {
-  const hlir::framework::NodeData* node_data;
-  const hlir::framework::Graph* graph;
+  ::pir::Value node_data;
+  const hlir::framework::pir::Group* group;
 
   bool operator==(const DynamicTensor& other) const {
-    return this->node_data == other.node_data && this->graph == other.graph;
+    return this->node_data == other.node_data;
   }
 
   std::size_t GetRank() const {
-    const auto& shape_dict =
-        graph->GetAttrs<absl::flat_hash_map<std::string, utils::ShapeType>>(
-            "infershape");
-    CHECK(shape_dict.count(node_data->id()))
-        << "Can't find " << node_data->id() << " 's shape!";
-    return shape_dict.at(node_data->id()).size();
+    return cinn::hlir::framework::pir::CompatibleInfo::ValueShape(node_data)
+        .size();
   }
 
   const std::vector<std::optional<DimExpr>>& GetShape() const {
-    return graph->graph_ctx()->GetTensorDimExprs(node_data);
+    return group->graph_symbolic_dim_infer_ctx()->GetTensorDimExprs(node_data);
   }
 };
 
 inline std::size_t GetHashValueImpl(const DynamicTensor& tensor) {
-  return hash_combine(
-      std::hash<const hlir::framework::NodeData*>()(tensor.node_data),
-      std::hash<const hlir::framework::Graph*>()(tensor.graph));
+  return std::hash<::pir::Value>()(tensor.node_data);
 }
 
 }  // namespace cinn::adt::adapter
