@@ -16,11 +16,116 @@
 
 #include "paddle/cinn/adt/dim_expr_simplifier.h"
 #include "paddle/cinn/adt/unique_id.h"
+#include "paddle/cinn/adt/arithmetic.h"
+#include "paddle/cinn/adt/logical.h"
+#include "paddle/cinn/adt/adt.h"
 #include "paddle/cinn/hlir/framework/pir/group.h"
 #include "paddle/cinn/hlir/framework/pir/utils.h"
 #include "paddle/pir/core/operation.h"
 #include "paddle/pir/core/value.h"
 #include "paddle/pir/dialect/shape/utils/shape_optimization_utils.h"
+
+namespace cinn::adt::config {
+
+namespace {
+
+// Dim equations' configuration:
+//
+//     ShapeDialectConstraints = [ShapeDialectConstraint]
+//     ShapeDialectConstraint = Equal ShapeDialectDimExpr ShapeDialectDimExpr
+//
+//     ShapeDialectDimExpr = ShapeDialectAtomicDim
+//                         | Product ShapeDialectAtomicDim
+//
+//     ShapeDialectAtomicDim = int64_t | ShapeDialectSymbolicDim
+//     ShapeDialectSymbolicDim = (::pir::Value, tAxis int)
+//
+//
+// Dim equations' variables:
+//
+//     ShapeDialectSymbolicDim
+//
+// Dim equations' functions:
+//
+//     DimIdentity (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+//     DimIdentity (tOut ShapeDialectSymbolicDim) int64_t
+//     DimProduct (tOut ShapeDialectSymbolicDim) [tIn ShapeDialectSymbolicDim]
+//     DimReciprocal (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+//
+// Dim equations' solutions:
+//
+//     DimExpr
+
+// ShapeDialectSymbolicDim = (::pir::Value, tAxis int)
+struct ShapeDialectSymbolicDim {
+ ::pir::Value tensor;
+ std::int64_t axis;
+
+ bool operator==(const ShapeDialectSymbolicDim& other) const {
+   return this->tensor == other.tensor && this->axis == other.tensor;
+ }
+};
+// ShapeDialectAtomicDim = int64_t | ShapeDialectSymbolicDim
+DEFINE_ADT_UNION(ShapeDialectAtomicDim, std::int64_t, ShapeDialectSymbolicDim);
+// ShapeDialectDimExpr = ShapeDialectAtomicDim
+//                     | Product ShapeDialectAtomicDim
+DEFINE_ADT_UNION(ShapeDialectDimExpr,
+                 ShapeDialectAtomicDim,
+                 Product<ShapeDialectAtomicDim>);
+// ShapeDialectConstraint = Equal ShapeDialectDimExpr ShapeDialectDimExpr
+using ShapeDialectConstraint = Equal<ShapeDialectDimExpr, ShapeDialectDimExpr>;
+// ShapeDialectConstraints = [ShapeDialectConstraint]
+using ShapeDialectConstraints = List<ShapeDialectConstraint>;
+
+template<typename T0, typename T1>
+struct DimIdentity;
+
+//     DimIdentity (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+template<>
+struct DimIdentity<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>
+    : public Tuple<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>> {
+  using Tuple<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>::Tuple;
+};
+
+// DimIdentity (tOut ShapeDialectSymbolicDim) int64_t
+template<>
+struct DimIdentity<tOut<ShapeDialectSymbolicDim>, std::int64_t>
+    : public Tuple<tOut<ShapeDialectSymbolicDim>, std::int64_t> {
+  using Tuple<tOut<ShapeDialectSymbolicDim>, std::int64_t>::Tuple;
+};
+
+template<typename T0, typename T1>
+struct DimProduct;
+
+// DimProduct (tOut ShapeDialectSymbolicDim) [tIn ShapeDialectSymbolicDim]
+template<>
+struct DimProduct<tOut<ShapeDialectSymbolicDim>, List<tIn<ShapeDialectSymbolicDim>>>
+    : public Tuple<tOut<ShapeDialectSymbolicDim>, List<tIn<ShapeDialectSymbolicDim>>> {
+  using Tuple<tOut<ShapeDialectSymbolicDim>, List<tIn<ShapeDialectSymbolicDim>>>::Tuple;
+};
+
+// DimReciprocal (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+template<>
+struct DimReciprocal<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>
+    : public Tuple<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>> {
+  using Tuple<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>::Tuple;
+};
+
+}
+
+}
+
+namespace std {
+
+template<>
+struct hash<cinn::adt::config::ShapeDialectSymbolicDim> final {
+  using namespace cinn::adt::config;
+  std::size_t operator()(const ShapeDialectSymbolicDim& dim) const {
+    return hash_combine(std::hash<::pir::Value>()(dim.tensor), dim.axis);
+  }
+};
+
+}
 
 namespace cinn::adt::config {
 
