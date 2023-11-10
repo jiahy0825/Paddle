@@ -20,6 +20,7 @@
 #include "paddle/cinn/hlir/framework/pir/utils.h"
 #include "paddle/pir/core/operation.h"
 #include "paddle/pir/core/value.h"
+#include "paddle/pir/dialect/shape/utils/shape_optimization_utils.h"
 
 namespace cinn::adt::config {
 
@@ -113,11 +114,41 @@ std::vector<std::optional<DimExpr>> MakeDimExprForTensor(
 
 namespace {
 
+template <typename DoEachT>
+void VisitEachTensorPair(const ::pir::Operation* op_node,
+                         const DoEachT& DoEach) {
+  std::vector<::pir::Value> all_tensors{};
+  for (const ::pir::Value tensor : op_node->operands_source()) {
+    all_tensors.emplace_back(tensor);
+  }
+  for (const ::pir::Value tensor : op_node->results()) {
+    all_tensors.emplace_back(tensor);
+  }
+  for (std::size_t i = 0; i < all_tensors.size(); ++i) {
+    for (std::size_t j = i + 1; j < all_tensors.size(); ++j) {
+      DoEach(all_tensors.at(i), all_tensors.at(j));
+    }
+  }
+}
+
+void BuildTensorShapeDialectConstraints(
+    const ::pir::Value& lhs,
+    const ::pir::Value& rhs,
+    const ::pir::SymbolicDimMgr* symbolic_dim_mgr,
+    ShapeDialectConstraints* ret) {
+  const auto& lhs_symbolic_dim_ops =
+      symbolic_dim_mgr->CreateSymbolicDimsForRankedValue(lhs);
+  ADT_TODO();
+}
+
 void BuildOpShapeDialectConstraints(
     const ::pir::Operation* op_node,
     const ::pir::SymbolicDimMgr* symbolic_dim_mgr,
     ShapeDialectConstraints* ret) {
-  ADT_TODO();
+  VisitEachTensorPair(
+      op_node, [&](const ::pir::Value& lhs, const ::pir::Value& rhs) {
+        BuildTensorShapeDialectConstraints(lhs, rhs, symbolic_dim_mgr, ret);
+      });
 }
 
 ShapeDialectConstraints BuildGraphShapeDialectConstraints(
