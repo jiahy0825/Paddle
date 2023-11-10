@@ -29,6 +29,7 @@ namespace cinn::adt::config {
 
 namespace {
 
+// clang-format off
 // Dim equations' configuration:
 //
 //     ShapeDialectConstraints = [ShapeDialectConstraint]
@@ -46,20 +47,19 @@ namespace {
 //     ShapeDialectSymbolicDim
 //
 // Dim equations' functions:
-//
-//     DimIdentity (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
-//     DimIdentity (tOut ShapeDialectSymbolicDim) int64_t
-//     DimProduct (tOut ShapeDialectSymbolicDim) [tIn ShapeDialectSymbolicDim]
-//     DimReciprocal (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+// DimFunction = DimIdentity (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+//             | DimProduct (tOut ShapeDialectSymbolicDim) [tIn ShapeDialectSymbolicDim]
+//             | DimReciprocal (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
 //
 // Dim equations' solutions:
 //
 //     DimExpr
+// clang-format on
 
 // ShapeDialectSymbolicDim = (::pir::Value, tAxis int)
 struct ShapeDialectSymbolicDim {
  ::pir::Value tensor;
- std::int64_t axis;
+ int axis;
 
  bool operator==(const ShapeDialectSymbolicDim& other) const {
    return this->tensor == other.tensor && this->axis == other.tensor;
@@ -80,18 +80,11 @@ using ShapeDialectConstraints = List<ShapeDialectConstraint>;
 template<typename T0, typename T1>
 struct DimIdentity;
 
-//     DimIdentity (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+// DimIdentity (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
 template<>
 struct DimIdentity<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>
     : public Tuple<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>> {
   using Tuple<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>::Tuple;
-};
-
-// DimIdentity (tOut ShapeDialectSymbolicDim) int64_t
-template<>
-struct DimIdentity<tOut<ShapeDialectSymbolicDim>, std::int64_t>
-    : public Tuple<tOut<ShapeDialectSymbolicDim>, std::int64_t> {
-  using Tuple<tOut<ShapeDialectSymbolicDim>, std::int64_t>::Tuple;
 };
 
 template<typename T0, typename T1>
@@ -111,6 +104,14 @@ struct DimReciprocal<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>
   using Tuple<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>::Tuple;
 };
 
+// DimFunction = DimIdentity (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+//             | DimProduct (tOut ShapeDialectSymbolicDim) [tIn ShapeDialectSymbolicDim]
+//             | DimReciprocal (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+
+DEFINE_ADT_UNION(DimFunction,
+                 DimIdentity<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>,
+                 DimProduct<tOut<ShapeDialectSymbolicDim>, List<tIn<ShapeDialectSymbolicDim>>>,
+                 DimReciprocal<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>);
 }
 
 }
@@ -268,7 +269,7 @@ ShapeDialectConstraints BuildGraphShapeDialectConstraints(
 
 // ADT_TODO();
 using GraphView =
-    EquationGraphTopoWalker<ShapeDialectSymbolicDim, const Equation*>;
+    EquationGraphTopoWalker<ShapeDialectSymbolicDim, const DimFunction*>;
 
 GraphView MakeEquationGraphView(const ShapeDialectConstraints& constraints,
                                 const cinn::hlir::framework::pir::Group* group,
