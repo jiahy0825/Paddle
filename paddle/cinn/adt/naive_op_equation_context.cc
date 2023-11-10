@@ -100,7 +100,7 @@ std::optional<DimExpr> GetArgDimExpr(const List<Tensor>& tensors,
   if (tensor_idx >= tensors->size()) {
     return std::nullopt;
   }
-  const std::vector<int32_t> tensor_shape =
+  const auto& tensor_shape =
       tensors->at(tensor_idx).Get<adapter::DynamicTensor>().GetShape();
   if (dim_idx >= tensor_shape.size()) {
     return std::nullopt;

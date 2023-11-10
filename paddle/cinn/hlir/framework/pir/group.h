@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "paddle/cinn/adt/graph_symbolic_dim_infer_ctx.h"
 #include "paddle/cinn/hlir/framework/op.h"
 #include "paddle/cinn/hlir/framework/pir/utils.h"
 #include "paddle/pir/core/operation.h"
@@ -23,11 +24,6 @@
 namespace cinn {
 
 namespace adt {
-
-namespace config {
-class GraphSymbolicDimInferCtx;
-}
-
 class MapExprCtx;
 }  // namespace adt
 
@@ -189,7 +185,7 @@ struct Group {
   void set_graph_symbolic_dim_infer_ctx(
       std::unique_ptr<adt::config::GraphSymbolicDimInferCtx>&&
           graph_symbolic_dim_infer_ctx) {
-    CHECK_EQ(this, graph_symbolic_dim_infer_ctx->graph());
+    CHECK_EQ(this, graph_symbolic_dim_infer_ctx->group());
     graph_symbolic_dim_infer_ctx_ = std::move(graph_symbolic_dim_infer_ctx);
   }
 

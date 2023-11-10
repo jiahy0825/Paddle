@@ -16,6 +16,7 @@
 
 #include "paddle/cinn/adt/dim_expr.h"
 #include "paddle/cinn/adt/graph_symbolic_dim_infer_ctx.h"
+#include "paddle/cinn/utils/type_defs.h"
 #include "paddle/pir/core/operation.h"
 
 namespace cinn::adt::config {
@@ -48,7 +49,7 @@ class SymbolicDimInferCtx {
     return graph_ctx_->SetOutputDimExpr(node_, arg_idx, dim_idx, value);
   }
 
-  const hlir::framework::AttrMapType& GetAttributeMap() const {
+  cinn::utils::AttributeMap GetAttributeMap() const {
     return graph_ctx_->GetAttributeMap(node_);
   }
 
