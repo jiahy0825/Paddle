@@ -23,7 +23,8 @@
 #include "paddle/pir/core/value.h"
 namespace pir {
 class Operation;
-}
+class SymbolicDimMgr;
+}  // namespace pir
 
 namespace cinn::hlir::framework::pir {
 struct Group;
@@ -37,22 +38,13 @@ class GraphSymbolicDimInferCtx {
   GraphSymbolicDimInferCtx(GraphSymbolicDimInferCtx&&) = delete;
 
   explicit GraphSymbolicDimInferCtx(
-      const cinn::hlir::framework::pir::Group* group)
-      : group_(group) {
-    InitOp2TensorRanks();
-    InitGraphInputDimExpr();
+      const cinn::hlir::framework::pir::Group* group,
+      const ::pir::SymbolicDimMgr* symbolic_dim_mgr)
+      : group_(group), symbolic_dim_mgr_(symbolic_dim_mgr) {
+    InitTensorDimExpr();
   }
 
   const cinn::hlir::framework::pir::Group* group() const { return group_; }
-
-  const std::vector<std::uint64_t>& GetInTensorsRanks(
-      const ::pir::Operation* node) const;
-
-  std::uint64_t GetNumOutTensors(const ::pir::Operation* node) const;
-
-  const DimExpr& GetInputDimExpr(const ::pir::Operation* node,
-                                 std::size_t arg_idx,
-                                 std::size_t dim_idx) const;
 
   const std::vector<std::optional<DimExpr>>& GetTensorDimExprs(
       const ::pir::Value tensor) const {
@@ -61,22 +53,13 @@ class GraphSymbolicDimInferCtx {
     return iter->second;
   }
 
-  void SetOutputDimExpr(const ::pir::Operation* node,
-                        std::size_t arg_idx,
-                        std::size_t dim_idx,
-                        const DimExpr& value);
-
-  cinn::utils::AttributeMap GetAttributeMap(const ::pir::Operation* node) const;
-
  private:
-  void InitOp2TensorRanks();
-  void InitGraphInputDimExpr();
+  void InitTensorDimExpr();
 
   const cinn::hlir::framework::pir::Group* group_;
+  const ::pir::SymbolicDimMgr* symbolic_dim_mgr_;
   std::unordered_map<::pir::Value, std::vector<std::optional<DimExpr>>>
       tensor2dim_exprs_;
-  std::unordered_map<const ::pir::Operation*, std::vector<std::uint64_t>>
-      op2input_ranks_;
 };
 
 }  // namespace cinn::adt::config

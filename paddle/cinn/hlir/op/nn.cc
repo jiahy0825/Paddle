@@ -17,7 +17,6 @@
 #include <functional>
 
 #include "paddle/cinn/adt/op_equation_context.h"
-#include "paddle/cinn/adt/symbolic_dim_infer_ctx.h"
 #include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/op.h"
 #include "paddle/cinn/hlir/framework/op_strategy.h"
@@ -84,16 +83,6 @@ void GenerateEquationsForRelu(cinn::adt::config::OpEquationContext *ctx) {
   CHECK(ctx->GetInTensorsRanks().size() != 0)
       << "The inputs is empty! Please check again.";
   ctx->Equal(ctx->GetInIteratorTuple(0), ctx->GetOutIteratorTuple(0));
-}
-
-void InferSymbolicDimForRelu(cinn::adt::config::SymbolicDimInferCtx *ctx) {
-  CHECK_EQ(ctx->GetInTensorsRanks().size(), 1)
-      << "The inputs is not 1! Please check again.";
-  CHECK_EQ(ctx->GetNumOutTensors(), 1)
-      << "The outputs is not 1! Please check again.";
-  for (std::size_t i = 0; i < ctx->GetInTensorsRanks().at(0); ++i) {
-    ctx->SetOutputDimExpr(0, i, ctx->GetInputDimExpr(0, i));
-  }
 }
 
 std::vector<Type> InferDtypeForRelu(const std::vector<Type> &inputs_type,
@@ -2348,8 +2337,6 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu))
       .set_attr("generate_equations",
                 MakeOpFunction(cinn::hlir::op::GenerateEquationsForRelu))
-      .set_attr("infer_symbolic_dim",
-                MakeOpFunction(cinn::hlir::op::InferSymbolicDimForRelu))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout",
                 MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))

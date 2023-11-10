@@ -454,51 +454,6 @@ void GenerateEquationsForReduction(cinn::adt::config::OpEquationContext *ctx) {
   });
 }
 
-void InferSymbolicDimForReduction(cinn::adt::config::SymbolicDimInferCtx *ctx) {
-  CHECK(ctx->GetInTensorsRanks().size() != 0)
-      << "The inputs is empty! Please check again.";
-  const bool keep_dim = ctx->Attr<bool>("keep_dim");
-  const auto &dim = ctx->Attr<std::vector<int>>("dim");
-
-  const auto &IsReduceAxis = [&](const int in_axis) {
-    return std::find(dim.begin(), dim.end(), in_axis) != dim.end();
-  };
-
-  const auto &VisitEachAxisPair = [&](const auto &DoEach) {
-    std::size_t out_axis = 0;
-    for (std::size_t in_axis = 0; in_axis < ctx->GetInTensorsRanks().at(0);
-         ++in_axis) {
-      if (IsReduceAxis(in_axis)) {
-        out_axis += keep_dim;
-      } else {
-        DoEach(in_axis, out_axis);
-        out_axis += 1;
-      }
-    }
-  };
-
-  const auto &GetOutputTensorRank = [&]() -> int {
-    if (keep_dim) {
-      return ctx->GetInTensorsRanks().at(0);
-    } else {
-      return ctx->GetInTensorsRanks().at(0) - dim.size();
-    }
-  };
-
-  std::unordered_set<int> visited_output_axis{};
-  VisitEachAxisPair([&](const int input_axis, const int output_axis) {
-    visited_output_axis.emplace(output_axis);
-    ctx->SetOutputDimExpr(0, output_axis, ctx->GetInputDimExpr(0, input_axis));
-  });
-  for (int axis = 0; axis < GetOutputTensorRank(); ++axis) {
-    if (visited_output_axis.count(axis)) {
-      // Do nothing
-    } else {
-      ctx->SetOutputDimExpr(0, axis, adt::DimExpr{1});
-    }
-  }
-}
-
 std::vector<Type> InferDtypeForReduction(const std::vector<Type> &inputs_type,
                                          const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty())
@@ -576,8 +531,6 @@ CINN_REGISTER_HELPER(reduce_ops) {
           MakeOpFunction(cinn::hlir::op::InferDtypeForReduction##dtype__))     \
       .set_attr("generate_equations",                                          \
                 MakeOpFunction(cinn::hlir::op::GenerateEquationsForReduction)) \
-      .set_attr("infer_symbolic_dim",                                          \
-                MakeOpFunction(cinn::hlir::op::InferSymbolicDimForReduction))  \
       .set_attr("inferlayout",                                                 \
                 MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))       \
       .set_attr<cinn::hlir::framework::OpPatternKind>(                         \

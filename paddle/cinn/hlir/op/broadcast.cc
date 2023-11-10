@@ -17,7 +17,6 @@
 #include <iostream>
 
 #include "paddle/cinn/adt/op_equation_context.h"
-#include "paddle/cinn/adt/symbolic_dim_infer_ctx.h"
 #include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/op.h"
 #include "paddle/cinn/hlir/framework/op_strategy.h"
@@ -149,34 +148,6 @@ void GenerateEquationsForBroadcast(cinn::adt::config::OpEquationContext *ctx) {
                ctx->GetBroadcastedInputIterator(
                    ctx->GetOutIteratorTuple(0)->at(i + offset1),
                    ctx->GetInDimTuple(1)->at(i)));
-  }
-}
-
-void InferSymbolicDimForBroadcast(cinn::adt::config::SymbolicDimInferCtx *ctx) {
-  VLOG(1) << "Use InferSymbolicDimForBroadcast";
-  CHECK_EQ(ctx->GetInTensorsRanks().size(), 2)
-      << "The inputs is " << ctx->GetInTensorsRanks().size()
-      << "! Please check again.";
-  CHECK_EQ(ctx->GetNumOutTensors(), 1)
-      << "The output is " << ctx->GetNumOutTensors() << "! Please check again.";
-  std::uint64_t in_tensor0_ranks = ctx->GetInTensorsRanks().at(0);
-  std::uint64_t in_tensor1_ranks = ctx->GetInTensorsRanks().at(1);
-  std::uint64_t out_tensor_ranks = std::max(in_tensor0_ranks, in_tensor1_ranks);
-  int offset0 = out_tensor_ranks - in_tensor0_ranks;
-  int offset1 = out_tensor_ranks - in_tensor1_ranks;
-  CHECK(offset0 == 0 || offset1 == 0);
-  CHECK(in_tensor0_ranks == out_tensor_ranks ||
-        in_tensor1_ranks == out_tensor_ranks);
-  int offset = std::max(offset0, offset1);
-  int equal_tensor_index = offset0 > 0 ? 1 : 0;
-  for (std::size_t i = 0; i < offset; ++i) {
-    ctx->SetOutputDimExpr(0, i, ctx->GetInputDimExpr(equal_tensor_index, i));
-  }
-  for (std::size_t i = offset; i < out_tensor_ranks; ++i) {
-    const auto &broadcasted_dim =
-        MakeBroadcastedDim(ctx->GetInputDimExpr(0, i - offset0),
-                           ctx->GetInputDimExpr(1, i - offset1));
-    ctx->SetOutputDimExpr(0, i, broadcasted_dim);
   }
 }
 
@@ -488,8 +459,6 @@ CINN_REGISTER_HELPER(broadcast_ops) {
                 MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcast))        \
       .set_attr("generate_equations",                                          \
                 MakeOpFunction(cinn::hlir::op::GenerateEquationsForBroadcast)) \
-      .set_attr("infer_symbolic_dim",                                          \
-                MakeOpFunction(cinn::hlir::op::InferSymbolicDimForBroadcast))  \
       .set_attr("inferlayout",                                                 \
                 MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcast))       \
       .set_attr<cinn::hlir::framework::OpPatternKind>(                         \
