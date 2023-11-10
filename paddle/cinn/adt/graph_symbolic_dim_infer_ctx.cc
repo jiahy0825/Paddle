@@ -23,6 +23,7 @@
 #include "paddle/cinn/hlir/framework/pir/utils.h"
 #include "paddle/pir/core/operation.h"
 #include "paddle/pir/core/value.h"
+#include "paddle/pir/dialect/shape/utils/shape_optimization_utils.h"
 
 namespace cinn::adt::config {
 
@@ -216,9 +217,85 @@ std::vector<std::optional<DimExpr>> MakeDimExprForTensor(
 
 }  // namespace
 
+namespace {
+
+template <typename DoEachT>
+void VisitEachTensorPair(const ::pir::Operation* op_node,
+                         const DoEachT& DoEach) {
+  std::vector<::pir::Value> all_tensors{};
+  for (const ::pir::Value tensor : op_node->operands_source()) {
+    all_tensors.emplace_back(tensor);
+  }
+  for (const ::pir::Value tensor : op_node->results()) {
+    all_tensors.emplace_back(tensor);
+  }
+  for (std::size_t i = 0; i < all_tensors.size(); ++i) {
+    for (std::size_t j = i + 1; j < all_tensors.size(); ++j) {
+      DoEach(all_tensors.at(i), all_tensors.at(j));
+    }
+  }
+}
+
+void BuildTensorShapeDialectConstraints(
+    const ::pir::Value& lhs,
+    const ::pir::Value& rhs,
+    const ::pir::SymbolicDimMgr* symbolic_dim_mgr,
+    ShapeDialectConstraints* ret) {
+  const auto& lhs_symbolic_dim_ops =
+      symbolic_dim_mgr->CreateSymbolicDimsForRankedValue(lhs);
+  ADT_TODO();
+}
+
+void BuildOpShapeDialectConstraints(
+    const ::pir::Operation* op_node,
+    const ::pir::SymbolicDimMgr* symbolic_dim_mgr,
+    ShapeDialectConstraints* ret) {
+  VisitEachTensorPair(
+      op_node, [&](const ::pir::Value& lhs, const ::pir::Value& rhs) {
+        BuildTensorShapeDialectConstraints(lhs, rhs, symbolic_dim_mgr, ret);
+      });
+}
+
+ShapeDialectConstraints BuildGraphShapeDialectConstraints(
+    const cinn::hlir::framework::pir::Group* group,
+    const ::pir::SymbolicDimMgr* symbolic_dim_mgr) {
+  ShapeDialectConstraints ret{};
+  for (const ::pir::Operation* op_node : group->ops) {
+    BuildOpShapeDialectConstraints(op_node, symbolic_dim_mgr, &ret);
+  }
+  return ret;
+}
+
+// ADT_TODO();
+using GraphView =
+    EquationGraphTopoWalker<ShapeDialectSymbolicDim, const Equation*>;
+
+GraphView MakeEquationGraphView(const ShapeDialectConstraints& constraints,
+                                const cinn::hlir::framework::pir::Group* group,
+                                const ::pir::SymbolicDimMgr* symbolic_dim_mgr) {
+  ADT_TODO();
+}
+
+std::unordered_map<ShapeDialectSymbolicDim, DimExpr> MakeEquationStartExpr(
+    const GraphView& graph_view,
+    const cinn::hlir::framework::pir::Group* group,
+    const ::pir::SymbolicDimMgr* symbolic_dim_mgr) {
+  ADT_TODO();
+}
+
+std::unordered_map<::pir::Value, std::vector<std::optional<DimExpr>>>
+SolveShapeDialectConstraints(
+    const GraphView& graph_view,
+    const std::unordered_map<ShapeDialectSymbolicDim, DimExpr>&
+        equation_start) {
+  ADT_TODO();
+}
+
+}  // namespace
+
 void GraphSymbolicDimInferCtx::InitTensorDimExpr() {
   ShapeDialectConstraints constraints =
-      BuildShapeDialectConstraints(group_, symbolic_dim_mgr_);
+      BuildGraphShapeDialectConstraints(group_, symbolic_dim_mgr_);
 
   const auto& graph_view =
       MakeEquationGraphView(constraints, group_, symbolic_dim_mgr_);
