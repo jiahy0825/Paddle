@@ -220,9 +220,13 @@ void GraphSymbolicDimInferCtx::InitTensorDimExpr() {
   ShapeDialectConstraints constraints =
       BuildShapeDialectConstraints(group_, symbolic_dim_mgr_);
 
-  const auto& equation_start = MakeEquationStartExpr(group_, symbolic_dim_mgr_);
+  const auto& graph_view =
+      MakeEquationGraphView(constraints, group_, symbolic_dim_mgr_);
 
-  tensor2dim_exprs_ = SolveShapeDialectConstraints(constraints, equation_start);
+  const auto& equation_start =
+      MakeEquationStartExpr(graph_view, group_, symbolic_dim_mgr_);
+
+  tensor2dim_exprs_ = SolveShapeDialectConstraints(graph_view, equation_start);
 }
 
 }  // namespace cinn::adt::config
