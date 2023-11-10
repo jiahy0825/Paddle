@@ -58,17 +58,6 @@ std::vector<const ::pir::Operation*> GetTopoOrderOpNodes(
 
 }  // namespace
 
-void GraphSymbolicDimInferCtx::InitOp2TensorRanks() {
-  for (const ::pir::Operation* op_node : GetTopoOrderOpNodes(group_)) {
-    std::vector<std::uint64_t> input_ranks = GetOpInputRanks(op_node);
-    if (op2input_ranks_.find(op_node) == op2input_ranks_.end()) {
-      op2input_ranks_.emplace(op_node, input_ranks);
-    } else {
-      CHECK(input_ranks == op2input_ranks_.at(op_node));
-    }
-  }
-}
-
 namespace {
 
 std::unordered_set<std::string> GetAllOutputNames(
@@ -122,62 +111,13 @@ std::vector<std::optional<DimExpr>> MakeDimExprForTensor(
 
 }  // namespace
 
-void GraphSymbolicDimInferCtx::InitGraphInputDimExpr() {
-  std::vector<const ::pir::Operation*> topo_op_nodes =
-      GetTopoOrderOpNodes(group_);
-  std::vector<::pir::Value> feed_list =
-      GetFeedList(topo_op_nodes, GetAllOutputNames(topo_op_nodes));
-  for (const ::pir::Value node_data : feed_list) {
-    CHECK(tensor2dim_exprs_.emplace(node_data, MakeDimExprForTensor(node_data))
-              .second);
-  }
-}
+void GraphSymbolicDimInferCtx::InitTensorDimExpr() {
+  ShapeDialectConstraints constraints =
+      BuildShapeDialectConstraints(group_, symbolic_dim_mgr_);
 
-const std::vector<std::uint64_t>& GraphSymbolicDimInferCtx::GetInTensorsRanks(
-    const ::pir::Operation* node) const {
-  const auto& iter = op2input_ranks_.find(node);
-  CHECK(iter != op2input_ranks_.end());
-  return iter->second;
-}
+  const auto& equation_start = MakeEquationStartExpr(group_, symbolic_dim_mgr_);
 
-std::uint64_t GraphSymbolicDimInferCtx::GetNumOutTensors(
-    const ::pir::Operation* node) const {
-  return node->num_results();
-}
-
-const DimExpr& GraphSymbolicDimInferCtx::GetInputDimExpr(
-    const ::pir::Operation* node,
-    std::size_t arg_idx,
-    std::size_t dim_idx) const {
-  CHECK_LT(arg_idx, node->num_operands());
-  const ::pir::Value tensor = node->operand_source(arg_idx);
-  const auto& iter = tensor2dim_exprs_.find(tensor);
-  CHECK(iter != tensor2dim_exprs_.end());
-  CHECK_LT(dim_idx, iter->second.size());
-  const auto& opt_dim_expr = iter->second.at(dim_idx);
-  CHECK(opt_dim_expr.has_value());
-  return opt_dim_expr.value();
-}
-
-void GraphSymbolicDimInferCtx::SetOutputDimExpr(const ::pir::Operation* node,
-                                                std::size_t arg_idx,
-                                                std::size_t dim_idx,
-                                                const DimExpr& value) {
-  CHECK_LT(arg_idx, node->num_results());
-  const ::pir::Value tensor =
-      const_cast<::pir::Operation*>(node)->result(arg_idx);
-  std::size_t rank = GetTensorRank(tensor);
-  CHECK_LT(dim_idx, rank);
-  auto* opt_symbolic_dims = &tensor2dim_exprs_[tensor];
-  if (dim_idx >= opt_symbolic_dims->size()) {
-    opt_symbolic_dims->resize(dim_idx + 1);
-  }
-  opt_symbolic_dims->at(dim_idx) = SimplifyDimExpr(value);
-}
-
-cinn::utils::AttributeMap GraphSymbolicDimInferCtx::GetAttributeMap(
-    const ::pir::Operation* op_node) const {
-  return hlir::framework::pir::CompatibleInfo::ConvertAttributes(*op_node);
+  tensor2dim_exprs_ = SolveShapeDialectConstraints(constraints, equation_start);
 }
 
 }  // namespace cinn::adt::config

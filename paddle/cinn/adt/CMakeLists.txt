@@ -31,7 +31,6 @@ if(NOT CINN_ONLY)
     dim_expr.cc
     dim_expr_test.cc
     dim_expr_simplifier.cc
-    symbolic_dim_infer_util.cc
     simplify_value.cc
     write_broadcast_disabled_bidirection_equation_generator.cc
     print_dim_expr.cc)

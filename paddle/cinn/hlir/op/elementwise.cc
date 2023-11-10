@@ -18,7 +18,6 @@
 
 #include "absl/types/optional.h"
 #include "paddle/cinn/adt/op_equation_context.h"
-#include "paddle/cinn/adt/symbolic_dim_infer_ctx.h"
 #include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/op.h"
 #include "paddle/cinn/hlir/framework/op_strategy.h"
@@ -114,17 +113,6 @@ void GenerateEquationsForElementwise(
   CHECK(ctx->GetInTensorsRanks().size() != 0)
       << "The inputs is empty! Please check again.";
   ctx->Equal(ctx->GetInIteratorTuple(0), ctx->GetOutIteratorTuple(0));
-}
-
-void InferSymbolicDimForElementwise(
-    cinn::adt::config::SymbolicDimInferCtx *ctx) {
-  CHECK_EQ(ctx->GetInTensorsRanks().size(), 1)
-      << "The inputs is not 1! Please check again.";
-  CHECK_EQ(ctx->GetNumOutTensors(), 1)
-      << "The outputs is not 1! Please check again.";
-  for (std::size_t i = 0; i < ctx->GetInTensorsRanks().at(0); ++i) {
-    ctx->SetOutputDimExpr(0, i, ctx->GetInputDimExpr(0, i));
-  }
 }
 
 std::vector<Type> InferDtypeForElementwiseBool(
@@ -436,16 +424,6 @@ std::vector<Type> InferDtypeForFillConstant(
 void GenerateEquationsForFillConstant(
     cinn::adt::config::OpEquationContext *ctx) {
   // Do nothing
-}
-
-void InferSymbolicDimForFillConstant(
-    cinn::adt::config::SymbolicDimInferCtx *ctx) {
-  const framework::AttrMapType &attrs = ctx->GetAttributeMap();
-  CHECK(attrs.count("shape"));
-  const auto &shape = absl::get<std::vector<int>>(attrs.at("shape"));
-  for (std::size_t i = 0; i < shape.size(); ++i) {
-    ctx->SetOutputDimExpr(0, i, cinn::adt::DimExpr{shape.at(i)});
-  }
 }
 
 std::vector<std::vector<std::string>> InferLayoutForFillConstant(
@@ -1025,9 +1003,6 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr(                                                           \
           "generate_equations",                                            \
           MakeOpFunction(cinn::hlir::op::GenerateEquationsForElementwise)) \
-      .set_attr(                                                           \
-          "infer_symbolic_dim",                                            \
-          MakeOpFunction(cinn::hlir::op::InferSymbolicDimForElementwise))  \
       .set_attr("inferlayout",                                             \
                 MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise)) \
       .set_attr<cinn::hlir::framework::OpPatternKind>(                     \
@@ -1152,8 +1127,6 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr(
           "generate_equations",
           MakeOpFunction(cinn::hlir::op::GenerateEquationsForFillConstant))
-      .set_attr("infer_symbolic_dim",
-                MakeOpFunction(cinn::hlir::op::InferSymbolicDimForFillConstant))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout",
                 MakeOpFunction(cinn::hlir::op::InferLayoutForFillConstant))
