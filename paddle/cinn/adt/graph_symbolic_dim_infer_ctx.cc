@@ -47,9 +47,12 @@ namespace {
 //     ShapeDialectSymbolicDim
 //
 // Dim equations' functions:
-// DimFunction = DimIdentity (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
-//             | DimProduct (tOut ShapeDialectSymbolicDim) [tIn ShapeDialectSymbolicDim]
-//             | DimReciprocal (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+// DimFunction = DimIdentity (tOut ShapeDialectSymbolicDim)
+//                           (tIn ShapeDialectSymbolicDim)
+//             | DimProduct (tOut ShapeDialectSymbolicDim)
+//                          [tIn ShapeDialectSymbolicDim]
+//             | DimReciprocal (tOut ShapeDialectSymbolicDim)
+//                             (tIn ShapeDialectSymbolicDim)
 //
 // Dim equations' solutions:
 //
@@ -260,6 +263,29 @@ void VisitEachIdxPairOfTwoVectors(const std::vector<T>& lhs,
   }
 }
 
+List<ShapeDialectDimAtomic> MakeShapeDialectDimAtomicList(
+    const ::pir::Value& tensor) {
+  List<ShapeDialectDimAtomic> ret{};
+  for (std::size_t i = 0;
+       i < hlir::framework::pir::CompatibleInfo::ValueShape(tensor).size();
+       ++i) {
+    ret->emplace_back(ShapeDialectSymbolicDim{tensor, i});
+  }
+  return ret;
+}
+
+void CreateProductEqualConstraints(const ::pir::Value& lhs_tensor,
+                                   const ::pir::Value& rhs_tensor,
+                                   ShapeDialectConstraints* ret) {
+  List<ShapeDialectDimAtomic> lhs_atomics =
+      MakeShapeDialectDimAtomicList(lhs_tensor);
+  List<ShapeDialectDimAtomic> rhs_atomics =
+      MakeShapeDialectDimAtomicList(rhs_tensor);
+  ret->emplace_back(Equal<ShapeDialectDimExpr, ShapeDialectDimExpr>(
+      Product<ShapeDialectDimAtomic>{lhs_atomics},
+      Product<ShapeDialectDimAtomic>{rhs_atomics}));
+}
+
 void BuildTensorShapeDialectConstraints(
     const ::pir::Value& lhs_tensor,
     const ::pir::Value& rhs_tensor,
@@ -289,6 +315,12 @@ void BuildTensorShapeDialectConstraints(
               ShapeDialectAtomicDim{rhs_adt_dim}});
         }
       });
+
+  if (const_cast<::pir::SymbolicDimMgr*>(symbolic_dim_mgr)
+          ->IsSymbolicDimProductEqual(SymbolicDimProduct{lhs_dims},
+                                      SymbolicDimProduct{rhs_dims})) {
+    CreateProductEqualConstraints(lhs_tensor, rhs_tensor, ret);
+  }
 }
 
 ShapeDialectConstraints BuildGraphShapeDialectConstraints(
