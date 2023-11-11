@@ -14,11 +14,11 @@
 
 #include "paddle/cinn/adt/graph_symbolic_dim_infer_ctx.h"
 
-#include "paddle/cinn/adt/dim_expr_simplifier.h"
-#include "paddle/cinn/adt/unique_id.h"
-#include "paddle/cinn/adt/arithmetic.h"
-#include "paddle/cinn/adt/logical.h"
 #include "paddle/cinn/adt/adt.h"
+#include "paddle/cinn/adt/arithmetic.h"
+#include "paddle/cinn/adt/dim_expr_simplifier.h"
+#include "paddle/cinn/adt/logical.h"
+#include "paddle/cinn/adt/unique_id.h"
 #include "paddle/cinn/hlir/framework/pir/group.h"
 #include "paddle/cinn/hlir/framework/pir/utils.h"
 #include "paddle/pir/core/operation.h"
@@ -58,12 +58,12 @@ namespace {
 
 // ShapeDialectSymbolicDim = (::pir::Value, tAxis int)
 struct ShapeDialectSymbolicDim {
- ::pir::Value tensor;
- int axis;
+  ::pir::Value tensor;
+  int axis;
 
- bool operator==(const ShapeDialectSymbolicDim& other) const {
-   return this->tensor == other.tensor && this->axis == other.tensor;
- }
+  bool operator==(const ShapeDialectSymbolicDim& other) const {
+    return this->tensor == other.tensor && this->axis == other.tensor;
+  }
 };
 // ShapeDialectAtomicDim = int64_t | ShapeDialectSymbolicDim
 DEFINE_ADT_UNION(ShapeDialectAtomicDim, std::int64_t, ShapeDialectSymbolicDim);
@@ -77,48 +77,60 @@ using ShapeDialectConstraint = Equal<ShapeDialectDimExpr, ShapeDialectDimExpr>;
 // ShapeDialectConstraints = [ShapeDialectConstraint]
 using ShapeDialectConstraints = List<ShapeDialectConstraint>;
 
-template<typename T0, typename T1>
+template <typename T0, typename T1>
 struct DimIdentity;
 
 // DimIdentity (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
-template<>
+template <>
 struct DimIdentity<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>
-    : public Tuple<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>> {
-  using Tuple<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>::Tuple;
+    : public Tuple<tOut<ShapeDialectSymbolicDim>,
+                   tIn<ShapeDialectSymbolicDim>> {
+  using Tuple<tOut<ShapeDialectSymbolicDim>,
+              tIn<ShapeDialectSymbolicDim>>::Tuple;
 };
 
-template<typename T0, typename T1>
+template <typename T0, typename T1>
 struct DimProduct;
 
 // DimProduct (tOut ShapeDialectSymbolicDim) [tIn ShapeDialectSymbolicDim]
-template<>
-struct DimProduct<tOut<ShapeDialectSymbolicDim>, List<tIn<ShapeDialectSymbolicDim>>>
-    : public Tuple<tOut<ShapeDialectSymbolicDim>, List<tIn<ShapeDialectSymbolicDim>>> {
-  using Tuple<tOut<ShapeDialectSymbolicDim>, List<tIn<ShapeDialectSymbolicDim>>>::Tuple;
+template <>
+struct DimProduct<tOut<ShapeDialectSymbolicDim>,
+                  List<tIn<ShapeDialectSymbolicDim>>>
+    : public Tuple<tOut<ShapeDialectSymbolicDim>,
+                   List<tIn<ShapeDialectSymbolicDim>>> {
+  using Tuple<tOut<ShapeDialectSymbolicDim>,
+              List<tIn<ShapeDialectSymbolicDim>>>::Tuple;
 };
 
 // DimReciprocal (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
-template<>
-struct DimReciprocal<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>
-    : public Tuple<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>> {
-  using Tuple<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>::Tuple;
+template <>
+struct DimReciprocal<tOut<ShapeDialectSymbolicDim>,
+                     tIn<ShapeDialectSymbolicDim>>
+    : public Tuple<tOut<ShapeDialectSymbolicDim>,
+                   tIn<ShapeDialectSymbolicDim>> {
+  using Tuple<tOut<ShapeDialectSymbolicDim>,
+              tIn<ShapeDialectSymbolicDim>>::Tuple;
 };
 
-// DimFunction = DimIdentity (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
-//             | DimProduct (tOut ShapeDialectSymbolicDim) [tIn ShapeDialectSymbolicDim]
-//             | DimReciprocal (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+// DimFunction = DimIdentity (tOut ShapeDialectSymbolicDim) (tIn
+// ShapeDialectSymbolicDim)
+//             | DimProduct (tOut ShapeDialectSymbolicDim) [tIn
+//             ShapeDialectSymbolicDim] | DimReciprocal (tOut
+//             ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
 
-DEFINE_ADT_UNION(DimFunction,
-                 DimIdentity<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>,
-                 DimProduct<tOut<ShapeDialectSymbolicDim>, List<tIn<ShapeDialectSymbolicDim>>>,
-                 DimReciprocal<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>);
-}
+DEFINE_ADT_UNION(
+    DimFunction,
+    DimIdentity<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>,
+    DimProduct<tOut<ShapeDialectSymbolicDim>,
+               List<tIn<ShapeDialectSymbolicDim>>>,
+    DimReciprocal<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>);
+}  // namespace
 
-}
+}  // namespace cinn::adt::config
 
 namespace std {
 
-template<>
+template <>
 struct hash<cinn::adt::config::ShapeDialectSymbolicDim> final {
   using namespace cinn::adt::config;
   std::size_t operator()(const ShapeDialectSymbolicDim& dim) const {
@@ -126,7 +138,7 @@ struct hash<cinn::adt::config::ShapeDialectSymbolicDim> final {
   }
 };
 
-}
+}  // namespace std
 
 namespace cinn::adt::config {
 
@@ -221,8 +233,8 @@ std::vector<std::optional<DimExpr>> MakeDimExprForTensor(
 namespace {
 
 template <typename DoEachT>
-void VisitEachTensorPair(const ::pir::Operation* op_node,
-                         const DoEachT& DoEach) {
+void VisitEachTensorPairOfOp(const ::pir::Operation* op_node,
+                             const DoEachT& DoEach) {
   std::vector<::pir::Value> all_tensors{};
   for (const ::pir::Value tensor : op_node->operands_source()) {
     all_tensors.emplace_back(tensor);
@@ -237,23 +249,45 @@ void VisitEachTensorPair(const ::pir::Operation* op_node,
   }
 }
 
-void BuildTensorShapeDialectConstraints(
-    const ::pir::Value& lhs,
-    const ::pir::Value& rhs,
-    const ::pir::SymbolicDimMgr* symbolic_dim_mgr,
-    ShapeDialectConstraints* ret) {
-  const auto& lhs_symbolic_dim_ops =
-      symbolic_dim_mgr->CreateSymbolicDimsForRankedValue(lhs);
-  ADT_TODO();
+template <typename T, typename DoEachT>
+void VisitEachIdxPairOfTwoVectors(const std::vector<T>& lhs,
+                                  const std::vector<T>& rhs,
+                                  const DoEachT& DoEach) {
+  for (std::size_t i = 0; i < lhs.size(); ++i) {
+    for (std::size_t j = 0; j < rhs.size(); ++j) {
+      DoEach(i, j);
+    }
+  }
 }
 
-void BuildOpShapeDialectConstraints(
-    const ::pir::Operation* op_node,
+void BuildTensorShapeDialectConstraints(
+    const ::pir::Value& lhs_tensor,
+    const ::pir::Value& rhs_tensor,
     const ::pir::SymbolicDimMgr* symbolic_dim_mgr,
     ShapeDialectConstraints* ret) {
-  VisitEachTensorPair(
-      op_node, [&](const ::pir::Value& lhs, const ::pir::Value& rhs) {
-        BuildTensorShapeDialectConstraints(lhs, rhs, symbolic_dim_mgr, ret);
+  const std::vector<::pir::shape::SymbolicDimOp>& lhs_dims =
+      const_cast<::pir::SymbolicDimMgr*>(symbolic_dim_mgr)
+          ->CreateSymbolicDimsForRankedValue(lhs_tensor);
+  CHECK_EQ(lhs_dims.size(),
+           hlir::framework::pir::CompatibleInfo::ValueShape(lhs_tensor).size());
+  const std::vector<::pir::shape::SymbolicDimOp>& rhs_dims =
+      const_cast<::pir::SymbolicDimMgr*>(symbolic_dim_mgr)
+          ->CreateSymbolicDimsForRankedValue(rhs_tensor);
+  CHECK_EQ(rhs_dims.size(),
+           hlir::framework::pir::CompatibleInfo::ValueShape(rhs_tensor).size());
+
+  VisitEachIdxPairOfTwoVectors(
+      lhs_dims, rhs_dims, [&](std::size_t lhs_idx, std::size_t rhs_idx) {
+        const ::pir::shape::SymbolicDimOp& lhs_dim = lhs_dims.at(lhs_idx);
+        const ::pir::shape::SymbolicDimOp& rhs_dim = rhs_dims.at(rhs_idx);
+        if (const_cast<::pir::SymbolicDimMgr*>(symbolic_dim_mgr)
+                ->IsSymbolicDimEqual(lhs_dim, rhs_dim)) {
+          ShapeDialectSymbolicDim lhs_adt_dim{lhs_tensor, lhs_idx};
+          ShapeDialectSymbolicDim rhs_adt_dim{rhs_tensor, rhs_idx};
+          ret->emplace_back(Equal<ShapeDialectDimExpr, ShapeDialectDimExpr>{
+              ShapeDialectAtomicDim{lhs_adt_dim},
+              ShapeDialectAtomicDim{rhs_adt_dim}});
+        }
       });
 }
 
@@ -262,7 +296,10 @@ ShapeDialectConstraints BuildGraphShapeDialectConstraints(
     const ::pir::SymbolicDimMgr* symbolic_dim_mgr) {
   ShapeDialectConstraints ret{};
   for (const ::pir::Operation* op_node : group->ops) {
-    BuildOpShapeDialectConstraints(op_node, symbolic_dim_mgr, &ret);
+    VisitEachTensorPairOfOp(
+        op_node, [&](const ::pir::Value& lhs, const ::pir::Value& rhs) {
+          BuildTensorShapeDialectConstraints(lhs, rhs, symbolic_dim_mgr, &ret);
+        });
   }
   return ret;
 }
