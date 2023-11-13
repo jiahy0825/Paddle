@@ -125,10 +125,6 @@ using Function = Equation;
 using Equations = List<Equation>;
 using GraphView = EquationGraphTopoWalker<Variable, const Equation*>;
 
-std::pair<std::unordered_set<Variable> /*input*/,
-          std::unordered_set<Variable> /*output*/>
-CollectInputAndOutputVariables(const Function& function);
-
 std::string GetFunctionTypeName(const Function& function);
 
 const void* GetFunctionDataPtr(const Function& function);

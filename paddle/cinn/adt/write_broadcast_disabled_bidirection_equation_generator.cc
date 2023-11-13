@@ -108,9 +108,9 @@ std::vector<Index> GenerateWriteBroadcastTensorIndexs(
     const std::shared_ptr<const EquationFunctionConstantsProvider>&
         constants_provider) {
   const auto& eqaution_graph_view =
-      Graph::New(ctx->equations())->GetGraphView();
+      Graph<Variable, Equation>::New(ctx->equations())->GetGraphView();
   GraphView graph_view = eqaution_graph_view.Merge(
-      Graph::New(in_msg2out_msg_equations)->GetGraphView());
+      Graph<Variable, Equation>::New(in_msg2out_msg_equations)->GetGraphView());
   std::vector<Index> ret{};
   const auto& fake_op_placeholder = ctx->fake_op_placeholder();
   ctx->VisitEachOutputTensorIndex([&](const auto& out_index) {

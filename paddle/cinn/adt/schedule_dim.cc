@@ -113,7 +113,8 @@ std::unordered_set<Iterator> GenerateReducedIterator(
     const std::shared_ptr<config::NaiveOpEquationContext>& ctx,
     const std::shared_ptr<const EquationFunctionConstantsProvider>&
         constants_provider) {
-  const auto& graph_view = Graph::New(ctx->equations())->GetGraphView();
+  const auto& graph_view =
+      Graph<Variable, Equation>::New(ctx->equations())->GetGraphView();
 
   std::unordered_set<Iterator> ret{};
   VisitEachInputIteratorTuple(ctx, [&](const List<Iterator>& input_iterators) {

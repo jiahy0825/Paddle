@@ -240,7 +240,7 @@ GraphView GenerateSdEquationGraphView(const std::shared_ptr<IGroup>& igroup,
 
   Equations equations = igroup->anchor_sd_equation_ctx().value().equations();
 
-  return Graph::New(equations)->GetGraphView();
+  return Graph<Variable, Equation>::New(equations)->GetGraphView();
 }
 
 using TensorIndexExpr = Value;
