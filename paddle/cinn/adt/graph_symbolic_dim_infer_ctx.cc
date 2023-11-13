@@ -150,9 +150,10 @@ namespace std {
 
 template <>
 struct hash<cinn::adt::config::ShapeDialectTensorDim> final {
-  using cinn::adt::config;
-  std::size_t operator()(const ShapeDialectTensorDim& dim) const {
-    return hash_combine(std::hash<::pir::Value>()(dim.tensor), dim.axis);
+  std::size_t operator()(
+      const cinn::adt::config::ShapeDialectTensorDim& dim) const {
+    return cinn::adt::hash_combine(std::hash<::pir::Value>()(dim.tensor),
+                                   dim.axis);
   }
 };
 
