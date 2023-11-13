@@ -45,7 +45,7 @@ struct GraphTrait<Variable, Function> {
               out_variables.emplace(Variable{out_index.value()});
               in_variables.emplace(Variable{in_index.value()});
             },
-            [&](const IndexDot<List<Dim>, tOut<Index>, tIn<List<Iterator>>>&
+            [&](const IndexDot<List<DimExpr>, tOut<Index>, tIn<List<Iterator>>>&
                     dot) {
               const auto& [dims, out_index, in_iterators] = dot.tuple();
               out_variables.emplace(Variable{out_index.value()});
@@ -53,15 +53,16 @@ struct GraphTrait<Variable, Function> {
                 in_variables.emplace(Variable{iterator});
               }
             },
-            [&](const GetBroadcastedIterator<Dim,
+            [&](const GetBroadcastedIterator<DimExpr,
                                              tOut<Iterator>,
                                              tIn<Iterator>>& broadcast) {
               const auto& [dim, out_iterator, in_iterator] = broadcast.tuple();
               out_variables.emplace(Variable{out_iterator.value()});
               in_variables.emplace(Variable{in_iterator.value()});
             },
-            [&](const IndexUnDot<List<Dim>, tOut<List<Iterator>>, tIn<Index>>&
-                    undot) {
+            [&](const IndexUnDot<List<DimExpr>,
+                                 tOut<List<Iterator>>,
+                                 tIn<Index>>& undot) {
               const auto& [dims, out_iterators, in_index] = undot.tuple();
               for (const auto& iterator : *out_iterators.value()) {
                 out_variables.emplace(Variable{iterator});

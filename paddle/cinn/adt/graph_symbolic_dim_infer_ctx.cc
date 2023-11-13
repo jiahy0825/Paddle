@@ -33,18 +33,6 @@ namespace cinn::adt::config {
 namespace {
 
 // clang-format off
-// Dim equations' configuration:
-//
-//     ShapeDialectConstraints = [ShapeDialectConstraint]
-//     ShapeDialectConstraint = Equal ShapeDialectDimExpr ShapeDialectDimExpr
-//
-//     ShapeDialectDimExpr = ShapeDialectAtomicDim
-//                         | Product ShapeDialectAtomicDim
-//
-//     ShapeDialectAtomicDim = int64_t | ShapeDialectTensorDim
-//     ShapeDialectTensorDim = (::pir::Value, tAxis int)
-//
-//
 // Dim equations' variables:
 //
 // DimVar = ShapeDialectTensorDim | ShapeDialectTempDim
@@ -70,20 +58,9 @@ struct ShapeDialectTensorDim {
   int axis;
 
   bool operator==(const ShapeDialectTensorDim& other) const {
-    return this->tensor == other.tensor && this->axis == other.tensor;
+    return this->tensor == other.tensor && this->axis == other.axis;
   }
 };
-// ShapeDialectAtomicDim = int64_t | ShapeDialectTensorDim
-DEFINE_ADT_UNION(ShapeDialectAtomicDim, std::int64_t, ShapeDialectTensorDim);
-// ShapeDialectDimExpr = ShapeDialectAtomicDim
-//                     | Product ShapeDialectAtomicDim
-DEFINE_ADT_UNION(ShapeDialectDimExpr,
-                 ShapeDialectAtomicDim,
-                 Product<ShapeDialectAtomicDim>);
-// ShapeDialectConstraint = Equal ShapeDialectDimExpr ShapeDialectDimExpr
-using ShapeDialectConstraint = Equal<ShapeDialectDimExpr, ShapeDialectDimExpr>;
-// ShapeDialectConstraints = [ShapeDialectConstraint]
-using ShapeDialectConstraints = List<ShapeDialectConstraint>;
 
 DEFINE_ADT_TAG(tDimVar);
 using ShapeDialectTempDim = tDimVar<UniqueId>;
@@ -118,6 +95,9 @@ struct DimProduct<tOut<ShapeDialectTensorDim>, List<tIn<DimVar>>>
     : public Tuple<tOut<ShapeDialectTensorDim>, List<tIn<DimVar>>> {
   using Tuple<tOut<ShapeDialectTensorDim>, List<tIn<DimVar>>>::Tuple;
 };
+
+template <typename T0, typename T1>
+struct DimReciprocal;
 
 // DimReciprocal (tOut ShapeDialectTempDim) (tIn ShapeDialectTensorDim)
 template <>
@@ -210,7 +190,7 @@ List<ShapeDialectTensorDim> MakeShapeDialectTensorDimList(
 }
 
 List<ShapeDialectTempDim> GenerateReciprocalConstraints(
-    const List<ShapeDialectTensorDim>& tensor_dims, DimEquations* ret) {
+    const List<ShapeDialectTensorDim>& tensor_dims, DimFunctions* ret) {
   List<ShapeDialectTempDim> temp_dims{};
   for (const auto& tensor_dim : *tensor_dims) {
     ShapeDialectTempDim temp_dim{UniqueId::New()};
@@ -241,7 +221,7 @@ List<DimVar> CollectProductDimVarExceptIdx(
 
 void GenerateProductEqualConstraints(const ::pir::Value& lhs_tensor,
                                      const ::pir::Value& rhs_tensor,
-                                     DimEquations* ret) {
+                                     DimFunctions* ret) {
   List<ShapeDialectTensorDim> lhs_tensor_dims =
       MakeShapeDialectTensorDimList(lhs_tensor);
   List<ShapeDialectTensorDim> rhs_tensor_dims =
