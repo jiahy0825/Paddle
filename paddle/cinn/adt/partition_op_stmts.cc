@@ -103,7 +103,7 @@ GraphView MakeOpsGraphViewForPartition(
     equations->emplace_back(equation);
   });
 
-  return Graph::New(equations)->GetGraphView();
+  return Graph<Variable, Equation>::New(equations)->GetGraphView();
 }
 
 template <typename DoEachT>
@@ -249,7 +249,7 @@ GraphView MakeParametersGraphViewForPartition(
   VisitProducerConsumerTensorIndexPair(
       op_stmts, EquationCtx4OpStmt, AsOutput4Index, CollectEquation);
 
-  return Graph::New(equations)->GetGraphView();
+  return Graph<Variable, Equation>::New(equations)->GetGraphView();
 }
 
 GraphView MakeGlobalEquationGraphViewForPartition(
@@ -261,7 +261,8 @@ GraphView MakeGlobalEquationGraphViewForPartition(
       MakeOpsGraphViewForPartition(EquationCtx4OpStmt, op_stmts);
 
   const auto& direction_equation_view =
-      Graph::New(direction_equation_generator->GetDirectionEquations())
+      Graph<Variable, Equation>::New(
+          direction_equation_generator->GetDirectionEquations())
           ->GetGraphView();
 
   const auto& parameters_graph_view = MakeParametersGraphViewForPartition(
@@ -395,10 +396,9 @@ tBreak<bool> AggregateAnchorGroupOpStmt(const AnchorGroup& igroup_spec,
   return tBreak<bool>{false};
 }
 
-void CheckEquationSolvable(
-    const AnchorGroup& igroup_spec,
-    const std::shared_ptr<DirectionEquationGenerator>&
-        direction_equation_generator) {
+void CheckEquationSolvable(const AnchorGroup& igroup_spec,
+                           const std::shared_ptr<DirectionEquationGenerator>&
+                               direction_equation_generator) {
   const auto& equation_graph_view =
       MakeGlobalEquationGraphViewForPartition(igroup_spec.EquationCtx4OpStmt,
                                               igroup_spec.op_stmts,

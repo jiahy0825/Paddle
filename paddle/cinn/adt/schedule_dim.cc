@@ -107,12 +107,12 @@ void FilterReducedIterator(
 
 std::unordered_set<Iterator> GenerateReducedIterator(
     const std::shared_ptr<config::NaiveOpEquationContext>& ctx) {
-  const auto& graph_view = Graph::New(ctx->equations())->GetGraphView();
+  const auto& graph_view =
+      Graph<Variable, Equation>::New(ctx->equations())->GetGraphView();
 
   std::unordered_set<Iterator> ret{};
   VisitEachInputIteratorTuple(ctx, [&](const List<Iterator>& input_iterators) {
-    const auto& infer_ctx =
-        InitIndexExprInferContext(ctx, input_iterators);
+    const auto& infer_ctx = InitIndexExprInferContext(ctx, input_iterators);
 
     std::vector<Variable> starts{};
     for (const auto& iterator : *input_iterators) {

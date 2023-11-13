@@ -17,7 +17,10 @@
 #include "paddle/cinn/adt/adt.h"
 #include "paddle/cinn/adt/arithmetic.h"
 #include "paddle/cinn/adt/dim_expr_simplifier.h"
+#include "paddle/cinn/adt/equation_graph.h"
 #include "paddle/cinn/adt/logical.h"
+#include "paddle/cinn/adt/print.h"
+#include "paddle/cinn/adt/symbolic_dim.h"
 #include "paddle/cinn/adt/unique_id.h"
 #include "paddle/cinn/hlir/framework/pir/group.h"
 #include "paddle/cinn/hlir/framework/pir/utils.h"
@@ -38,38 +41,40 @@ namespace {
 //     ShapeDialectDimExpr = ShapeDialectAtomicDim
 //                         | Product ShapeDialectAtomicDim
 //
-//     ShapeDialectAtomicDim = int64_t | ShapeDialectSymbolicDim
-//     ShapeDialectSymbolicDim = (::pir::Value, tAxis int)
+//     ShapeDialectAtomicDim = int64_t | ShapeDialectTensorDim
+//     ShapeDialectTensorDim = (::pir::Value, tAxis int)
 //
 //
 // Dim equations' variables:
 //
-//     ShapeDialectSymbolicDim
+// DimVar = ShapeDialectTensorDim | ShapeDialectTempDim
+// ShapeDialectTensorDim = (Tensor, tAxis int)
+// ShapeDialectTempDim = (tDimVar UniqueId)
 //
 // Dim equations' functions:
-// DimFunction = DimIdentity (tOut ShapeDialectSymbolicDim)
-//                           (tIn ShapeDialectSymbolicDim)
-//             | DimProduct (tOut ShapeDialectSymbolicDim)
-//                          [tIn ShapeDialectSymbolicDim]
-//             | DimReciprocal (tOut ShapeDialectSymbolicDim)
-//                             (tIn ShapeDialectSymbolicDim)
+// DimFunction = DimIdentity (tOut ShapeDialectTensorDim)
+//                           (tIn ShapeDialectTensorDim)
+//             | DimProduct (tOut ShapeDialectTensorDim)
+//                          [tIn DimVar]
+//             | DimReciprocal (tOut ShapeDialectTempDim)
+//                             (tIn ShapeDialectTensorDim)
 //
 // Dim equations' solutions:
 //
 //     DimExpr
 // clang-format on
 
-// ShapeDialectSymbolicDim = (::pir::Value, tAxis int)
-struct ShapeDialectSymbolicDim {
+// ShapeDialectTensorDim = (::pir::Value, tAxis int)
+struct ShapeDialectTensorDim {
   ::pir::Value tensor;
   int axis;
 
-  bool operator==(const ShapeDialectSymbolicDim& other) const {
+  bool operator==(const ShapeDialectTensorDim& other) const {
     return this->tensor == other.tensor && this->axis == other.tensor;
   }
 };
-// ShapeDialectAtomicDim = int64_t | ShapeDialectSymbolicDim
-DEFINE_ADT_UNION(ShapeDialectAtomicDim, std::int64_t, ShapeDialectSymbolicDim);
+// ShapeDialectAtomicDim = int64_t | ShapeDialectTensorDim
+DEFINE_ADT_UNION(ShapeDialectAtomicDim, std::int64_t, ShapeDialectTensorDim);
 // ShapeDialectDimExpr = ShapeDialectAtomicDim
 //                     | Product ShapeDialectAtomicDim
 DEFINE_ADT_UNION(ShapeDialectDimExpr,
@@ -80,158 +85,87 @@ using ShapeDialectConstraint = Equal<ShapeDialectDimExpr, ShapeDialectDimExpr>;
 // ShapeDialectConstraints = [ShapeDialectConstraint]
 using ShapeDialectConstraints = List<ShapeDialectConstraint>;
 
+DEFINE_ADT_TAG(tDimVar);
+using ShapeDialectTempDim = tDimVar<UniqueId>;
+
+DEFINE_ADT_UNION(DimVar, ShapeDialectTensorDim, ShapeDialectTempDim);
+OVERRIDE_UNION_GET_HASH_VALUE(DimVar);
+
+std::size_t GetHashValueImpl(const ShapeDialectTensorDim& dim) {
+  return hash_combine(std::hash<::pir::Value>()(dim.tensor), dim.axis);
+}
+
+std::size_t GetHashValueImpl(const ShapeDialectTempDim& dim) {
+  return dim.value().unique_id();
+}
+
 template <typename T0, typename T1>
 struct DimIdentity;
 
-// DimIdentity (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+// DimIdentity (tOut ShapeDialectTensorDim) (tIn ShapeDialectTensorDim)
 template <>
-struct DimIdentity<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>
-    : public Tuple<tOut<ShapeDialectSymbolicDim>,
-                   tIn<ShapeDialectSymbolicDim>> {
-  using Tuple<tOut<ShapeDialectSymbolicDim>,
-              tIn<ShapeDialectSymbolicDim>>::Tuple;
+struct DimIdentity<tOut<ShapeDialectTensorDim>, tIn<ShapeDialectTensorDim>>
+    : public Tuple<tOut<ShapeDialectTensorDim>, tIn<ShapeDialectTensorDim>> {
+  using Tuple<tOut<ShapeDialectTensorDim>, tIn<ShapeDialectTensorDim>>::Tuple;
 };
 
 template <typename T0, typename T1>
 struct DimProduct;
 
-// DimProduct (tOut ShapeDialectSymbolicDim) [tIn ShapeDialectSymbolicDim]
+// DimProduct (tOut ShapeDialectTensorDim) [tIn DimVar]
 template <>
-struct DimProduct<tOut<ShapeDialectSymbolicDim>,
-                  List<tIn<ShapeDialectSymbolicDim>>>
-    : public Tuple<tOut<ShapeDialectSymbolicDim>,
-                   List<tIn<ShapeDialectSymbolicDim>>> {
-  using Tuple<tOut<ShapeDialectSymbolicDim>,
-              List<tIn<ShapeDialectSymbolicDim>>>::Tuple;
+struct DimProduct<tOut<ShapeDialectTensorDim>, List<tIn<DimVar>>>
+    : public Tuple<tOut<ShapeDialectTensorDim>, List<tIn<DimVar>>> {
+  using Tuple<tOut<ShapeDialectTensorDim>, List<tIn<DimVar>>>::Tuple;
 };
 
-// DimReciprocal (tOut ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+// DimReciprocal (tOut ShapeDialectTempDim) (tIn ShapeDialectTensorDim)
 template <>
-struct DimReciprocal<tOut<ShapeDialectSymbolicDim>,
-                     tIn<ShapeDialectSymbolicDim>>
-    : public Tuple<tOut<ShapeDialectSymbolicDim>,
-                   tIn<ShapeDialectSymbolicDim>> {
-  using Tuple<tOut<ShapeDialectSymbolicDim>,
-              tIn<ShapeDialectSymbolicDim>>::Tuple;
+struct DimReciprocal<tOut<ShapeDialectTempDim>, tIn<ShapeDialectTensorDim>>
+    : public Tuple<tOut<ShapeDialectTempDim>, tIn<ShapeDialectTensorDim>> {
+  using Tuple<tOut<ShapeDialectTempDim>, tIn<ShapeDialectTensorDim>>::Tuple;
 };
 
-// DimFunction = DimIdentity (tOut ShapeDialectSymbolicDim) (tIn
-// ShapeDialectSymbolicDim)
-//             | DimProduct (tOut ShapeDialectSymbolicDim) [tIn
-//             ShapeDialectSymbolicDim] | DimReciprocal (tOut
-//             ShapeDialectSymbolicDim) (tIn ShapeDialectSymbolicDim)
+// clang-format off
+// DimFunction = DimIdentity (tOut ShapeDialectTensorDim)
+//                           (tIn ShapeDialectTensorDim)
+//             | DimProduct (tOut ShapeDialectTensorDim)
+//                          [tIn DimVar]
+//             | DimReciprocal (tOut ShapeDialectTempDim)
+//                             (tIn ShapeDialectTensorDim)
+// clang-format on
 
 DEFINE_ADT_UNION(
     DimFunction,
-    DimIdentity<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>,
-    DimProduct<tOut<ShapeDialectSymbolicDim>,
-               List<tIn<ShapeDialectSymbolicDim>>>,
-    DimReciprocal<tOut<ShapeDialectSymbolicDim>, tIn<ShapeDialectSymbolicDim>>);
+    DimIdentity<tOut<ShapeDialectTensorDim>, tIn<ShapeDialectTensorDim>>,
+    DimProduct<tOut<ShapeDialectTensorDim>, List<tIn<DimVar>>>,
+    DimReciprocal<tOut<ShapeDialectTempDim>, tIn<ShapeDialectTensorDim>>);
 }  // namespace
+
+using DimFunctions = List<DimFunction>;
 
 }  // namespace cinn::adt::config
 
 namespace std {
 
 template <>
-struct hash<cinn::adt::config::ShapeDialectSymbolicDim> final {
-  using namespace cinn::adt::config;
-  std::size_t operator()(const ShapeDialectSymbolicDim& dim) const {
+struct hash<cinn::adt::config::ShapeDialectTensorDim> final {
+  using cinn::adt::config;
+  std::size_t operator()(const ShapeDialectTensorDim& dim) const {
     return hash_combine(std::hash<::pir::Value>()(dim.tensor), dim.axis);
+  }
+};
+
+template <>
+struct hash<cinn::adt::config::DimVar> final {
+  std::size_t operator()(const cinn::adt::config::DimVar& dim) const {
+    return cinn::adt::config::GetHashValue(dim);
   }
 };
 
 }  // namespace std
 
 namespace cinn::adt::config {
-
-namespace {
-
-std::vector<int32_t> GetShape(const ::pir::Value& tensor) {
-  std::vector<int> tensor_shape =
-      hlir::framework::pir::CompatibleInfo::ValueShape(tensor);
-  std::vector<int32_t> ret{};
-  for (int32_t dim : tensor_shape) {
-    ret.push_back(dim);
-  }
-  return ret;
-}
-
-std::size_t GetTensorRank(const ::pir::Value& tensor) {
-  return hlir::framework::pir::CompatibleInfo::ValueShape(tensor).size();
-}
-
-std::vector<std::uint64_t> GetOpInputRanks(const ::pir::Operation* node) {
-  std::vector<std::uint64_t> ret{};
-  for (const ::pir::Value& tensor : node->operands_source()) {
-    ret.emplace_back(GetTensorRank(tensor));
-  }
-  return ret;
-}
-
-std::vector<const ::pir::Operation*> GetTopoOrderOpNodes(
-    const hlir::framework::pir::Group* group) {
-  std::vector<const ::pir::Operation*> ret{};
-  for (const ::pir::Operation* op_node : group->ops) {
-    ret.emplace_back(op_node);
-  }
-  return ret;
-}
-
-}  // namespace
-
-namespace {
-
-std::unordered_set<std::string> GetAllOutputNames(
-    const std::vector<const ::pir::Operation*>& nodes) {
-  std::unordered_set<std::string> output_names;
-  for (const auto* op_node : nodes) {
-    for (const ::pir::Value& out_node :
-         const_cast<::pir::Operation*>(op_node)->results()) {
-      output_names.emplace(
-          hlir::framework::pir::CompatibleInfo::ValueName(out_node));
-    }
-  }
-  return output_names;
-}
-
-std::vector<::pir::Value> GetFeedList(
-    const std::vector<const ::pir::Operation*>& op_nodes,
-    const std::unordered_set<std::string>& out_names) {
-  std::vector<::pir::Value> ret{};
-  // if the op's input var name cannot found in out_names, it is the group's
-  // feed var
-  std::unordered_set<std::string> feed_names;
-  for (const auto* op_node : op_nodes) {
-    for (const ::pir::Value in_node : op_node->operands_source()) {
-      const auto& node_id =
-          hlir::framework::pir::CompatibleInfo::ValueName(in_node);
-      if (!out_names.count(node_id) && !feed_names.count(node_id)) {
-        feed_names.emplace(node_id);
-        ret.emplace_back(in_node);
-      }
-    }
-  }
-  return ret;
-}
-
-std::vector<std::optional<DimExpr>> MakeDimExprForTensor(
-    const ::pir::Value& node_data) {
-  std::vector<std::optional<DimExpr>> ret{};
-
-  std::vector<int32_t> shape = GetShape(node_data);
-  for (std::size_t i = 0; i < shape.size(); ++i) {
-    if (i == 0) {
-      static DimExpr temp_elementwise_dim_expr{SymbolicDim{UniqueId::New()}};
-      ret.emplace_back(temp_elementwise_dim_expr);
-    } else {
-      ret.emplace_back(DimExpr{shape.at(i)});
-    }
-  }
-  return ret;
-}
-
-}  // namespace
 
 namespace {
 
@@ -263,70 +197,133 @@ void VisitEachIdxPairOfTwoVectors(const std::vector<T>& lhs,
   }
 }
 
-List<ShapeDialectDimAtomic> MakeShapeDialectDimAtomicList(
+List<ShapeDialectTensorDim> MakeShapeDialectTensorDimList(
     const ::pir::Value& tensor) {
-  List<ShapeDialectDimAtomic> ret{};
+  List<ShapeDialectTensorDim> ret{};
   for (std::size_t i = 0;
        i < hlir::framework::pir::CompatibleInfo::ValueShape(tensor).size();
        ++i) {
-    ret->emplace_back(ShapeDialectSymbolicDim{tensor, i});
+    ret->emplace_back(ShapeDialectTensorDim{tensor, i});
   }
   return ret;
 }
 
-void CreateProductEqualConstraints(const ::pir::Value& lhs_tensor,
-                                   const ::pir::Value& rhs_tensor,
-                                   ShapeDialectConstraints* ret) {
-  List<ShapeDialectDimAtomic> lhs_atomics =
-      MakeShapeDialectDimAtomicList(lhs_tensor);
-  List<ShapeDialectDimAtomic> rhs_atomics =
-      MakeShapeDialectDimAtomicList(rhs_tensor);
-  ret->emplace_back(Equal<ShapeDialectDimExpr, ShapeDialectDimExpr>(
-      Product<ShapeDialectDimAtomic>{lhs_atomics},
-      Product<ShapeDialectDimAtomic>{rhs_atomics}));
+List<ShapeDialectTempDim> GenerateReciprocalConstraints(
+    const List<ShapeDialectTensorDim>& tensor_dims, DimEquations* ret) {
+  List<ShapeDialectTempDim> temp_dims{};
+  for (const auto& tensor_dim : *tensor_dims) {
+    ShapeDialectTempDim temp_dim{UniqueId::New()};
+    ret->emplace_back(
+        DimReciprocal<tOut<ShapeDialectTempDim>, tIn<ShapeDialectTensorDim>>{
+            temp_dim, tensor_dim});
+  }
+  return temp_dims;
 }
 
-void BuildTensorShapeDialectConstraints(
+// (a * b == c * d) => (a = c * d * 1/b)
+List<DimVar> CollectProductDimVarExceptIdx(
+    const List<ShapeDialectTensorDim>& tensor_dims,
+    const List<ShapeDialectTempDim>& temp_dims,
+    std::size_t ignore_idx) {
+  List<DimVar> ret{};
+  for (const auto& tensor_dim : *tensor_dims) {
+    ret->emplace_back(tensor_dim);
+  }
+  for (std::size_t i = 0; i < temp_dims->size(); ++i) {
+    if (i == ignore_idx) {
+      continue;
+    }
+    ret->emplace_back(temp_dims->at(i));
+  }
+  return ret;
+}
+
+void GenerateProductEqualConstraints(const ::pir::Value& lhs_tensor,
+                                     const ::pir::Value& rhs_tensor,
+                                     DimEquations* ret) {
+  List<ShapeDialectTensorDim> lhs_tensor_dims =
+      MakeShapeDialectTensorDimList(lhs_tensor);
+  List<ShapeDialectTensorDim> rhs_tensor_dims =
+      MakeShapeDialectTensorDimList(rhs_tensor);
+
+  List<ShapeDialectTempDim> lhs_reciprocal_dims =
+      GenerateReciprocalConstraints(lhs_tensor_dims, ret);
+  List<ShapeDialectTempDim> rhs_reciprocal_dims =
+      GenerateReciprocalConstraints(rhs_tensor_dims, ret);
+  for (std::size_t i = 0; i < lhs_tensor_dims; ++i) {
+    ret->emplace_back(
+        DimProduct<tOut<ShapeDialectTensorDim>, tIn<List<DimVar>>>{
+            lhs_tensor_dims->at(i),
+            CollectProductDimVarExceptIdx(
+                rhs_tensor_dims, lhs_reciprocal_dims, i)});
+  }
+  for (std::size_t i = 0; i < rhs_tensor_dims; ++i) {
+    ret->emplace_back(
+        DimProduct<tOut<ShapeDialectTensorDim>, tIn<List<DimVar>>>{
+            rhs_tensor_dims->at(i),
+            CollectProductDimVarExceptIdx(
+                lhs_tensor_dims, rhs_reciprocal_dims, i)});
+  }
+}
+
+std::vector<::pir::shape::SymbolicDimOp> CreateSymbolicDimsFromValue(
+    const ::pir::Value& tensor, const ::pir::SymbolicDimMgr* symbolic_dim_mgr) {
+  std::vector<::pir::shape::SymbolicDimOp> dims =
+      const_cast<::pir::SymbolicDimMgr*>(symbolic_dim_mgr)
+          ->CreateSymbolicDimsForRankedValue(tensor);
+  CHECK_EQ(dims.size(),
+           hlir::framework::pir::CompatibleInfo::ValueShape(tensor).size());
+}
+
+void GenerateDimEqualConstraints(
+    const std::vector<::pir::shape::SymbolicDimOp>& lhs_dims,
+    const std::vector<::pir::shape::SymbolicDimOp>& rhs_dims,
     const ::pir::Value& lhs_tensor,
     const ::pir::Value& rhs_tensor,
     const ::pir::SymbolicDimMgr* symbolic_dim_mgr,
-    ShapeDialectConstraints* ret) {
-  const std::vector<::pir::shape::SymbolicDimOp>& lhs_dims =
-      const_cast<::pir::SymbolicDimMgr*>(symbolic_dim_mgr)
-          ->CreateSymbolicDimsForRankedValue(lhs_tensor);
-  CHECK_EQ(lhs_dims.size(),
-           hlir::framework::pir::CompatibleInfo::ValueShape(lhs_tensor).size());
-  const std::vector<::pir::shape::SymbolicDimOp>& rhs_dims =
-      const_cast<::pir::SymbolicDimMgr*>(symbolic_dim_mgr)
-          ->CreateSymbolicDimsForRankedValue(rhs_tensor);
-  CHECK_EQ(rhs_dims.size(),
-           hlir::framework::pir::CompatibleInfo::ValueShape(rhs_tensor).size());
-
+    DimFunctions* ret) {
   VisitEachIdxPairOfTwoVectors(
       lhs_dims, rhs_dims, [&](std::size_t lhs_idx, std::size_t rhs_idx) {
         const ::pir::shape::SymbolicDimOp& lhs_dim = lhs_dims.at(lhs_idx);
         const ::pir::shape::SymbolicDimOp& rhs_dim = rhs_dims.at(rhs_idx);
         if (const_cast<::pir::SymbolicDimMgr*>(symbolic_dim_mgr)
                 ->IsSymbolicDimEqual(lhs_dim, rhs_dim)) {
-          ShapeDialectSymbolicDim lhs_adt_dim{lhs_tensor, lhs_idx};
-          ShapeDialectSymbolicDim rhs_adt_dim{rhs_tensor, rhs_idx};
-          ret->emplace_back(Equal<ShapeDialectDimExpr, ShapeDialectDimExpr>{
-              ShapeDialectAtomicDim{lhs_adt_dim},
-              ShapeDialectAtomicDim{rhs_adt_dim}});
+          ShapeDialectTensorDim lhs_adt_dim{lhs_tensor, lhs_idx};
+          ShapeDialectTensorDim rhs_adt_dim{rhs_tensor, rhs_idx};
+          ret->emplace_back(DimIdentity<tOut<ShapeDialectTensorDim>,
+                                        tOut<ShapeDialectTensorDim>>{
+              lhs_adt_dim, rhs_adt_dim});
+          ret->emplace_back(DimIdentity<tOut<ShapeDialectTensorDim>,
+                                        tOut<ShapeDialectTensorDim>>{
+              rhs_adt_dim, lhs_adt_dim});
         }
       });
+}
+
+void BuildTensorShapeDialectConstraints(
+    const ::pir::Value& lhs_tensor,
+    const ::pir::Value& rhs_tensor,
+    const ::pir::SymbolicDimMgr* symbolic_dim_mgr,
+    DimFunctions* ret) {
+  std::vector<::pir::shape::SymbolicDimOp> lhs_dims =
+      CreateSymbolicDimsFromValue(lhs_tensor, symbolic_dim_mgr);
+  std::vector<::pir::shape::SymbolicDimOp> rhs_dims =
+      CreateSymbolicDimsFromValue(lhs_tensor, symbolic_dim_mgr);
+
+  GenerateDimEqualConstraints(
+      lhs_dims, rhs_dims, lhs_tensor, rhs_tensor, symbolic_dim_mgr, ret);
 
   if (const_cast<::pir::SymbolicDimMgr*>(symbolic_dim_mgr)
           ->IsSymbolicDimProductEqual(SymbolicDimProduct{lhs_dims},
                                       SymbolicDimProduct{rhs_dims})) {
-    CreateProductEqualConstraints(lhs_tensor, rhs_tensor, ret);
+    GenerateProductEqualConstraints(lhs_tensor, rhs_tensor, ret);
   }
 }
 
-ShapeDialectConstraints BuildGraphShapeDialectConstraints(
+DimFunctions BuildGraphShapeDialectConstraints(
     const cinn::hlir::framework::pir::Group* group,
     const ::pir::SymbolicDimMgr* symbolic_dim_mgr) {
-  ShapeDialectConstraints ret{};
+  DimFunctions ret{};
   for (const ::pir::Operation* op_node : group->ops) {
     VisitEachTensorPairOfOp(
         op_node, [&](const ::pir::Value& lhs, const ::pir::Value& rhs) {
@@ -336,44 +333,271 @@ ShapeDialectConstraints BuildGraphShapeDialectConstraints(
   return ret;
 }
 
-// ADT_TODO();
-using GraphView =
-    EquationGraphTopoWalker<ShapeDialectSymbolicDim, const DimFunction*>;
+}  // namespace
 
-GraphView MakeEquationGraphView(const ShapeDialectConstraints& constraints,
-                                const cinn::hlir::framework::pir::Group* group,
-                                const ::pir::SymbolicDimMgr* symbolic_dim_mgr) {
-  ADT_TODO();
+namespace {
+
+std::unordered_set<std::string> GetAllOutputNames(
+    const std::vector<::pir::Operation*>& nodes) {
+  std::unordered_set<std::string> output_names;
+  for (const auto* op_node : nodes) {
+    for (const ::pir::Value& out_node :
+         const_cast<::pir::Operation*>(op_node)->results()) {
+      output_names.emplace(
+          hlir::framework::pir::CompatibleInfo::ValueName(out_node));
+    }
+  }
+  return output_names;
 }
 
-std::unordered_map<ShapeDialectSymbolicDim, DimExpr> MakeEquationStartExpr(
-    const GraphView& graph_view,
-    const cinn::hlir::framework::pir::Group* group,
-    const ::pir::SymbolicDimMgr* symbolic_dim_mgr) {
-  ADT_TODO();
+List<::pir::Value> GetFeedList(
+    const std::vector<::pir::Operation*>& op_nodes,
+    const std::unordered_set<std::string>& out_names) {
+  List<::pir::Value> ret{};
+  // if the op's input var name cannot found in out_names, it is the group's
+  // feed var
+  std::unordered_set<std::string> feed_names;
+  for (const auto* op_node : op_nodes) {
+    for (const ::pir::Value in_node : op_node->operands_source()) {
+      const auto& node_id =
+          hlir::framework::pir::CompatibleInfo::ValueName(in_node);
+      if (!out_names.count(node_id) && !feed_names.count(node_id)) {
+        feed_names.emplace(node_id);
+        ret->emplace_back(in_node);
+      }
+    }
+  }
+  return ret;
+}
+
+template <typename DoEachT>
+void VisitEachTensor(const List<::pir::Value>& tensors, const DoEachT& DoEach) {
+  for (const auto& tensor : *tensors) {
+    DoEach(tensor);
+  }
+}
+
+std::unordered_map<DimVar, const DimExpr> MakeEquationStartExpr(
+    const cinn::hlir::framework::pir::Group* group) {
+  std::unordered_map<DimVar, const DimExpr> ret{};
+  std::unordered_set<std::string> output_names = GetAllOutputNames(group->ops);
+  List<::pir::Value> feed_tensors = GetFeedList(group->ops, output_names);
+  VisitEachTensor(feed_tensors, [&](const ::pir::Value& tensor) {
+    std::vector<int> shape =
+        hlir::framework::pir::CompatibleInfo::ValueShape(tensor);
+    for (std::size_t i = 0; i < shape.size(); ++i) {
+      ShapeDialectTensorDim tensor_dim{tensor, i};
+      if (shape.at(i) > 0) {
+        CHECK(ret.emplace(tensor_dim, std::int64_t(shape.at(i))).second);
+      } else if (shape.at(i) == -1) {
+        SymbolicDim symbolic_dim{UniqueId::New()};
+        CHECK(ret.emplace(tensor_dim, symbolic_dim).second);
+      } else {
+        LOG(FATAL) << "Dead code. Invalid tensor shape = " << shape.at(i);
+      }
+    }
+  });
+  return ret;
+}
+
+}  // namespace
+
+namespace {
+
+template <>
+struct GraphTrait<DimVar, DimFunction> {
+  static std::pair<std::unordered_set<DimVar>, std::unordered_set<DimVar>>
+  CollectInputAndOutputVariables(const DimFunction& function) {
+    std::unordered_set<DimVar> in_variables;
+    std::unordered_set<DimVar> out_variables;
+
+    function >>
+        match{
+            [&](const DimIdentity<tOut<ShapeDialectTensorDim>,
+                                  tIn<ShapeDialectTensorDim>>& identity) {
+              const auto& [out_tensor_dim, in_tensor_dim] = identity.tuple();
+              out_variables.emplace(DimVar{out_tensor_dim.value()});
+              in_variables.emplace(DimVar{in_tensor_dim.value()});
+            },
+            [&](const DimProduct<tOut<ShapeDialectTensorDim>,
+                                 List<tIn<DimVar>>>& dim_product) {
+              const auto& [out_tensor_dim, in_dim_vars] = dim_product.tuple();
+              out_variables.emplace(DimVar{out_tensor_dim.value()});
+              for (const auto& in_dim_var : *in_dim_vars) {
+                in_variables.emplace(in_dim_var.value());
+              }
+            },
+            [&](const DimReciprocal<tOut<ShapeDialectTempDim>,
+                                    tIn<ShapeDialectTensorDim>>& reciprocal) {
+              const auto& [out_temp_dim, in_tensor_dim] = reciprocal.tuple();
+              out_variables.emplace(DimVar{out_temp_dim.value()});
+              in_variables.emplace(DimVar{in_tensor_dim.value()});
+            },
+        };
+    return std::make_pair(in_variables, out_variables);
+  }
+};
+
+using DimGraphView = EquationGraphTopoWalker<DimVar, const DimFunction*>;
+
+DimGraphView MakeEquationGraphView(const DimFunctions& dim_functions) {
+  return Graph<DimVar, DimFunction>::New(dim_functions).GetGraphView();
+}
+
+class DimIndexExprInferContext final {
+ public:
+  DimIndexExprInferContext(const DimIndexExprInferContext&) = delete;
+  DimIndexExprInferContext(DimIndexExprInferContext&&) = delete;
+
+  explicit DimIndexExprInferContext(
+      const std::unordered_map<DimVar, const DimExpr>& dim_var2dim_expr)
+      : dim_var2dim_expr_(dim_var2dim_expr) {}
+
+  const DimExpr& GetValue(const DimVar& dim_var) const {
+    CHECK(HasValue(dim_var));
+    return dim_var2dim_expr_.at(dim_var);
+  }
+
+  auto SetValue(const DimVar& dim_var, const DimExpr& dim_expr) {
+    return dim_var2dim_expr_.emplace(dim_var, dim_expr);
+  }
+
+  bool HasValue(const DimVar& dim_var) const {
+    return dim_var2dim_expr_.count(dim_var) > 0;
+  }
+
+ private:
+  std::unordered_map<DimVar, const DimExpr> dim_var2dim_expr_;
+};
+
+std::unordered_map<DimVar, DimExpr> InferValuesImpl(
+    const DimReciprocal<tOut<ShapeDialectTempDim>, tIn<ShapeDialectTensorDim>>&
+        dim_reciprocal,
+    const IndexExprInferContext* ctx) {
+  std::unordered_map<DimVar, DimExpr> ret{};
+  const auto& [out_temp_dim, in_tensor_dim] = dim_identity.tuple();
+  ret.emplace(out_temp_dim.value(), ctx->GetValue(in_tensor_dim.value()));
+  return ret;
+}
+
+std::unordered_map<DimVar, DimExpr> InferValuesImpl(
+    const DimProduct<tOut<ShapeDialectTensorDim>, List<tIn<DimVar>>>&
+        dim_product,
+    const IndexExprInferContext* ctx) {
+  std::unordered_map<DimVar, DimExpr> ret{};
+  const auto& [out_tensor_dim, in_dim_vars] = dim_product.tuple();
+  List<DimExpr> in_dim_exprs{};
+  for (const auto& in_dim_var : *in_dim_vars) {
+    in_dim_exprs->emplace_back(ctx->GetValue(in_dim_var.value()));
+  }
+  ret->emplace(out_tensor_dim.value(), Product<DimExpr>{in_dim_exprs});
+  return ret;
+}
+
+std::unordered_map<DimVar, DimExpr> InferValuesImpl(
+    const DimIdentity<tOut<ShapeDialectTensorDim>, tIn<ShapeDialectTensorDim>>&
+        dim_identity,
+    const IndexExprInferContext* ctx) {
+  std::unordered_map<DimVar, DimExpr> ret{};
+  const auto& [out_tensor_dim, in_tensor_dim] = dim_identity.tuple();
+  ret.emplace(out_tensor_dim.value(), ctx->GetValue(in_tensor_dim.value()));
+  return ret;
+}
+
+std::unordered_map<DimVar, DimExpr> InferValues(
+    const DimFunction* function, const DimIndexExprInferContext* ctx) {
+  return std::visit(
+      [&](auto&& function) { return InferValuesImpl(function, ctx); },
+      function->variant());
+}
+
+void MergeInferedValuesIntoCtx(const DimFunction* function,
+                               DimIndexExprInferContext* ctx) {
+  auto output_variable2value = InferValues(function, ctx);
+  for (const auto& [dim_var, unsimplified_value] : output_variable2value) {
+    DimExpr simplified_dim_expr = SimplifyDimExpr(unsimplified_value);
+    if (!ctx->HasValue(dim_var)) {
+      ctx->SetValue(dim_var, simplified_dim_expr);
+    } else {
+      const DimExpr& old_dim_expr = ctx->GetValue(dim_var);
+      if (simplified_dim_expr != old_dim_expr) {
+        LOG(FATAL) << "DimExpr Conflict! old_dim_expr = "
+                   << ToTxtString(old_dim_expr)
+                   << ", new_dim_expr = " << ToTxtString(simplified_dim_expr);
+      }
+    }
+  }
+}
+
+std::unordered_set<::pir::Value> CollectAllTensors(
+    const cinn::hlir::framework::pir::Group* group) {
+  std::unordered_set<::pir::Value> ret{};
+  for (const ::pir::Operation* op : group->ops) {
+    for (const ::pir::Value tensor : op->operands_source()) {
+      ret.emplace(tensor);
+    }
+    for (const ::pir::Value tensor : op->results()) {
+      ret.emplace(tensor);
+    }
+  }
+  return ret;
+}
+
+std::unordered_map<::pir::Value, std::vector<std::optional<DimExpr>>>
+MakeValue2DimExpr(const cinn::hlir::framework::pir::Group* group,
+                  const DimIndexExprInferContext* ctx) {
+  std::unordered_set<::pir::Value> tensors = CollectAllTensors(group);
+  std::unordered_map<::pir::Value, std::vector<std::optional<DimExpr>>> ret{};
+
+  for (const ::pir::Value& tensor : tensors) {
+    int rank = hlir::framework::pir::CompatibleInfo::ValueShape(tensor).size();
+    std::vector<std::optional<DimExpr>> dim_exprs{};
+    dim_exprs.reserve(rank);
+    for (std::size_t i = 0; i < rank; ++i) {
+      ShapeDialectTensorDim tensor_dim{tensor, i};
+      if (ctx->HasValue(tensor_dim)) {
+        dim_exprs.emplace_back(ctx->GetValue(tensor_dim));
+      } else {
+        dim_exprs.emplace_back(std::nullopt);
+      }
+    }
+    CHECK(ret.emplace(tensor, dim_exprs));
+  }
+  return ret;
 }
 
 std::unordered_map<::pir::Value, std::vector<std::optional<DimExpr>>>
 SolveShapeDialectConstraints(
-    const GraphView& graph_view,
-    const std::unordered_map<ShapeDialectSymbolicDim, DimExpr>&
-        equation_start) {
-  ADT_TODO();
+    const cinn::hlir::framework::pir::Group* group,
+    const DimFunctions& dim_functions,
+    const std::unordered_map<DimVar, DimExpr>& equation_start) {
+  const DimGraphView& graph_view = MakeEquationGraphView(dim_functions);
+  auto infer_ctx = std::make_shared<DimIndexExprInferContext>(equation_start);
+
+  vector<DimVar> start_vars{};
+  for (const auto& [dim_var, _] : equation_start) {
+    start_vars.emplace_back(dim_var);
+  }
+
+  graph_view.WalkFunction(
+      start_vars.begin(), start_vars.end(), [&](const DimFunction* function) {
+        MergeInferedValuesIntoCtx(function, infer_ctx.get());
+      });
+
+  return MakeValue2DimExpr(group, infer_ctx.get());
 }
 
 }  // namespace
 
 void GraphSymbolicDimInferCtx::InitTensorDimExpr() {
-  ShapeDialectConstraints constraints =
+  DimFunctions dim_functions =
       BuildGraphShapeDialectConstraints(group_, symbolic_dim_mgr_);
 
-  const auto& graph_view =
-      MakeEquationGraphView(constraints, group_, symbolic_dim_mgr_);
+  std::unordered_map<DimVar, DimExpr> equation_start =
+      MakeEquationStartExpr(group_);
 
-  const auto& equation_start =
-      MakeEquationStartExpr(graph_view, group_, symbolic_dim_mgr_);
-
-  tensor2dim_exprs_ = SolveShapeDialectConstraints(graph_view, equation_start);
+  tensor2dim_exprs_ =
+      SolveShapeDialectConstraints(group_, dim_functions, equation_start);
 }
 
 }  // namespace cinn::adt::config

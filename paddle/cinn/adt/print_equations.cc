@@ -18,6 +18,7 @@
 #include <string>
 
 #include "paddle/cinn/adt/equation_function.h"
+#include "paddle/cinn/adt/equation_graph.h"
 #include "paddle/cinn/adt/print_dim_expr.h"
 #include "paddle/cinn/hlir/framework/pir/utils.h"
 #include "paddle/pir/core/operation.h"
@@ -288,7 +289,8 @@ std::string ToDotString(
   std::unordered_set<Variable> variables{};
   for (const auto& equation : *equations) {
     const auto& [in_variables, out_variables] =
-        CollectInputAndOutputVariables(equation);
+        GraphTrait<Variable, Function>::CollectInputAndOutputVariables(
+            equation);
     ss << GetFunctionUid(equation) << "["
        << "label=\"" << GetFunctionTypeName(equation) << "<"
        << GetFunctionDataPtr(equation) << ">"

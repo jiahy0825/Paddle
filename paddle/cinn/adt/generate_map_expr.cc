@@ -101,12 +101,23 @@ void VisitEachInputTensor(const ::pir::Operation* op, const DoEachT& DoEach) {
   }
 }
 
+bool HasDynamicShape(const ::pir::Value& tensor) {
+  const auto& shape = hlir::framework::pir::CompatibleInfo::ValueShape(tensor);
+  for (int dim : shape) {
+    if (dim < 0) {
+      CHECK_EQ(dim, -1);
+      return true;
+    }
+  }
+  return false;
+}
+
 List<Arg> MakeOpStmtInputList(const ::pir::Operation* op,
                               const hlir::framework::pir::Group* group) {
   List<Arg> ret{};
 
   VisitEachInputTensor(op, [&](const ::pir::Value& tensor) {
-    if (FLAGS_cinn_map_expr_enable_dynamic_shape) {
+    if (HasDynamicShape(tensor)) {
       ret->emplace_back(adapter::DynamicTensor{tensor, group});
     } else {
       ret->emplace_back(adapter::Tensor{tensor});
@@ -128,7 +139,7 @@ List<Arg> MakeOpStmtOutputList(const ::pir::Operation* op,
   List<Arg> ret{};
 
   VisitEachOutputTensor(op, [&](const ::pir::Value& tensor) {
-    if (FLAGS_cinn_map_expr_enable_dynamic_shape) {
+    if (HasDynamicShape(tensor)) {
       ret->emplace_back(adapter::DynamicTensor{tensor, group});
     } else {
       ret->emplace_back(adapter::Tensor{tensor});
@@ -241,7 +252,7 @@ GraphView GenerateSdEquationGraphView(const std::shared_ptr<IGroup>& igroup,
 
   Equations equations = igroup->anchor_sd_equation_ctx().value().equations();
 
-  return Graph::New(equations)->GetGraphView();
+  return Graph<Variale, Equation>::New(equations)->GetGraphView();
 }
 
 using TensorIndexExpr = Value;

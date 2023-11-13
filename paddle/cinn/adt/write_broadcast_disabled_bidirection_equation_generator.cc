@@ -46,10 +46,9 @@ std::unordered_map<Variable, const Value> MakeAnchorIndex2Ok(
   return {{anchor_index, Ok{}}};
 }
 
-bool LocalEquationsSolvable(
-    const GraphView& graph_view,
-    const Index& anchor_index,
-    const FakeOpPlaceHolder& fake_op_placeholder) {
+bool LocalEquationsSolvable(const GraphView& graph_view,
+                            const Index& anchor_index,
+                            const FakeOpPlaceHolder& fake_op_placeholder) {
   const auto& init_var2value = MakeAnchorIndex2Ok(anchor_index);
   IndexExprInferContext ctx{init_var2value};
   bool has_no_conflict_value =
@@ -103,14 +102,13 @@ std::vector<Index> GenerateWriteBroadcastTensorIndexs(
     const std::shared_ptr<config::NaiveOpEquationContext>& ctx,
     const Equations& in_msg2out_msg_equations) {
   const auto& eqaution_graph_view =
-      Graph::New(ctx->equations())->GetGraphView();
+      Graph<Variable, Equation>::New(ctx->equations())->GetGraphView();
   GraphView graph_view = eqaution_graph_view.Merge(
-      Graph::New(in_msg2out_msg_equations)->GetGraphView());
+      Graph<Variable, Equation>::New(in_msg2out_msg_equations)->GetGraphView());
   std::vector<Index> ret{};
   const auto& fake_op_placeholder = ctx->fake_op_placeholder();
   ctx->VisitEachOutputTensorIndex([&](const auto& out_index) {
-    if (!LocalEquationsSolvable(
-            graph_view, out_index, fake_op_placeholder)) {
+    if (!LocalEquationsSolvable(graph_view, out_index, fake_op_placeholder)) {
       ret.emplace_back(out_index);
     }
   });
@@ -132,8 +130,7 @@ WriteBroadcastDisabledBidirectionEquationGenerator::GetDirectionEquations()
         const auto& in_msg2out_msg_equations =
             naive_bidirection_equation_generator_.equations();
         const auto& truncated_output_tensor_idxes =
-            GenerateWriteBroadcastTensorIndexs(
-                ctx, in_msg2out_msg_equations);
+            GenerateWriteBroadcastTensorIndexs(ctx, in_msg2out_msg_equations);
         ret->emplace_back(EraseIndexes(in_msg2out_msg_equations->at(idx),
                                        truncated_output_tensor_idxes));
       });
