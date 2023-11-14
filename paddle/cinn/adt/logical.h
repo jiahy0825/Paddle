@@ -29,6 +29,9 @@ DEFINE_ADT_BINARY(And);
 DEFINE_ADT_BINARY(Or);
 DEFINE_ADT_UNARY(Not);
 
+template<typename T0, typename T1>
+using Equal = EQ;
+
 template <typename ValueT>
 DEFINE_ADT_UNION(Compare,
                  EQ<ValueT, ValueT>,

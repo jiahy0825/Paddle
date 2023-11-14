@@ -48,7 +48,7 @@ class NaiveOpEquationContext final : public OpEquationContext {
       GetArgStaticDimT GetOutDim,
       GetArgSymbolicDimT GetSymbolicInDim,
       GetArgSymbolicDimT GetSymbolicOutDim,
-      const hlir::framework::AttrMapType* attr_map_type)
+      cinn::utils::AttributeMap attr_map_type)
       : in_tensors_ranks_(in_tensors_ranks),
         out_tensors_ranks_(out_tensors_ranks),
         GetInDim_(GetInDim),
@@ -227,8 +227,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
   }
 
   std::optional<DimExpr> GetSymbolicDimSize(bool is_out,
-                                                    std::size_t arg_idx,
-                                                    std::size_t axis) const {
+                                            std::size_t arg_idx,
+                                            std::size_t axis) const {
     const auto* Get = (is_out ? &GetSymbolicOutDim_ : &GetSymbolicInDim_);
     const auto& opt_dim = (*Get)(arg_idx, axis);
     return opt_dim;
@@ -247,7 +247,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
     }
   }
 
-  void InitInputDimExpr(std::vector<DimTuple>* vec, const std::vector<std::uint64_t>& tensors_ranks) {
+  void InitInputDimExpr(std::vector<DimTuple>* vec,
+                        const std::vector<std::uint64_t>& tensors_ranks) {
     for (std::size_t i = 0; i < tensors_ranks.size(); ++i) {
       vec->push_back(DimTuple{});
       for (std::size_t j = 0; j < tensors_ranks.at(i); ++j) {
@@ -258,7 +259,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
     }
   }
 
-  void InitOutputDimExpr(std::vector<DimTuple>* vec, const std::vector<std::uint64_t>& tensors_ranks) {
+  void InitOutputDimExpr(std::vector<DimTuple>* vec,
+                         const std::vector<std::uint64_t>& tensors_ranks) {
     for (std::size_t i = 0; i < tensors_ranks.size(); ++i) {
       vec->push_back(DimTuple{});
       for (std::size_t j = 0; j < tensors_ranks.at(i); ++j) {
@@ -318,8 +320,8 @@ class NaiveOpEquationContext final : public OpEquationContext {
   }
 
   const utils::Attribute& GetAttribute(const std::string& name) const {
-    const auto& iter = attr_map_type_->find(name);
-    CHECK(iter != attr_map_type_->end())
+    const auto& iter = attr_map_type_.find(name);
+    CHECK(iter != attr_map_type_.end())
         << "Can't find Attribute with this name";
     return iter->second;
   }
@@ -331,7 +333,7 @@ class NaiveOpEquationContext final : public OpEquationContext {
   GetArgSymbolicDimT GetSymbolicInDim_;
   GetArgSymbolicDimT GetSymbolicOutDim_;
   Equations equations_;
-  const hlir::framework::AttrMapType* attr_map_type_;
+  const cinn::utils::AttributeMap attr_map_type_;
   FakeOpPlaceHolder fake_op_placeholder_;
 
   std::vector<IteratorTuple> in_iterator_tuples_;

@@ -19,13 +19,16 @@
 #include <vector>
 
 #include "paddle/cinn/adt/dim_expr.h"
-#include "paddle/cinn/hlir/framework/node.h"
+#include "paddle/cinn/utils/type_defs.h"
+#include "paddle/pir/core/value.h"
+namespace pir {
+class Operation;
+class SymbolicDimMgr;
+}  // namespace pir
 
-namespace cinn::hlir::framework {
-class Graph;
-class NodeData;
-class Node;
-}  // namespace cinn::hlir::framework
+namespace cinn::hlir::framework::pir {
+struct Group;
+}  // namespace cinn::hlir::framework::pir
 
 namespace cinn::adt::config {
 
@@ -34,48 +37,29 @@ class GraphSymbolicDimInferCtx {
   GraphSymbolicDimInferCtx(const GraphSymbolicDimInferCtx&) = delete;
   GraphSymbolicDimInferCtx(GraphSymbolicDimInferCtx&&) = delete;
 
-  explicit GraphSymbolicDimInferCtx(const hlir::framework::Graph* graph)
-      : graph_(graph) {
-    InitOp2TensorRanks();
-    InitGraphInputDimExpr();
+  explicit GraphSymbolicDimInferCtx(
+      const cinn::hlir::framework::pir::Group* group,
+      const ::pir::SymbolicDimMgr* symbolic_dim_mgr)
+      : group_(group), symbolic_dim_mgr_(symbolic_dim_mgr) {
+    InitTensorDimExpr();
   }
 
-  const hlir::framework::Graph* graph() const { return graph_; }
-
-  const std::vector<std::uint64_t>& GetInTensorsRanks(
-      const hlir::framework::Node* node) const;
-
-  std::uint64_t GetNumOutTensors(const hlir::framework::Node* node) const;
-
-  const DimExpr& GetInputDimExpr(const hlir::framework::Node* node,
-                                         std::size_t arg_idx,
-                                         std::size_t dim_idx) const;
+  const cinn::hlir::framework::pir::Group* group() const { return group_; }
 
   const std::vector<std::optional<DimExpr>>& GetTensorDimExprs(
-      const hlir::framework::NodeData* tensor) const {
+      const ::pir::Value tensor) const {
     const auto& iter = tensor2dim_exprs_.find(tensor);
     CHECK(iter != tensor2dim_exprs_.end());
     return iter->second;
   }
 
-  void SetOutputDimExpr(const hlir::framework::Node* node,
-                        std::size_t arg_idx,
-                        std::size_t dim_idx,
-                        const DimExpr& value);
-
-  const hlir::framework::AttrMapType& GetAttributeMap(
-      const hlir::framework::Node* node) const;
-
  private:
-  void InitOp2TensorRanks();
-  void InitGraphInputDimExpr();
+  void InitTensorDimExpr();
 
-  const hlir::framework::Graph* graph_;
-  std::unordered_map<const hlir::framework::NodeData*,
-                     std::vector<std::optional<DimExpr>>>
+  const cinn::hlir::framework::pir::Group* group_;
+  const ::pir::SymbolicDimMgr* symbolic_dim_mgr_;
+  std::unordered_map<::pir::Value, std::vector<std::optional<DimExpr>>>
       tensor2dim_exprs_;
-  std::unordered_map<const hlir::framework::Node*, std::vector<std::uint64_t>>
-      op2input_ranks_;
 };
 
 }  // namespace cinn::adt::config

@@ -21,6 +21,7 @@
 #include "paddle/cinn/adt/print_schedule_mesh.h"
 #include "paddle/cinn/adt/print_value.h"
 #include "paddle/cinn/adt/schedule_descriptor.h"
+#include "paddle/cinn/hlir/framework/pir/utils.h"
 #include "paddle/cinn/runtime/flags.h"
 
 PD_DECLARE_bool(cinn_map_expr_enable_index_detail);
@@ -58,14 +59,14 @@ namespace {
 std::string ToTxtStringImpl(const adapter::Tensor& tensor) {
   std::string ret;
   ret += "t_";
-  ret += tensor.node_data->id();
+  ret += hlir::framework::pir::CompatibleInfo::ValueName(tensor.node_data);
   return ret;
 }
 
 std::string ToTxtStringImpl(const adapter::DynamicTensor& tensor) {
   std::string ret;
   ret += "t_";
-  ret += tensor.node_data->id();
+  ret += hlir::framework::pir::CompatibleInfo::ValueName(tensor.node_data);
   return ret;
 }
 
@@ -109,18 +110,16 @@ std::string ArgsToTxtString(const List<Arg>& out_args,
   return ArgsToTxtString(out_args, in_args, GetEmptyStr, GetEmptyStr);
 }
 
-std::string ToTxtStringOpImpl(const hlir::framework::Node* op) {
-  return op->op()->name;
+std::string ToTxtStringOpImpl(const ::pir::Operation* op) {
+  return hlir::framework::pir::CompatibleInfo::OpName(*op);
 }
 
-std::string ToTxtStringOpImpl(
-    const tReduceInit<const hlir::framework::Node*>& op) {
-  return op.value()->op()->name + "_init";
+std::string ToTxtStringOpImpl(const tReduceInit<const ::pir::Operation*>& op) {
+  return ToTxtStringOpImpl(op.value()) + "_init";
 }
 
-std::string ToTxtStringOpImpl(
-    const tReduceAcc<const hlir::framework::Node*>& op) {
-  return op.value()->op()->name + "_acc";
+std::string ToTxtStringOpImpl(const tReduceAcc<const ::pir::Operation*>& op) {
+  return ToTxtStringOpImpl(op.value()) + "_acc";
 }
 
 std::string ToTxtString(const Op& op) {
