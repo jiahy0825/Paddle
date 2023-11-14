@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "paddle/cinn/adt/generate_map_expr.h"
+
 #include "paddle/cinn/adt/anchor_sd_equation_context.h"
 #include "paddle/cinn/adt/equation.h"
 #include "paddle/cinn/adt/equation_solver.h"
@@ -26,7 +27,6 @@
 #include "paddle/cinn/adt/partition_op_stmts.h"
 #include "paddle/cinn/adt/print.h"
 #include "paddle/cinn/adt/schedule_descriptor.h"
-#include "paddle/cinn/adt/symbolic_dim_infer_util.h"
 #include "paddle/cinn/adt/tree.h"
 #include "paddle/cinn/hlir/framework/pir/group.h"
 #include "paddle/cinn/hlir/framework/pir/utils.h"
@@ -252,7 +252,7 @@ GraphView GenerateSdEquationGraphView(const std::shared_ptr<IGroup>& igroup,
 
   Equations equations = igroup->anchor_sd_equation_ctx().value().equations();
 
-  return Graph<Variale, Equation>::New(equations)->GetGraphView();
+  return Graph<Variable, Equation>::New(equations)->GetGraphView();
 }
 
 using TensorIndexExpr = Value;
