@@ -25,7 +25,7 @@
 #include "paddle/cinn/hlir/op/external_api_registry.h"
 #include "paddle/cinn/hlir/pe/map_expr_to_ir.h"
 #include "paddle/cinn/ir/dim.h"
-#include "paddle/cinn/ir/group_schedule/base_group_scheduler.h"
+#include "paddle/cinn/ir/group_schedule/dy_shape_group_scheduler.h"
 #include "paddle/cinn/ir/group_schedule/st_shape_group_scheduler.h"
 #include "paddle/cinn/ir/schedule/ir_schedule.h"
 #include "paddle/cinn/lang/placeholder.h"
@@ -137,8 +137,8 @@ BucketLoweredFuncsWrapper OpLowererImpl::BucketLower(const GroupPtr& group,
     }
 
     std::unique_ptr<ir::GroupScheduler> group_scheduler =
-        ir::GroupScheduler::Make(
-            &ir_sch, output_tensor_names, target_, /* is_dy_shape = */ true);
+        std::make_unique<ir::DynamicShapeGroupScheduler>(
+            &ir_sch, output_tensor_names, target_);
     group_scheduler->Schedule();
     cond2func_bodies = group_scheduler->GetIRs();
   } else {
@@ -706,8 +706,8 @@ ir::Expr OpLowererImpl::DoGroupSchedule(
       std::inserter(output_tensor_names, output_tensor_names.begin()),
       [&](::pir::Operation* op) { return ValueName(op->result(0)); });
   std::unique_ptr<ir::GroupScheduler> group_scheduler =
-      ir::GroupScheduler::Make(
-          &ir_sch, output_tensor_names, target_, /* is_dy_shape = */ false);
+      std::make_unique<ir::StaticShapeGroupScheduler>(
+          &ir_sch, output_tensor_names, target_);
   group_scheduler->Schedule();
   return ir_sch.GetModule().GetExprs().at(0);
 }

@@ -13,25 +13,9 @@
 // limitations under the License.
 
 #include "paddle/cinn/ir/group_schedule/base_group_scheduler.h"
-#include "paddle/cinn/ir/group_schedule/dy_shape_group_scheduler.h"
-#include "paddle/cinn/ir/group_schedule/st_shape_group_scheduler.h"
 
 namespace cinn {
 namespace ir {
-
-std::unique_ptr<GroupScheduler> GroupScheduler::Make(
-    ir::IRSchedule* ir_sch,
-    const std::unordered_set<std::string>& output_tensor_names,
-    const cinn::common::Target& target,
-    bool is_dy_shape) {
-  if (is_dy_shape) {
-    return std::make_unique<DynamicShapeGroupScheduler>(
-        ir_sch, output_tensor_names, target);
-  } else {
-    return std::make_unique<StaticShapeGroupScheduler>(
-        ir_sch, output_tensor_names, target);
-  }
-}
 
 std::unordered_set<std::string> GroupScheduler::OutputTensorNames() const {
   std::unordered_set<std::string> output_tensor_names{output_tensor_names_};

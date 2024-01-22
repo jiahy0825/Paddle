@@ -19,7 +19,7 @@
 #include "paddle/cinn/hlir/framework/graph_compiler_util.h"
 #include "paddle/cinn/hlir/framework/op_lowering_util.h"
 #include "paddle/cinn/hlir/op/external_api_registry.h"
-#include "paddle/cinn/ir/group_schedule/base_group_scheduler.h"
+#include "paddle/cinn/ir/group_schedule/st_shape_group_scheduler.h"
 #include "paddle/cinn/ir/schedule/ir_schedule.h"
 #include "paddle/cinn/optim/transform_gpu_forloop.h"
 #include "paddle/cinn/runtime/flags.h"
@@ -483,8 +483,8 @@ ir::Expr OpLowererImpl::DoGroupSchedule(
           return node_data->id();
         });
     std::unique_ptr<ir::GroupScheduler> group_scheduler =
-        ir::GroupScheduler::Make(
-            &ir_sch, output_tensor_names, target_, /* is_dy_shape = */ false);
+        std::make_unique<ir::StaticShapeGroupScheduler>(
+            &ir_sch, output_tensor_names, target_);
     group_scheduler->Schedule();
     return ir_sch.GetModule().GetExprs().at(0);
   }
