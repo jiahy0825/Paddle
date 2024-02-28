@@ -54,6 +54,7 @@ class AnalyzeLoopVarRange : public ir::IRMutator<> {
     ir::For* for_ir = expr->As<ir::For>();
     std::string var_name = for_ir->loop_var->name;
     Expr extent = for_ir->extent;
+    // For 循环上界
     var_name_to_extent_[var_name] = extent;
     if (for_ir->is_binded()) {
       const ir::BindInfo& bind_info = for_ir->bind_info();
@@ -88,11 +89,11 @@ class AnalyzeLoopVarRange : public ir::IRMutator<> {
     const std::vector<ir::Expr>& iter_values = x->iter_values;
     for (int i = 0; i < iter_vars.size(); ++i) {
       const std::string& var_name = iter_vars[i]->name;
-      VLOG(6) << "Analyzing var_name = " << var_name
+      VLOG(2) << "Analyzing var_name = " << var_name
               << ", expression = " << iter_values[i];
       Expr bind_value = MaxIndexRange(iter_values[i]);
 
-      VLOG(6) << "Get extent of " << var_name
+      VLOG(2) << "Get extent of " << var_name
               << ", bind_value = " << bind_value;
       var_name_to_extent_[var_name] = bind_value;
     }
@@ -246,13 +247,13 @@ class ResizeBufferFromAnalyzedRange : public ir::IRMutator<> {
 };
 
 void ResizeBufferToMaxVarRange(ir::Expr* expr) {
-  VLOG(6) << "Before ResizeBufferToMaxVarRange, Expr = \n" << *expr;
+  VLOG(2) << "Before ResizeBufferToMaxVarRange, Expr = \n" << *expr;
   AnalyzeLoopVarRange analyze_functor;
   analyze_functor(expr);
   ResizeBufferFromAnalyzedRange resize_functor(
       analyze_functor.buffer_name_to_indice_extent);
   resize_functor(expr);
-  VLOG(6) << "After ResizeBufferToMaxVarRange, Expr = \n" << *expr;
+  VLOG(2) << "After ResizeBufferToMaxVarRange, Expr = \n" << *expr;
 }
 
 }  // namespace optim

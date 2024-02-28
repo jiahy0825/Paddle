@@ -815,6 +815,13 @@ class CinnGroupClusterPattern
       ir_mapping.Add(val, val);
     }
 
+    std::unordered_map<::pir::Value, size_t> all_ouput_values;
+    auto yield_op = group_op.GetOperators().back();
+    for (size_t i = 0; i < yield_op->num_operands(); ++i) {
+      size_t id = all_ouput_values.size();
+      all_ouput_values.emplace(yield_op->operand_source(i), id);
+    }
+
     auto split_res = GroupSplit(group_op);
 
     auto all_output_values = BuildValueOrderByYieldOp(split_res, group_op);

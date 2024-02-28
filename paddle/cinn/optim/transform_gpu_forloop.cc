@@ -366,6 +366,55 @@ class LocalAxisVisitor : public ir::IRMutator<> {
                                              "threadIdx.z"};
 };
 
+class LocalVarFactorDeliminateVisitor : public ir::IRMutator<> {
+ public:
+  void operator()(ir::Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::Store *op, Expr *expr) override {
+    auto store = expr->As<ir::Store>();
+
+    ir::IRMutator<>::Visit(op, expr);
+    if (!store->tensor.as_tensor_ref()->buffer.defined()) {
+      return;
+    }
+
+    if (store->tensor.as_tensor_ref()->buffer->memory_type ==
+        ir::MemoryType::GPULocal) {
+      for (auto &indice : store->indices) {
+        ir::Expr mod_res = ir::Mod::Make(indice, ir::Expr(32));
+        if (cinn::common::AutoSimplify(mod_res) == ir::Expr(0)) {
+          indice = ir::Div::Make(indice, ir::Expr(32));
+        }
+        indice = cinn::common::AutoSimplify(indice);
+      }
+    }
+  }
+
+  void Visit(const ir::Load *op, Expr *expr) override {
+    auto load = expr->As<ir::Load>();
+
+    if (load->is_addr_scalar()) {
+      return;
+    }
+    if (!load->tensor.as_tensor_ref()->buffer.defined()) {
+      return;
+    }
+
+    if (load->tensor.as_tensor_ref()->buffer->memory_type ==
+        ir::MemoryType::GPULocal) {
+      for (auto &indice : load->indices) {
+        ir::Expr mod_res = ir::Mod::Make(indice, ir::Expr(32));
+        if (cinn::common::AutoSimplify(mod_res) == ir::Expr(0)) {
+          indice = ir::Div::Make(indice, ir::Expr(32));
+        }
+        indice = cinn::common::AutoSimplify(indice);
+      }
+    }
+    ir::IRMutator<>::Visit(op, expr);
+  }
+};
+
 class ReplaceVarToZero : public ir::IRMutator<> {
  public:
   void operator()(ir::Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
@@ -424,25 +473,31 @@ void OptimizeExprGPU(Expr *expr) {
   // copy var nodes to prevent one modification leading to multiple changes
   RestructureVarNodes restructure_var_nodes;
   restructure_var_nodes(expr);
+  VLOG(2) << "After RestructureVarNodes, Expr = \n" << *expr;
 
   // replace var to bind expr
   ReplaceIndexToBindExpr replace_index_to_bind_expr;
   replace_index_to_bind_expr(expr);
+  VLOG(2) << "After ReplaceIndexToBindExpr, Expr = \n" << *expr;
 
   // resize buffer axis
   UpdateBufferAxisPass(expr);
+  VLOG(2) << "After UpdateBufferAxisPass, Expr = \n" << *expr;
 
   // replace var name with block/thread
   ReplaceLoopVarToGpu replace_loop_var_to_gpu;
   replace_loop_var_to_gpu(expr);
+  VLOG(2) << "After ReplaceLoopVarToGpu, Expr = \n" << *expr;
 
   // update shared buffer axis
   SharedAxisVisitor shared_axis_visitor;
   shared_axis_visitor(expr);
+  VLOG(2) << "After SharedAxisVisitor, Expr = \n" << *expr;
 
   // update local buffer axis
   LocalAxisVisitor local_axis_visitor;
   local_axis_visitor(expr);
+  VLOG(2) << "After local_axis_visitor, Expr = \n" << *expr;
 
   ResizeBufferToMaxVarRange(expr);
 
