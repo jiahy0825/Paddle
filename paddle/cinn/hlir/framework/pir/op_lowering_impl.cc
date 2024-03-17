@@ -195,9 +195,9 @@ std::shared_ptr<cinn::ir::GroupTileInfo> OpLowererImpl::GetGroupTileInfo(
     reduce_inner_num = 8;
   } else if (reduce_numel > 2048) {
     spatial_block = 1;
-    reduce_block = 2048;
-    warp_num = 8;
-    reduce_inner_num = int64_t(std::ceil(reduce_numel * 1.0 / 256.0));
+    reduce_block = int64_t(std::ceil(reduce_numel * 1.0 / 1024.0)) * 1024;
+    warp_num = 32;
+    reduce_inner_num = int64_t(std::ceil(reduce_numel * 1.0 / 1024.0));
     spatial_inner_num = 1;
   }
 
@@ -914,7 +914,7 @@ std::vector<ir::LoweredFunc> OpLowererImpl::PostProcess(
   for (ir::Expr func_body : func_bodies) {
     optim::EliminateDeadScheduleBlock(&(func_body), group->output_names);
 #ifdef CINN_WITH_CUDA
-    // optim::EliminateCommonGlobalMemoryRead(&(func_body));
+    optim::EliminateCommonGlobalMemoryRead(&(func_body));
     optim::OptimizeExprGPU(&(func_body));
 #endif
 

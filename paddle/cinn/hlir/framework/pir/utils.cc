@@ -293,6 +293,7 @@ bool IsShapeComputeOp(const ::pir::Operation& op) {
 // TODO(zyfncg): This function is a temporary solution, we need to remove it in
 // the future.
 bool IsTempDenySpecialOp(const ::pir::Operation& op) {
+  return false;
   if (op.name() == "cinn_op.generate_shape") {
     return false;
   }
