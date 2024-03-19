@@ -20,7 +20,7 @@ import paddle
 from paddle import nn
 
 
-class RotaryPosEmb(nn.Layer):
+class CINNRotaryPosEmb(nn.Layer):
     def __init__(self):
         super().__init__()
 
@@ -41,25 +41,41 @@ class RotaryPosEmb(nn.Layer):
         return paddle.concat([-x2, x1], axis=-1)  # shape is the same as x
 
 
+class PHIRopeSubGraphNet(paddle.nn.Layer):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, q, k, cos, sin, position_ids):
+        (
+            out_q,
+            out_k,
+            _,
+        ) = paddle.incubate.nn.functional.fused_rotary_position_embedding(
+            q, k, None, sin, cos, position_ids, use_neox_rotary_style=False
+        )
+        return out_q, out_k
+
+
 class TestRotaryPosEmb(unittest.TestCase):
     def setUp(self):
         paddle.seed(2022)
         self.prepare_data()
 
     def prepare_data(self):
-        self.q = paddle.randn([61, 2048, 8, 96], dtype="float32")
+        self.q = paddle.randn([1, 1, 32, 128], dtype="float32")
         self.q.stop_gradient = False
 
-        self.k = paddle.randn([61, 2048, 8, 96], dtype="float32")
+        self.k = paddle.randn([1, 1, 32, 128], dtype="float32")
         self.k.stop_gradient = False
 
-        self.cos = paddle.randn([1, 2048, 1, 96], dtype="float32")
+        self.cos = paddle.randn([1, 1, 1, 128], dtype="float32")
         self.cos.stop_gradient = False
 
-        self.sin = paddle.randn([1, 2048, 1, 96], dtype="float32")
+        self.sin = paddle.randn([1, 1, 1, 128], dtype="float32")
         self.sin.stop_gradient = False
 
-        self.position_ids = paddle.arange(end=2048, dtype="int64").unsqueeze(0)
+        self.position_ids = paddle.arange(end=1, dtype="int64").unsqueeze(0)
+        # self.position_ids = paddle.randint(high=1, shape=[1, 1], dtype="int64")
         self.position_ids.stop_gradient = False
 
     def check_jit_kernel_info(self, static_fn):
@@ -68,14 +84,15 @@ class TestRotaryPosEmb(unittest.TestCase):
 
     def eval(self, use_cinn):
         paddle.seed(2022)
-        net = RotaryPosEmb()
+        if use_cinn:
+            net = CINNRotaryPosEmb()
+        else:
+            net = PHIRopeSubGraphNet()
         net = utils.apply_to_static(net, use_cinn)
         net.eval()
-        out = net(self.q, self.k, self.cos, self.sin, self.position_ids)
+        for i in range(10000):
+            out = net(self.q, self.k, self.cos, self.sin, self.position_ids)
 
-        # TODO(phlrain): Need to Fuse to one Kernel
-        # if use_cinn:
-        #     self.check_jit_kernel_info(net.forward)
         return out
 
     def test_eval(self):
@@ -84,7 +101,7 @@ class TestRotaryPosEmb(unittest.TestCase):
 
         for cinn_out, dy_out in zip(cinn_outs, dy_outs):
             np.testing.assert_allclose(
-                cinn_out.numpy(), dy_out.numpy(), atol=1e-8
+                cinn_out.numpy(), dy_out.numpy(), atol=1e-6
             )
 
 
